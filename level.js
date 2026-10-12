@@ -111,7 +111,7 @@ class LevelScene extends Phaser.Scene {
     this._sysm = sysm;
     this._pits = [];
     this._look = null;
-    this._pitFG = null; this._pitFM = null; this._pitSmoke = null;
+    this._pitFG = null; this._pitFM = null; this._pitSmoke = null; this._pitFire = null; this._pitSM = null;
     this._pitG = null;   // the scene object is reused between levels: drop the previous run's (destroyed) pit graphics
     this._pitStatus = { burn: { until: 0, nextTick: 0 }, poison: { until: 0, nextTick: 0 } };
     this._inPit = null;
@@ -482,8 +482,11 @@ class LevelScene extends Phaser.Scene {
     if (this._persp) { // perspective levels: the hole, its walls, the blades and the coping are all drawn every frame by _drawPitsPersp; here only the physics floor
       if (!this._pitG) this._pitG = this.add.graphics().setDepth(-0.1);
       if (!this._pitFG) {   // floor decoration layer above it, clipped to the hole openings (user 2026-10-12 bug: pebbles / flames spilled over the neighbouring ground's cross-section, which then looked transparent)
-        this._pitSmoke = this.add.graphics().setDepth(-0.05);   // black smoke of fire pits: above the hole layers, behind the characters, NOT clipped (it rises out of the hole)
+        this._pitFire = this.add.graphics().setDepth(-0.04);   // flames of fire pits: in front of the warning board text (-0.05), clipped to the hole openings like the other floor details
+        this._pitSmoke = this.add.graphics().setDepth(-0.03);   // black smoke of fire pits: behind the characters; clipped to 'the hole openings + everything above the walkway's front edge' so it never covers the cross-section
+        this._pitSM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitSmoke.setMask(this._pitSM.createGeometryMask());
         this._pitFG = this.add.graphics().setDepth(-0.1); this._pitFM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitFG.setMask(this._pitFM.createGeometryMask());
+        this._pitFire.setMask(this._pitFM.createGeometryMask());
       }
       if (pit.deep) return;   // bottomless (level data deep_pit): no floor body, no blades; falling in ends the level (see update)
       const fp = this.add.rectangle((pit.l + pit.r) / 2, pit.floor + 10, pit.r - pit.l, 20, 0x000000, 0);
@@ -548,11 +551,12 @@ class LevelScene extends Phaser.Scene {
   // backdrop parallax. The picture's bottom strip is the walkable band; each face is clipped to the visible hole (band opening + front notch). Spikes are black blades in 4 depth rows.
   _drawPitsPersp() {
     const g = this._pitG; g.clear();
-    const gs = this._pitSmoke; if (gs) gs.clear();
+    const gs = this._pitSmoke, g3 = this._pitFire, sm = this._pitSM; if (gs) gs.clear(); if (g3) g3.clear(); if (sm) sm.clear();
     const g2 = this._pitFG, hm = this._pitFM; g2.clear(); hm.clear(); hm.fillStyle(0xffffff, 1);
     const bd = this.backdrop, cf = this._persp, sx = this.cameras.main.scrollX, dw = bd.displayWidth;
     const ppr = bd.scaleY * bd.width / 3168;                                   // screen px per source-picture row
     const YB = bd.y, VPY = YB - (cf.bottom - cf.vpy) * ppr, VPX = bd.x + (cf.vpx - 0.5) * dw + sx;
+    if (sm) { sm.fillStyle(0xffffff, 1); sm.fillRect(-200, -400, GAME_W + 400, YB + 400); }   // smoke mask: the whole area above the walkway's front edge (+ the openings, added per pit below)
     const BT = YB - cf.band * ppr, yg = this.lvl.y_ground;
     const SF = (BT - VPY) / (YB - VPY), SP = (yg - VPY) / (YB - VPY);
     const P = (x, y, k) => [VPX + (k / SP) * (x - VPX), VPY + k * (y - VPY)];   // x is a world x on the FEET plane (k = SP, where the characters walk and the collision is): the hole is exactly as wide as the physical pit there, wider in front (k = 1), narrower behind
@@ -583,7 +587,7 @@ class LevelScene extends Phaser.Scene {
       const fl = P(l, YB, 1), fr = P(r, YB, 1), bl = P(l, YB, SF), br = P(r, YB, SF);
       const fFl = P(l, F, 1), fFr = P(r, F, 1), bFl = P(l, F, SF), bFr = P(r, F, SF);
       const holeParts = [[bl, br, fr, fl], [fl, fr, [fr[0], 540], [fl[0], 540]]]; // band opening (trapezoid) + front notch (rect): the union is concave on one side, so clip to each convex part
-      for (const part of holeParts) hm.fillPoints(part.map((p) => ({ x: p[0], y: p[1] })), true);   // the visible opening of this pit = the clip of the decoration layer
+      for (const part of holeParts) { hm.fillPoints(part.map((p) => ({ x: p[0], y: p[1] })), true); if (sm) sm.fillPoints(part.map((p) => ({ x: p[0], y: p[1] })), true); }   // the visible opening of this pit = the clip of the decoration layers
       let qg = g;   // quad() draws on qg (the warning board switches it to the decoration layer)
       const quad = (pts, col) => { for (const part of holeParts) { const c = clip(pts, part); if (c.length > 2) { qg.fillStyle(col, 1); qg.fillPoints(c.map((p) => ({ x: p[0], y: p[1] })), true); } } };
       const strips = (tl, tr, bl2, br2, c0, c1, n) => { // vertical gradient in n strips
@@ -658,7 +662,7 @@ class LevelScene extends Phaser.Scene {
         for (let ri = 0; ri < 3; ri++) {
           const k = SF + (1 - SF) * rowK[ri], n = rowN[ri], spacing = (r - l - 20) / n;
           const gp0 = P((l + r) / 2, F, k);
-          g2.fillStyle(0xff4a00, 0.22); g2.fillEllipse(gp0[0], gp0[1], (r - l) * 0.95 * k / SP, 16 * k);   // glow on the floor under the row
+          g3.fillStyle(0xff4a00, 0.22); g3.fillEllipse(gp0[0], gp0[1], (r - l) * 0.95 * k / SP, 16 * k);   // glow on the floor under the row
           for (let fi = 0; fi < n; fi++) {
             const fx = Math.max(l + 10, Math.min(r - 10, l + 10 + (fi + 0.5) * spacing + (ri % 2 ? 0.3 : -0.3) * spacing));
             const ph = ri * 2.1 + fi * 1.7, wB = spacing * 1.25, hB = (46 + 34 * frac(ri * 5 + fi + 1)) * (ri === 0 ? 1.15 : 1);
@@ -672,7 +676,7 @@ class LevelScene extends Phaser.Scene {
                 const pr = P(fx + dx + hw, F - hh * u, k), pl = P(fx + dx - hw, F - hh * u, k);
                 right.push({ x: pr[0], y: pr[1] }); left.unshift({ x: pl[0], y: pl[1] });
               }
-              g2.fillStyle(L[2], L[3]); g2.fillPoints(right.concat(left.slice(1)), true);
+              g3.fillStyle(L[2], L[3]); g3.fillPoints(right.concat(left.slice(1)), true);
             }
           }
         }
