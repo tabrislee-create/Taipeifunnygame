@@ -82,5 +82,5 @@ var PWA = (function () {
     build();
     return { rebuild: build, destroy: done };
   }
-  return { mkButtons: mkButtons, wanted: wanted, standalone: standalone, isIOS: isIOS, isLine: isLine, canFullscreen: canFullscreen, toggleFullscreen: toggleFullscreen, install: install, hasPrompt: function () { return !!deferred; }, _setPrompt: function (e) { deferred = e; emit(); } };
+  return { onChange: function (f) { listeners.push(f); }, isTouch: isTouch, mkButtons: mkButtons, wanted: wanted, standalone: standalone, isIOS: isIOS, isLine: isLine, canFullscreen: canFullscreen, toggleFullscreen: toggleFullscreen, install: install, hasPrompt: function () { return !!deferred; }, _setPrompt: function (e) { deferred = e; emit(); } };
 })();

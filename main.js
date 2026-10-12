@@ -3,9 +3,6 @@ var GAME_DATA = null;
 window.DEMO = true;
 var SKY_CUT_LEVELS = [1, 2, 3, 4, 5]; // Levels with transparent-sky backdrops (assets/backdrop_lvNN_sky.png)
 
-var DEMO_RENAMES = [];   // the published data is already renamed
-function demoName(str) { if (!window.DEMO || typeof str !== 'string') return str; DEMO_RENAMES.forEach(function (r) { str = str.split(r[0]).join(r[1]); }); return str; }
-
 function loadJson(url) {
   return fetch(url).then(function(r) { return r.json(); });
 }
@@ -66,6 +63,7 @@ function bootGame() {
     physics: { default: 'arcade', arcade: { gravity: { y: 1000 }, debug: false } },
     scene: [BootScene, TitleScene, CharSelectScene, LevelScene, ClearedScene, ChoiceScene, EndScene, CharPanelScene, HowToScene]
   });
+  if (window.__landingDone) setTimeout(window.__landingDone, 350);   // the loading screen (BootScene) takes over from the landing page
 }
 
 class BootScene extends Phaser.Scene {
@@ -93,7 +91,7 @@ class BootScene extends Phaser.Scene {
       fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif', fontSize: '22px', color: '#ffd966', stroke: '#000000', strokeThickness: 3,
       wordWrap: { width: Math.min(W - 80, 700), useAdvancedWrap: true }, align: 'center'
     }).setOrigin(0.5, 0);
-    this.add.text(W / 2, H / 2 + 188, TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)], {
+    this.add.text(W / 2, H / 2 + 188, demoName(TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)]), {
       fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif', fontSize: '22px', color: '#e8f0e8', stroke: '#000000', strokeThickness: 3,
       wordWrap: { width: Math.min(W - 80, 700), useAdvancedWrap: true }, align: 'center'
     }).setOrigin(0.5, 0);
@@ -190,7 +188,7 @@ class BootScene extends Phaser.Scene {
 
   create() {
     if (this._walkStep) this.game.events.off('step', this._walkStep);
-    this.scene.start('Title');
+    this.scene.start(window.__fromLanding ? 'CharSelect' : 'Title');   // started from the landing page (index.html): straight to the character select; ?go=1 / automated browsers (no landing) keep the title screen
   }
 }
 

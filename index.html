@@ -1,34 +1,158 @@
 <!DOCTYPE html>
-<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#102a18"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>台北好好玩（試玩版）</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" type="image/png" href="icon-192.png">
-<style>html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}#game{display:flex;justify-content:center;align-items:center;height:100%}#rot{display:none;position:fixed;inset:0;z-index:9999;background:#102a18;color:#fff;font:600 22px 'Microsoft JhengHei',sans-serif;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#102a18"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover"><title>台北好好玩（試玩版）</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" type="image/png" href="icon-192.png">
+<style>
+html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+#game{display:flex;justify-content:center;align-items:center;height:100%}
+/* "please rotate" overlay: only while the game is running (after the landing page's start button) and the screen is portrait */
+#rot{display:none;position:fixed;inset:0;z-index:9999;background:#102a18;color:#fff;font:600 22px 'Microsoft JhengHei',sans-serif;align-items:center;justify-content:center;flex-direction:column;text-align:center}
 #rot .ph{width:70px;height:120px;border:6px solid #fff;border-radius:14px;margin-bottom:24px;animation:rotp 2s ease-in-out infinite}
 @keyframes rotp{0%,30%{transform:rotate(0)}70%,100%{transform:rotate(-90deg)}}
-@media (orientation:portrait){#rot{display:flex}}
+@media (orientation:portrait){body.playing #rot{display:flex}}
+
+/* ---- landing page (start screen): one layout for landscape, one for portrait; the browser picks by orientation ---- */
+#landing{position:fixed;inset:0;z-index:10000;overflow:hidden;font-family:'Microsoft JhengHei','PingFang TC',sans-serif;color:#fff;background:linear-gradient(#1f4d2b,#8fd18f);transition:opacity .35s}
+#landing.out{opacity:0;pointer-events:none}
+#lbg{position:absolute;inset:-3%;background-size:cover;background-position:center;filter:blur(5px) saturate(1.05)}
+#lveil{position:absolute;inset:0;background:rgba(255,255,255,.38)}
+#lmain{position:relative;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;box-sizing:border-box;padding:2vmin 5vmin;padding-bottom:max(2vmin,env(safe-area-inset-bottom))}
+.logo{position:relative;display:block;aspect-ratio:1000/282;filter:drop-shadow(0 0 1px #000) drop-shadow(0 .6vmin .6vmin rgba(0,0,0,.55))}
+.logo img{display:block;width:100%;height:100%}
+.logo::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 38%,rgba(255,190,60,.95) 50%,transparent 62%) 0 0/300% 100%;-webkit-mask:url(assets/title_logo.png) center/100% 100% no-repeat;mask:url(assets/title_logo.png) center/100% 100% no-repeat;animation:glint 7s linear infinite}
+@keyframes glint{0%{background-position:150% 0}85%,100%{background-position:-50% 0}}
+#ltag{font-weight:700;line-height:1.35;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 3px 6px rgba(0,0,0,.5);max-width:92%}
+#lava{display:flex;gap:2.2vmin;justify-content:center}
+#lava img{width:11vmin;height:11vmin;max-width:84px;max-height:84px;border-radius:50%;object-fit:cover;background:#fff;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)}
+#lstart{appearance:none;border:2px solid rgba(255,255,255,.9);background:#2d6e3e;color:#fff;font-family:inherit;font-weight:700;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 #17381f,0 6px 12px rgba(0,0,0,.4);touch-action:manipulation}
+#lstart:active{transform:translateY(2px);box-shadow:0 2px 0 #17381f}
+#lload{display:none;width:var(--bw);text-align:center}
+#lload .bar{height:2.2vmin;min-height:12px;max-height:20px;border:2px solid #fff;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden}
+#lload .bar i{display:block;height:100%;width:0;background:#4caf50;transition:width .15s}
+#lload .txt{margin-top:1vmin;font-weight:700;text-shadow:0 2px 4px #000}
+body.loading #lstart{display:none}body.loading #lload{display:block}body.loading #linst,body.loading #lhint{visibility:hidden}
+#lflag{font-weight:800;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000}
+#lhint{opacity:.95;text-shadow:0 1px 4px #000,0 0 6px #000;font-weight:700}
+#linst{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#linst button{appearance:none;font:700 15px 'Microsoft JhengHei','PingFang TC',sans-serif;color:#fff;background:rgba(10,18,36,.82);border:2px solid rgba(255,255,255,.55);border-radius:99px;padding:6px 16px;cursor:pointer}
+#lline{display:none;font-weight:800;color:#ffd966;text-shadow:-1px -1px 0 #0a1224,1px -1px 0 #0a1224,-1px 1px 0 #0a1224,1px 1px 0 #0a1224;max-width:90%}
+#lfoot{position:absolute;left:0;right:0;bottom:max(6px,env(safe-area-inset-bottom));text-align:center;font-size:12px;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+/* landscape: short and wide - everything is sized from the screen HEIGHT */
+@media (orientation:landscape){
+  #lmain{gap:2.2vh}
+  .logo{height:25vh;max-width:62vw}
+  #lhint{display:none}   /* the hint about switching to landscape is pointless when the screen already is landscape */
+  #ltag{font-size:clamp(13px,3.6vh,26px)}
+  #lstart{width:30vw;min-width:190px;max-width:320px;height:12vh;min-height:46px;max-height:64px;font-size:clamp(18px,4.4vh,28px)}
+  #lload{--bw:44vw}#lload .txt{font-size:clamp(14px,3.4vh,20px)}
+  #lflag{font-size:clamp(16px,4.4vh,26px)}
+  #lhint{font-size:clamp(12px,3vh,17px)}
+  #lline{font-size:clamp(12px,3vh,15px)}
+  #lava img{width:12vh;height:12vh}
+}
+/* portrait: tall and narrow - everything is sized from the screen WIDTH, stacked in a column */
+@media (orientation:portrait){
+  #lmain{gap:3.2vh;padding-top:6vh}
+  .logo{width:92vw}
+  #ltag{font-size:clamp(15px,4.6vw,24px)}
+  #lstart{width:68vw;max-width:360px;height:15vw;max-height:68px;min-height:52px;font-size:clamp(20px,6vw,30px)}
+  #lload{--bw:72vw}#lload .txt{font-size:clamp(15px,4.2vw,20px)}
+  #lflag{font-size:clamp(18px,5.6vw,28px)}
+  #lhint{font-size:clamp(13px,3.8vw,17px);max-width:84vw}
+  #lline{font-size:clamp(12px,3.6vw,15px)}
+  #lava img{width:18vw;height:18vw;max-width:84px;max-height:84px}
+}
+/* install instructions (shown by the 安裝說明 button) */
+#lmodal{display:none;position:absolute;inset:0;z-index:5;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:3vmin;box-sizing:border-box}
+#lmodal.on{display:flex}
+#lbox{background:#0a1224;border:2px solid rgba(255,255,255,.25);border-radius:18px;max-width:560px;max-height:92%;overflow:auto;padding:16px 20px;box-sizing:border-box;text-align:left;font-size:15px;line-height:1.5}
+#lbox h3{margin:8px 0 6px;color:#ffc94a;font-size:18px}#lbox ol{margin:0 0 6px 20px;padding:0}#lbox button{display:block;margin:10px auto 2px;appearance:none;font:700 17px 'Microsoft JhengHei',sans-serif;color:#fff;background:#2f6fc8;border:2px solid #fff;border-radius:99px;padding:6px 36px;cursor:pointer}
 </style>
-</head><body><div id="game"></div>
+</head><body>
+<div id="game"></div>
 <div id="rot"><div class="ph"></div>請將手機橫放<br><small>橫向全螢幕才能遊玩</small></div>
+
+<div id="landing">
+  <div id="lbg"></div><div id="lveil"></div>
+  <div id="lmain">
+    <div class="logo"><img src="assets/title_logo.png" alt="台北好好玩"></div>
+    <div id="ltag"></div>
+    <div id="lava"></div>
+    <button id="lstart" type="button">開始遊戲</button>
+    <div id="lload"><div class="bar"><i></i></div><div class="txt">載入中 0%</div></div>
+    <div id="lflag"></div>
+    <div id="lhint">開始後會自動切換成橫向全螢幕</div>
+    <div id="linst"></div>
+    <div id="lline">目前在 LINE 等內建瀏覽器：無法全螢幕與安裝。請點右上角「⋯」→「用預設瀏覽器開啟」。</div>
+  </div>
+  <div id="lfoot"></div>
+  <div id="lmodal"><div id="lbox">
+    <h3>Android（Chrome）</h3><ol><li>用 Chrome 開啟遊戲網址。</li><li>點右上角「⋮」選單。</li><li>選「安裝應用程式」（舊版叫「加到主畫面」）。</li><li>確認後桌面會出現遊戲圖示，點它就能全螢幕玩。</li></ol>
+    <h3>iPhone / iPad（Safari）</h3><ol><li>一定要用 Safari 開啟遊戲網址（其他瀏覽器沒有這個選項）。</li><li>點網址列旁或下方的「分享」鈕（方框加向上箭頭）。</li><li>往下滑，選「加入主畫面」。</li><li>點右上角「新增」，桌面就會出現遊戲圖示。</li></ol>
+    <button type="button" id="lmodalok">OK</button>
+  </div></div>
+</div>
+
+<script>window.DEMO_BUILD = true;   // the public demo bundle (tools/make_demo_bundle.py) sets this to true</script>
 <script src="viewport.js?v=20261009a"></script>
-<script src="phaser.min.js?v=20261009a"></script>
-<script src="shims.js?v=20261009a"></script>
-<script src="state.js?v=20261010c"></script>
-<script src="pwa.js?v=20261012a"></script>
-<script src="effects.js?v=20261011g"></script>
-<script src="weather.js?v=20261012b"></script>
-<script src="hooks.js?v=20261012a"></script>
-<script src="hud.js?v=20261012a"></script>
-<script src="player.js?v=20261011b"></script>
-<script src="enemy.js?v=20261011c"></script>
-<script src="boss.js?v=20261009a"></script>
-<script src="extras.js?v=20261012a"></script>
-<script src="touch.js?v=20261012a"></script>
-<script src="level.js?v=20261012a"></script>
-<script src="ui.js?v=20261012b"></script>
-<script src="choice.js?v=20261012b"></script>
-<script src="charpanel.js?v=20261012b"></script>
-<script src="main.js?v=20261012b"></script>
+<script src="titlecopy.js?v=20261012a"></script>
+<script src="pwa.js?v=20261012b"></script>
 <script>
-// Fullscreen comes from installing the page as an app (manifest.webmanifest: display fullscreen, landscape); opened from the home-screen icon there is
-// no browser UI and no "viewing full screen" notice. The old first-touch requestFullscreen() call is gone: the notice it triggered is drawn by the browser and cannot be hidden.
+// Landing page + loader (user 2026-10-12): the page opens on this start screen at once (no game script loaded yet).  "開始遊戲" asks for fullscreen + landscape (touch devices), then loads the game scripts,
+// starts Phaser (its loading screen takes over) and the first scene is the character select.  ?go=1, or an automated browser (navigator.webdriver; ?landing=1 forces the landing page), skip it and start straight away.
+(function () {
+  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261009a', 'state.js?v=20261010c', 'effects.js?v=20261011g', 'weather.js?v=20261012b', 'hooks.js?v=20261012a', 'hud.js?v=20261012a', 'player.js?v=20261011b',
+    'enemy.js?v=20261011c', 'boss.js?v=20261009a', 'extras.js?v=20261012a', 'touch.js?v=20261012a', 'level.js?v=20261012a', 'ui.js?v=20261012c', 'choice.js?v=20261012b', 'charpanel.js?v=20261012d', 'main.js?v=20261012c'];
+  var demo = !!window.DEMO_BUILD || /[?&]demo=1/.test(location.search);
+  var bypass = /[?&]go=1/.test(location.search) || (navigator.webdriver && !/[?&]landing=1/.test(location.search));
+  var $ = function (id) { return document.getElementById(id); };
+  var started = false;
+  var phone = (navigator.maxTouchPoints > 0 || 'ontouchstart' in window) && /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+
+  function loadGame() {
+    var done = 0, bar = document.querySelector('#lload .bar i'), txt = document.querySelector('#lload .txt');
+    function tick() { done++; var p = Math.round(done / SCRIPTS.length * 100); bar.style.width = p + '%'; txt.textContent = '載入中 ' + p + '%'; }
+    SCRIPTS.forEach(function (src) { var s = document.createElement('script'); s.src = src; s.async = false; s.onload = tick; s.onerror = tick; document.body.appendChild(s); });   // async = false: executed in this order
+  }
+  function enterLandscape() {   // must run inside the tap handler (user gesture)
+    if (!phone) return;
+    var p = Promise.resolve();
+    try { if (PWA.canFullscreen() && !PWA.standalone() && !document.fullscreenElement) p = document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) {}
+    Promise.resolve(p).catch(function () {}).then(function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} });
+  }
+  function start() {
+    if (started) return; started = true;
+    window.__fromLanding = !bypass;
+    document.body.classList.add('playing');
+    if (!bypass) { enterLandscape(); document.body.classList.add('loading'); }
+    loadGame();
+  }
+  window.__landingDone = function () { var l = $('landing'); l.classList.add('out'); setTimeout(function () { l.style.display = 'none'; }, 450); };
+
+  if (bypass) { $('landing').style.display = 'none'; start(); return; }
+
+  // background picture: a random level backdrop (the first five in the demo; same idea as the old title screen), blurred; the picture is only decoration
+  $('lbg').style.backgroundImage = 'url(assets/backdrop_lv' + ('0' + (1 + Math.floor(Math.random() * (demo ? 5 : 30)))).slice(-2) + '.jpg)';
+  var tag = TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)]; $('ltag').textContent = demoName(tag, demo);
+  (demo ? ['vendor', 'auntie'] : ['geek', 'greenie', 'vendor', 'auntie']).forEach(function (id) { var im = new Image(); im.src = 'assets/avatar_' + id + '.png'; im.alt = ''; $('lava').appendChild(im); });
+  if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 v0.1｜AI 輔助製作'; }
+  $('lstart').addEventListener('click', start);
+  // install buttons (pwa.js): 安裝遊戲 where the browser offers its prompt, 安裝說明 on other touch devices; a hint for LINE's in-app browser
+  function renderInstall() {
+    var box = $('linst'); box.innerHTML = '';
+    PWA.wanted().forEach(function (b) {
+      if (b.id === 'fs') return;
+      var el = document.createElement('button'); el.type = 'button'; el.textContent = b.label;
+      el.addEventListener('click', function () { if (b.id === 'install') PWA.install(); else $('lmodal').classList.add('on'); });
+      box.appendChild(el);
+    });
+    $('lline').style.display = PWA.isLine ? 'block' : 'none';
+  }
+  PWA.onChange(renderInstall); renderInstall();
+  $('lmodalok').addEventListener('click', function () { $('lmodal').classList.remove('on'); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !started) start(); });
+})();
+</script>
+<script>
+// Fullscreen comes from the landing page's start button (touch devices) or from installing the page as an app (manifest.webmanifest: display fullscreen, landscape).
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
   window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 }
