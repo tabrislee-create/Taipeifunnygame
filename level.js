@@ -111,7 +111,7 @@ class LevelScene extends Phaser.Scene {
     this._sysm = sysm;
     this._pits = [];
     this._look = null;
-    this._pitFG = null; this._pitFM = null;
+    this._pitFG = null; this._pitFM = null; this._pitSmoke = null;
     this._pitG = null;   // the scene object is reused between levels: drop the previous run's (destroyed) pit graphics
     this._pitStatus = { burn: { until: 0, nextTick: 0 }, poison: { until: 0, nextTick: 0 } };
     this._inPit = null;
@@ -482,6 +482,7 @@ class LevelScene extends Phaser.Scene {
     if (this._persp) { // perspective levels: the hole, its walls, the blades and the coping are all drawn every frame by _drawPitsPersp; here only the physics floor
       if (!this._pitG) this._pitG = this.add.graphics().setDepth(-0.1);
       if (!this._pitFG) {   // floor decoration layer above it, clipped to the hole openings (user 2026-10-12 bug: pebbles / flames spilled over the neighbouring ground's cross-section, which then looked transparent)
+        this._pitSmoke = this.add.graphics().setDepth(-0.05);   // black smoke of fire pits: above the hole layers, behind the characters, NOT clipped (it rises out of the hole)
         this._pitFG = this.add.graphics().setDepth(-0.1); this._pitFM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitFG.setMask(this._pitFM.createGeometryMask());
       }
       if (pit.deep) return;   // bottomless (level data deep_pit): no floor body, no blades; falling in ends the level (see update)
@@ -547,6 +548,7 @@ class LevelScene extends Phaser.Scene {
   // backdrop parallax. The picture's bottom strip is the walkable band; each face is clipped to the visible hole (band opening + front notch). Spikes are black blades in 4 depth rows.
   _drawPitsPersp() {
     const g = this._pitG; g.clear();
+    const gs = this._pitSmoke; if (gs) gs.clear();
     const g2 = this._pitFG, hm = this._pitFM; g2.clear(); hm.clear(); hm.fillStyle(0xffffff, 1);
     const bd = this.backdrop, cf = this._persp, sx = this.cameras.main.scrollX, dw = bd.displayWidth;
     const ppr = bd.scaleY * bd.width / 3168;                                   // screen px per source-picture row
@@ -649,23 +651,39 @@ class LevelScene extends Phaser.Scene {
       // IQ4 wrote the first version of this block and the poison block below; the clip, the depth rows and the colours were wrong and were rewritten by hand after two rejected rounds.
       const frac = (n) => { const v = Math.sin(n * 12.9898) * 43758.5453; return v - Math.floor(v); };   // fixed pseudo-random 0..1 (does not change from frame to frame)
       if (!pit.deep && pit.kind === 'fire') {
-        const t = this.time.now, rowK = [0.25, 0.6, 0.95], rowN = [3, 4, 5];
+        // Same flame shape as the vendor's stir-fry fire (effects.js STIR_FIRE / tongue): five layers (outer red feather ... pale core), a base that leans and a tip that sways and curls, flickering height.
+        // Three rows of tongues, back row first, each row drawn with k = its depth; heights are in front-plane px (a tongue at depth k is k times as tall on screen).
+        const t = this.time.now, ts = t / 1000, rowK = [0.22, 0.58, 0.95], rowN = [4, 5, 6];
+        const LAY = [[1.35, 1.12, 0xff2a00, 0.22], [1.0, 1.0, 0xff5a00, 0.78], [0.72, 0.8, 0xff9500, 0.8], [0.45, 0.55, 0xffd23a, 0.85], [0.22, 0.28, 0xfff4c0, 0.9]];
         for (let ri = 0; ri < 3; ri++) {
-          const k = SF + (1 - SF) * rowK[ri], n = rowN[ri], spacing = (r - l - 24) / n;
+          const k = SF + (1 - SF) * rowK[ri], n = rowN[ri], spacing = (r - l - 20) / n;
+          const gp0 = P((l + r) / 2, F, k);
+          g2.fillStyle(0xff4a00, 0.22); g2.fillEllipse(gp0[0], gp0[1], (r - l) * 0.95 * k / SP, 16 * k);   // glow on the floor under the row
           for (let fi = 0; fi < n; fi++) {
-            const fx = Math.max(l + 12, Math.min(r - 12, l + 12 + (fi + 0.5) * spacing + (ri % 2 ? 0.25 : -0.25) * spacing));
-            const ph = ri * 2.1 + fi * 1.7, hB = 16 + 14 * frac(ri * 5 + fi + 1), wB = spacing * 0.9;
-            const swayTop = 4 * Math.sin(t / 110 + ph) + 4 * Math.sin(t / 70 + ph * 1.7), swayMid = 2 * Math.sin(t / 90 + ph + 1.0);
-            const flame = (side, wS, hS) => {
-              const h = hB * hS, w = wB * wS;
-              return [[fx + side * w * 0.5, F], [fx + side * w * 0.45 + swayMid * 0.2, F - h * 0.25], [fx + side * w * 0.3 + swayMid * 0.5, F - h * 0.5], [fx + side * w * 0.15 + swayTop * 0.3, F - h * 0.75], [fx + swayTop, F - h]];
-            };
-            const shape = (wS, hS) => flame(1, wS, hS).concat(flame(-1, wS, hS).reverse().slice(1)).map((q) => { const p = P(q[0], q[1], k); return { x: p[0], y: p[1] }; });
-            const gp = P(fx, F, k);
-            g2.fillStyle(0xff6a00, 0.18); g2.fillEllipse(gp[0], gp[1], spacing * 1.6 * k / SP, 8 * k);               // glow on the floor
-            g2.fillStyle(0xff4500, 0.15); g2.fillPoints(shape(1.4, 1.1), true);                                         // outer feather
-            g2.fillStyle(0xff8c00, 0.5); g2.fillPoints(shape(1, 1), true);                                              // body
-            g2.fillStyle(0xffd700, 0.7); g2.fillPoints(shape(0.5, 0.6), true);                                          // inner
+            const fx = Math.max(l + 10, Math.min(r - 10, l + 10 + (fi + 0.5) * spacing + (ri % 2 ? 0.3 : -0.3) * spacing));
+            const ph = ri * 2.1 + fi * 1.7, wB = spacing * 1.25, hB = (46 + 34 * frac(ri * 5 + fi + 1)) * (ri === 0 ? 1.15 : 1);
+            const kf = 0.86 + 0.09 * Math.sin(ts * 9.3 + ph) + 0.06 * Math.sin(ts * 15.1 + ph * 2.3), lean = 5 * Math.sin(ts * 0.9 + ph);
+            for (const L of LAY) {
+              const hh = hB * kf * L[1], ww = wB * L[0], right = [], left = [];
+              for (let q = 0; q <= 6; q++) {
+                const u = q / 6;
+                const dx = lean * u * u + 9 * Math.pow(u, 1.4) * Math.sin(ts * 6.2 + ph - u * 3.2) + 2.5 * u * Math.sin(ts * 11 + ph * 1.7);   // the tip bends and curls
+                const hw = ww / 2 * Math.pow(1 - u, 0.85) * (u < 0.18 ? 0.8 + u * 1.1 : 1);
+                const pr = P(fx + dx + hw, F - hh * u, k), pl = P(fx + dx - hw, F - hh * u, k);
+                right.push({ x: pr[0], y: pr[1] }); left.unshift({ x: pl[0], y: pl[1] });
+              }
+              g2.fillStyle(L[2], L[3]); g2.fillPoints(right.concat(left.slice(1)), true);
+            }
+          }
+        }
+        if (gs) {   // black smoke: puffs rise out of the hole, swell, drift sideways a little and fade (fixed seeds, position from the clock)
+          for (let si = 0; si < 16; si++) {
+            const life = 1300 + 700 * frac(si * 3.3 + 1), u = ((t + life * frac(si * 5.1 + 2)) % life) / life, kS = SF + (1 - SF) * (0.35 + 0.6 * frac(si * 2.7 + 3));
+            const base = P(l + 14 + (r - l - 28) * frac(si * 4.3 + 5), F - 16, kS);
+            const sx = base[0] + (8 + 14 * frac(si * 1.7)) * u + 6 * Math.sin(t / 380 + si), sy = base[1] - (14 + 105 * (1 - Math.pow(1 - u, 1.4)));
+            const rad = (11 + 22 * u) * (0.6 + 0.4 * kS), al = 0.8 * Math.min(1, u * 8) * (1 - u * u);
+            gs.fillStyle(0x4a4541, al * 0.5); gs.fillCircle(sx, sy, rad * 1.3);
+            gs.fillStyle(0x16130f, al); gs.fillCircle(sx, sy, rad);
           }
         }
       }
