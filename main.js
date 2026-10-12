@@ -3,6 +3,9 @@ var GAME_DATA = null;
 window.DEMO = true;
 var SKY_CUT_LEVELS = [1, 2, 3, 4, 5]; // Levels with transparent-sky backdrops (assets/backdrop_lvNN_sky.png)
 
+var DEMO_RENAMES = [];   // the published data is already renamed
+function demoName(str) { if (!window.DEMO || typeof str !== 'string') return str; DEMO_RENAMES.forEach(function (r) { str = str.split(r[0]).join(r[1]); }); return str; }
+
 function loadJson(url) {
   return fetch(url).then(function(r) { return r.json(); });
 }
@@ -31,6 +34,10 @@ function bootGame() {
     shop: toMap(window.__SHOP),
     bossHints: (window.__BOSS_HINTS && window.__BOSS_HINTS.hints) || []
   };
+  if (window.DEMO) {   // trial build: renamed brands / landmarks in the level and equipment texts
+    GAME_DATA.levels.forEach(function (L) { ['name_zh', 'intro_text_zh'].forEach(function (k) { if (L[k]) L[k] = demoName(L[k]); }); });
+    Object.keys(GAME_DATA.equipment).forEach(function (id) { var e = GAME_DATA.equipment[id]; ['name_zh', 'name_en', 'desc_zh'].forEach(function (k) { if (e[k]) e[k] = demoName(e[k]); }); });
+  }
   if (window.DEMO) {   // trial build: keep two characters and the first five levels (every 'N / total' text and the last-level victory follow GAME_DATA.levels.length)
     Object.keys(GAME_DATA.characters).forEach(function (k) { if (k !== 'vendor' && k !== 'auntie') delete GAME_DATA.characters[k]; });
     GAME_DATA.levels = GAME_DATA.levels.slice(0, 5);

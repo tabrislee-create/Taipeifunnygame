@@ -352,7 +352,7 @@ class Player {
     }
     this._atkCd = now + atkCd * 1000;
     this.playAnim('attack');
-    if (RUN.simUses > 0) { this._simAttack(); return; }   // Taiwan Mobile SIM reward: replaces the normal attack for 30 uses
+    if (RUN.simUses > 0) { this._simAttack(); return; }   // SIM reward: replaces the normal attack for 30 uses
 
     const weapon = RUN.inv.weapon ? GAME_DATA.equipment[RUN.inv.weapon] : null;
     const isProj = weapon && weapon.attack_shape === 'projectile';
@@ -435,7 +435,7 @@ class Player {
     this.afterHit(ref, dmg, isCrit);
   }
 
-  // Taiwan Mobile SIM attack (user 2026-10-12): the antenna and then four signal bars light up in front of the player one after another (FX.simSignal); every enemy touched by a piece
+  // SIM attack (user 2026-10-12): the antenna and then four signal bars light up in front of the player one after another (FX.simSignal); every enemy touched by a piece
   // takes a normal hit once and is knocked up and away on a 45 degree path exactly like Auntie's take-profit skill (enemy.launch) - but not stunned (stunMs 0).  Bosses cannot be launched.
   _simAttack() {
     const scene = this.scene, s = this.sprite, self = this, hit = [];

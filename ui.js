@@ -181,12 +181,13 @@ class TitleScene extends Phaser.Scene {
       });
     }
     this.tweens.add({ targets: this._logo, y: this._logo.y - 5, duration: 2000, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    this.add.text(GAME_W / 2, 175, TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)], { fontFamily: FONT, fontSize: 28, color: '#ffffff', stroke: '#000000', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 760), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
+    this.add.text(GAME_W / 2, 175, demoName(TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)]), { fontFamily: FONT, fontSize: 28, color: '#ffffff', stroke: '#000000', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 760), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
     var spr = this.add.sprite(GAME_W / 2, 300, 'player_' + (function () { var ids = Object.keys(GAME_DATA.characters); return ids[Math.floor(Math.random() * ids.length)]; })());
     spr.setScale(120 / spr.height);
     this.tweens.add({ targets: spr, y: 294, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
     this._btns.push(mkBtn(this, GAME_W / 2, 360, 200, 60, '開始遊戲', 'ENTER', function () { if (this._devOpen) return; fadeTo(this, 'CharSelect'); }.bind(this)));
     var self = this;
+    this._pwa = PWA.mkButtons(this, GAME_W / 2, 482, 'c');   // fullscreen / install buttons (pwa.js): only the ones that make sense on this device
     if (window.DEMO) this.add.text(GAME_W / 2, 524, '© 2026 tabrislee-create｜試玩版 v0.1｜AI 輔助製作', { fontFamily: FONT, fontSize: 14, color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setAlpha(0.9);   // author line (user 2026-10-12)
     if (window.DEMO) {   // trial build: no hard mode, no developer menu; the label "試玩版" sits under the start button (user 2026-10-12)
       HARD_MODE = false;

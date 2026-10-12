@@ -87,6 +87,7 @@ class CharPanelScene extends Phaser.Scene {
     T(bx + bw / 2, by + bh / 2, '繼續遊戲', 18, '#ffffff').setOrigin(0.5);
     this.add.zone(bx, by, bw, bh).setOrigin(0).setInteractive({ useHandCursor: true }).on('pointerdown', this._close);
     this.input.keyboard.on('keydown-ESC', this._close);
+    PWA.mkButtons(this, bx + bw + 16, by + bh / 2, 'l');   // fullscreen / install buttons (pwa.js), right of the continue button
 
     // ---- right column: scrollable list (top aligned with the left column, bottom 16 px above the button) ----
     const vx = lx + lw + PAD, vy = top, vw = px + PW - PAD - vx - 12, vh = by - 16 - vy;
@@ -173,7 +174,7 @@ class CharPanelScene extends Phaser.Scene {
 class HowToScene extends Phaser.Scene {
   constructor() { super('HowTo'); }
 
-  init(data) { this._from = (data && data.from) || 'Level'; this._t0 = Date.now(); this._closed = false; this._mode = 'touch'; }
+  init(data) { this._from = (data && data.from) || 'Level'; this._t0 = Date.now(); this._closed = false; this._mode = (data && data.mode) || 'touch'; }
 
   create() {
     const GW = (typeof GAME_W !== 'undefined' && GAME_W) ? GAME_W : 960, F = 'Microsoft JhengHei, PingFang TC, sans-serif', SEC = '#9fb4d0', GOLD = 0xffc94a;
@@ -181,7 +182,7 @@ class HowToScene extends Phaser.Scene {
     const TS = (x, y, str, sz, col, extra) => this.add.text(x, y, str, Object.assign({ fontFamily: F, fontSize: sz + 'px', fontStyle: 'bold', color: col || '#ffffff', stroke: '#0a1224', strokeThickness: 3 }, extra || {}));
     this._close = () => {
       if (this._closed) return; this._closed = true;
-      if (RUN.levelStats && RUN.levelStats.startMs) RUN.levelStats.startMs += Date.now() - this._t0;   // the level timer does not count the time spent here
+      if (this._from === 'Level' && RUN.levelStats && RUN.levelStats.startMs) RUN.levelStats.startMs += Date.now() - this._t0;   // the level timer does not count the time spent here (opened from the pause panel / title: not the level's business)
       if (lvl && lvl.touch && lvl.touch.reset) lvl.touch.reset();
       this.scene.stop(); this.scene.resume(this._from);
     };
@@ -194,7 +195,7 @@ class HowToScene extends Phaser.Scene {
     okg.fillStyle(0x2f6fc8, 1); okg.fillRoundedRect(obx, oby, bw2, bh, 19); okg.lineStyle(2, 0xffffff, 0.9); okg.strokeRoundedRect(obx, oby, bw2, bh, 19);
     TS(obx + bw2 / 2, oby + bh / 2, 'OK', 22, '#ffffff').setOrigin(0.5).setDepth(6);
     this.add.zone(obx, oby, bw2, bh).setOrigin(0).setInteractive({ useHandCursor: true }).setDepth(7).on('pointerdown', this._close);
-    this.input.keyboard.on('keydown-ENTER', this._close);
+    if (this._from === 'Level') this.input.keyboard.on('keydown-ENTER', this._close);   // from the title screen Enter would also start the game
     // tabs (bottom right): 手機操作 (default) / 電腦操作 / 安裝到桌面
     const tabs = [['touch', '手機操作'], ['keys', '電腦操作'], ['install', '安裝到桌面']], tabG = this.add.graphics().setDepth(5), tabT = [];
     const TW = 112, TH = 34, TX0 = GW - 24 - 3 * TW - 2 * 6, TY = oby + 2;

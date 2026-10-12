@@ -1384,7 +1384,7 @@ var FX = (function () {
   // Boss attack warnings (red circle that closes in / red box).  Fixed 2026-10-12: the old version drove them with a tween that had no property to animate, which this Phaser ends at once
   // (the graphics were destroyed in the same frame, so no warning was ever seen); now a counter tween drives them.  Both return the Graphics: destroy() on it cancels the warning.
   // telegraphRect: x is the CENTRE of the box (the boss passes a centre; it used to be drawn as if it were the left edge), y the top.
-  // Taiwan Mobile SIM attack (user 2026-10-12): the antenna appears first (nearest the player), then the four signal bars one after another (each taller than the last), every piece a glowing
+  // SIM attack (user 2026-10-12): the antenna appears first (nearest the player), then the four signal bars one after another (each taller than the last), every piece a glowing
   // sky-blue thick outline (reference picture: antenna + four rising bars).  The same layout drives the picture and the hit boxes (player.js _simAttack), like Auntie's take-profit bars.
   var SIM = { firstGap: 6, w: 26, gap: 10, heights: [34, 52, 70, 90], antennaH: 64, stepMs: 85, lifeMs: 430 };
   function simLayout(s, facing) {

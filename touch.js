@@ -104,7 +104,7 @@ var TouchControls = {
     // Three equal buttons in an equilateral triangle at the bottom right: jump on top, skill bottom-left, attack bottom-right (nearest the thumb).
     const BR = 56, BD = 2 * BR + 12, BX = GW - 90, BY = 440;
     const [atC, atI] = mk(BX, BY, BR, swordIcon, null, 'attack', 0xcc3333);
-    // Taiwan Mobile SIM reward (player.js _simAttack): while it has uses left, the attack button shows "SIM" and the number of uses remaining (user 2026-10-12).
+    // SIM reward (player.js _simAttack): while it has uses left, the attack button shows "SIM" and the number of uses remaining (user 2026-10-12).
     const atT = scene.add.text(BX, BY, '', { fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif', fontSize: '30px', fontStyle: 'bold', color: '#7fdcff', stroke: '#003a5c', strokeThickness: 5, align: 'center' })
       .setOrigin(0.5).setScrollFactor(0).setDepth(122).setVisible(false);
     objs.push(atT);
