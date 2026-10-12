@@ -699,7 +699,7 @@ var WX = (function () {
     scene.windX = 0;
     buildTheme(scene, themeId, ctx);
     if (weatherId) buildWeather(scene, weatherId, ctx);
-    if (!ctx.skyFx && themeId === 'title') buildSkyFx(scene, ctx, true);   // title / select / reward screens: the new drifting clouds instead of the old circle clouds
+    if (!ctx.skyFx && (themeId === 'title' || scene.scene.key === 'Cleared')) buildSkyFx(scene, ctx, true);   // title / select / reward / level-cleared screens (user 2026-10-12): the new drifting clouds instead of the old circle clouds
     if (ctx.skyFx) { for (var ci = 0; ci < ctx.clouds.length; ci++) ctx.clouds[ci].o.destroy(); ctx.clouds = []; }   // sunny sky-cut: the new clouds replace the circle clouds
     var auto = !(typeof navigator !== 'undefined' && navigator.webdriver) && !(typeof location !== 'undefined' && /[?&]weather=/.test(location.search));
     if (auto && !weatherId && Math.random() < 0.4) addFalling(scene, ctx, 'petal');          // sunny: sometimes petals
