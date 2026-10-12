@@ -273,6 +273,7 @@ var Skills = {
     else if (id === 'stir_fry') ok = Skills.stir_fry(p);
     else if (id === 'take_profit') ok = Skills.take_profit(p);
     if (ok && p.playAnim) p.playAnim(id);
+    if (ok && FX.skillCastText) FX.skillCastText(p.scene, p, ch.skill);   // skill name + flavour line above the character (effects.js)
     return ok;
   },
 

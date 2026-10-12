@@ -57,7 +57,7 @@ function bootGame() {
     parent: 'game',
     backgroundColor: '#000',
     physics: { default: 'arcade', arcade: { gravity: { y: 1000 }, debug: false } },
-    scene: [BootScene, TitleScene, CharSelectScene, LevelScene, ClearedScene, ChoiceScene, EndScene, CharPanelScene]
+    scene: [BootScene, TitleScene, CharSelectScene, LevelScene, ClearedScene, ChoiceScene, EndScene, CharPanelScene, HowToScene]
   });
 }
 
@@ -131,6 +131,7 @@ class BootScene extends Phaser.Scene {
       var c = D.characters[chars[i]];
       if (c.skill && c.skill.id) {
         this.load.image('skill_' + c.skill.id, 'assets/skill_' + c.skill.id + '.png');
+        this.load.image('skilltext_' + c.skill.id, 'assets/skilltext_' + c.skill.id + '.png');   // brush-calligraphy skill name for the cast banner (missing files are ignored: the name is drawn as text)
       }
     }
     var en = Object.keys(D.enemies);

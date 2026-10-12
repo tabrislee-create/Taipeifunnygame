@@ -111,6 +111,7 @@ class LevelScene extends Phaser.Scene {
     this._sysm = sysm;
     this._pits = [];
     this._look = null;
+    this._pitFG = null; this._pitFM = null;
     this._pitG = null;   // the scene object is reused between levels: drop the previous run's (destroyed) pit graphics
     this._pitStatus = { burn: { until: 0, nextTick: 0 }, poison: { until: 0, nextTick: 0 } };
     this._inPit = null;
@@ -217,6 +218,17 @@ class LevelScene extends Phaser.Scene {
       attack: { get isDown() { return K.J.isDown || !!T.attack; } },
       skill: { get isDown() { return K.K.isDown || !!T.skill; } }
     };
+
+    // How-to-play overlay: the first time level 1 starts in a run (RUN._howto is reset by newRun) the level is paused under a translucent mask with text guides until the player taps OK (charpanel.js HowToScene)
+    if (RUN.level === 1 && !RUN._howto) {
+      RUN._howto = true;
+      this.time.delayedCall(60, () => {
+        if (!this.sys.isActive() || this.finished) return;
+        if (this.touch && this.touch.reset) this.touch.reset();
+        this.scene.pause();
+        this.scene.launch('HowTo', { from: this.scene.key });
+      });
+    }
 
     // Events
     this.events.on('enemy-dead', this.onEnemyDead, this);
@@ -469,6 +481,9 @@ class LevelScene extends Phaser.Scene {
   _buildPit(pit) {
     if (this._persp) { // perspective levels: the hole, its walls, the blades and the coping are all drawn every frame by _drawPitsPersp; here only the physics floor
       if (!this._pitG) this._pitG = this.add.graphics().setDepth(-0.1);
+      if (!this._pitFG) {   // floor decoration layer above it, clipped to the hole openings (user 2026-10-12 bug: pebbles / flames spilled over the neighbouring ground's cross-section, which then looked transparent)
+        this._pitFG = this.add.graphics().setDepth(-0.1); this._pitFM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitFG.setMask(this._pitFM.createGeometryMask());
+      }
       if (pit.deep) return;   // bottomless (level data deep_pit): no floor body, no blades; falling in ends the level (see update)
       const fp = this.add.rectangle((pit.l + pit.r) / 2, pit.floor + 10, pit.r - pit.l, 20, 0x000000, 0);
       this.physics.add.existing(fp, true);
@@ -532,6 +547,7 @@ class LevelScene extends Phaser.Scene {
   // backdrop parallax. The picture's bottom strip is the walkable band; each face is clipped to the visible hole (band opening + front notch). Spikes are black blades in 4 depth rows.
   _drawPitsPersp() {
     const g = this._pitG; g.clear();
+    const g2 = this._pitFG, hm = this._pitFM; g2.clear(); hm.clear(); hm.fillStyle(0xffffff, 1);
     const bd = this.backdrop, cf = this._persp, sx = this.cameras.main.scrollX, dw = bd.displayWidth;
     const ppr = bd.scaleY * bd.width / 3168;                                   // screen px per source-picture row
     const YB = bd.y, VPY = YB - (cf.bottom - cf.vpy) * ppr, VPX = bd.x + (cf.vpx - 0.5) * dw + sx;
@@ -565,7 +581,9 @@ class LevelScene extends Phaser.Scene {
       const fl = P(l, YB, 1), fr = P(r, YB, 1), bl = P(l, YB, SF), br = P(r, YB, SF);
       const fFl = P(l, F, 1), fFr = P(r, F, 1), bFl = P(l, F, SF), bFr = P(r, F, SF);
       const holeParts = [[bl, br, fr, fl], [fl, fr, [fr[0], 540], [fl[0], 540]]]; // band opening (trapezoid) + front notch (rect): the union is concave on one side, so clip to each convex part
-      const quad = (pts, col) => { for (const part of holeParts) { const c = clip(pts, part); if (c.length > 2) { g.fillStyle(col, 1); g.fillPoints(c.map((p) => ({ x: p[0], y: p[1] })), true); } } };
+      for (const part of holeParts) hm.fillPoints(part.map((p) => ({ x: p[0], y: p[1] })), true);   // the visible opening of this pit = the clip of the decoration layer
+      let qg = g;   // quad() draws on qg (the warning board switches it to the decoration layer)
+      const quad = (pts, col) => { for (const part of holeParts) { const c = clip(pts, part); if (c.length > 2) { qg.fillStyle(col, 1); qg.fillPoints(c.map((p) => ({ x: p[0], y: p[1] })), true); } } };
       const strips = (tl, tr, bl2, br2, c0, c1, n) => { // vertical gradient in n strips
         for (let i = 0; i < n; i++) {
           const t0 = i / n, t1 = (i + 1) / n;
@@ -608,8 +626,8 @@ class LevelScene extends Phaser.Scene {
           for (let i = 0; i < nC; i++) {
             const x = l + ((i + 0.5 + (j % 2) * 0.5) / nC) * (r - l) + (hs(i, j) - 0.5) * 3; if (x < l + 3 || x > r - 3) continue;
             const p = P(x, F, k), w = (10 + hs(j, i) * 2) * k / SP, h = Math.max(3.5, w * 0.72), sh = 0.8 + hs(i + 5, j) * 0.45;
-            g.fillStyle(hx(sh, stone), 1); g.fillEllipse(p[0], p[1], w, h);
-            g.fillStyle(hx(1, lite), 0.5); g.fillEllipse(p[0] - w * 0.15, p[1] - h * 0.22, w * 0.36, h * 0.28);   // highlight on the polished stone
+            g2.fillStyle(hx(sh, stone), 1); g2.fillEllipse(p[0], p[1], w, h);
+            g2.fillStyle(hx(1, lite), 0.5); g2.fillEllipse(p[0] - w * 0.15, p[1] - h * 0.22, w * 0.36, h * 0.28);   // highlight on the polished stone
           }
         }
       }
@@ -644,10 +662,10 @@ class LevelScene extends Phaser.Scene {
             };
             const shape = (wS, hS) => flame(1, wS, hS).concat(flame(-1, wS, hS).reverse().slice(1)).map((q) => { const p = P(q[0], q[1], k); return { x: p[0], y: p[1] }; });
             const gp = P(fx, F, k);
-            g.fillStyle(0xff6a00, 0.18); g.fillEllipse(gp[0], gp[1], spacing * 1.6 * k / SP, 8 * k);               // glow on the floor
-            g.fillStyle(0xff4500, 0.15); g.fillPoints(shape(1.4, 1.1), true);                                         // outer feather
-            g.fillStyle(0xff8c00, 0.5); g.fillPoints(shape(1, 1), true);                                              // body
-            g.fillStyle(0xffd700, 0.7); g.fillPoints(shape(0.5, 0.6), true);                                          // inner
+            g2.fillStyle(0xff6a00, 0.18); g2.fillEllipse(gp[0], gp[1], spacing * 1.6 * k / SP, 8 * k);               // glow on the floor
+            g2.fillStyle(0xff4500, 0.15); g2.fillPoints(shape(1.4, 1.1), true);                                         // outer feather
+            g2.fillStyle(0xff8c00, 0.5); g2.fillPoints(shape(1, 1), true);                                              // body
+            g2.fillStyle(0xffd700, 0.7); g2.fillPoints(shape(0.5, 0.6), true);                                          // inner
           }
         }
       }
@@ -656,26 +674,24 @@ class LevelScene extends Phaser.Scene {
       if (!pit.deep && pit.kind === 'poison') {
         const t = this.time.now, W = r - l, green = tone([76, 217, 100]), edge = hx(1, tone([31, 143, 58]));
         quad([fFl, fFr, bFr, bFl], hx(0.92 + 0.08 * Math.sin(t / 120), green));                                       // pool
-        g.lineStyle(2, edge, 0.9); g.lineBetween(fFl[0], fFl[1], fFr[0], fFr[1]);                                      // darker line along the near edge
+        g2.lineStyle(2, edge, 0.9); g2.lineBetween(fFl[0], fFl[1], fFr[0], fFr[1]);                                      // darker line along the near edge
         const kb0 = SF + (1 - SF) * (0.5 + 0.4 * Math.sin(t / 210)), hp = P(l + W / 2 + Math.sin(t / 330) * W * 0.26, F, kb0);
-        g.fillStyle(hx(1, tone([182, 255, 154])), 0.55);                                                              // rolling lighter blob
-        g.fillEllipse(hp[0], hp[1], W * 0.32 * kb0 / SP * (1 + 0.25 * Math.sin(t / 190)), 8 * kb0 * (1 - 0.3 * Math.sin(t / 190)));
+        g2.fillStyle(hx(1, tone([182, 255, 154])), 0.55);                                                              // rolling lighter blob
+        g2.fillEllipse(hp[0], hp[1], W * 0.32 * kb0 / SP * (1 + 0.25 * Math.sin(t / 190)), 8 * kb0 * (1 - 0.3 * Math.sin(t / 190)));
         for (let bi = 0; bi < 14; bi++) {                                                                              // bubbles: fixed x, depth, period and phase per bubble
           const kb = SF + (1 - SF) * ((bi % 4) / 3), life = 450 + 350 * frac(bi * 5.3 + 2), prog = ((t + life * frac(bi * 7.1 + 3)) % life) / life;
           const bx = l + 8 + (W - 16) * frac(bi * 3.7 + 1), rise = 14 + 16 * frac(bi * 2.3 + 4), sway = Math.sin(prog * 6 + bi) * 3;
           const sc = prog < 0.8 ? 1 + 0.5 * (prog / 0.8) : 1.5 + (prog - 0.8) * 5, al = prog < 0.8 ? 0.5 : 0.5 * (1 - (prog - 0.8) / 0.2);
           const bp = P(bx + sway, F - rise * prog, kb), br = (2 + 3 * frac(bi * 1.9 + 5)) * sc * kb / SP;
-          g.fillStyle(hx(1, tone([200, 255, 176])), al); g.fillCircle(bp[0], bp[1], br);
-          g.lineStyle(1, edge, al); g.strokeCircle(bp[0], bp[1], br);
+          g2.fillStyle(hx(1, tone([200, 255, 176])), al); g2.fillCircle(bp[0], bp[1], br);
+          g2.lineStyle(1, edge, al); g2.strokeCircle(bp[0], bp[1], br);
         }
       }
       if (pit._warnT) {   // the warning board, mounted on the far wall (user 2026-10-12: 警語位置改到洞的剖面牆上); drawn in the wall's own scale
-        const wallB = VPY + SF * (F - VPY), topPad = cf.glass ? 14 : 4;   // the far wall runs from BT down to wallB: a shallow pit's wall is short, so the board shrinks to fit it
-        let kk = Math.min(SF / SP, (wallB - BT - topPad - 4) / 58); const visL = Math.max(bl[0], fl[0]), visR = Math.min(br[0], fr[0]);   // the part of the far wall that shows (a side wall or the near edge hides the rest)
-        let cxs = P((l + r) / 2, YB, SF)[0];
-        if (visR - visL >= 128 * kk + 4) cxs = Math.max(visL + 64 * kk + 2, Math.min(visR - 64 * kk - 2, cxs));   // keep the whole board in view: it slides along the wall when the view would hide part of it
-        else { cxs = (visL + visR) / 2; kk = Math.max(0.2, (visR - visL - 4) / 128); }
+        const wallB = VPY + SF * (F - VPY), topPad = cf.glass ? 14 : 4;   // the far wall runs from BT down to wallB: a shallow pit's wall is short, so the board is made smaller to fit it (the same size for every view)
+        const kk = Math.min(SF / SP, (wallB - BT - topPad - 4) / 58), cxs = P((l + r) / 2, YB, SF)[0];
         if (kk < 0.3) { pit._warnT.setVisible(false); } else {
+        qg = g2;
         const c = [cxs], cy = BT + topPad + 29 * kk;
         const farQ = [bl, br, bFr, bFl], wq = (pts, col) => { const w = clip(pts, farQ); if (w.length > 2) quad(w, col); };   // the board is clipped to the part of the far wall that shows (the side wall / near edge hide the rest)
         const B = (x0, y0, x1, y1, col) => wq([[c[0] + x0 * kk, cy + y0 * kk], [c[0] + x1 * kk, cy + y0 * kk], [c[0] + x1 * kk, cy + y1 * kk], [c[0] + x0 * kk, cy + y1 * kk]], col);
@@ -685,6 +701,7 @@ class LevelScene extends Phaser.Scene {
         pit._warnT.setVisible(true).setPosition(c[0] + 20 * kk, cy).setScale(pit._warnT.getData('fit') * kk);
         const mg = pit._warnM; mg.clear(); mg.fillStyle(0xffffff, 1);   // the text gets the same clip as a mask
         for (const part of holeParts) { const w = clip(farQ, part); if (w.length > 2) mg.fillPoints(w.map((p) => ({ x: p[0], y: p[1] })), true); }
+        qg = g;
         }
       }
       if (!pit.deep && !pit._slab) { // cut face under the hole floor: same texture and phase as the neighbouring ground cross-section

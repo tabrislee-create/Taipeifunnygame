@@ -1158,12 +1158,7 @@ var FX = (function () {
       fontFamily: FONT, fontSize: '30px', fontStyle: 'bold', color: '#ffd966', stroke: '#7a1f00', strokeThickness: 6
     }).setOrigin(0.5).setDepth(sp.depth + 10).setAlpha(0);
 
-    var banner = scene.add.text(GAME_W / 2, 92, '大火快炒！無敵・定身 4 秒', {
-      fontFamily: FONT, fontSize: '22px', color: '#ffe2b0', stroke: '#8a2a00', strokeThickness: 5
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(90).setAlpha(0);
-
-    scene.tweens.add({ targets: banner, alpha: 1, y: 100, duration: 200 });
-    scene.tweens.add({ targets: banner, alpha: 0, delay: 1500, duration: 500, onComplete: function () { kill(banner); } });
+    var banner = null;   // the old top-of-screen line 大火快炒！無敵・定身 4 秒 was removed (user 2026-10-12): the cast text above the character (skillCastText) replaces it
 
     var t0 = scene.time.now;
     var done = false, ended = false;
@@ -1422,6 +1417,49 @@ var FX = (function () {
         scene.tweens.add({ targets: g, alpha: 0, delay: SIM.lifeMs - 170, duration: 170, onComplete: function () { kill(g); } });
       });
     });
+  }
+
+  // Skill-cast banner (user 2026-10-12): when a character casts its skill, the skill name and the flavour line float above the character and follow it for ~1.4 s.
+  // Vendor's 大火快炒 is red with a red glow, Auntie's 獲利了結 gold with a gold glow; the big name is a brush-calligraphy picture (assets/skilltext_<skill id>.png, white strokes, painted with
+  // Qwen-Image in the title's style) tinted with the colour and doubled by two larger additive copies for the glow; the small flavour line under it has the same colour (and a glow).
+  // A skill without such a picture shows its name as bold text instead.
+  var CAST_STYLE = { stir_fry: { col: 0xff3a2a, css: '#ff4a3a', glow: 0xff2010, edge: 0x2a0000 }, take_profit: { col: 0xffe27a, css: '#ffe27a', glow: 0xff9a00, edge: 0x4a2800, glowA: 0.16 }, nano_process: { col: 0x6fd8ff, css: '#7fdcff', glow: 0x2ab4ff }, exam_max: { col: 0x7dff9a, css: '#8cffa6', glow: 0x2ee060 } };
+  function skillCastText(scene, p, skill) {
+    if (!scene || !p || !p.sprite || !skill) return;
+    var st = CAST_STYLE[skill.id] || { col: 0xffffff, css: '#ffffff', glow: 0x88ccff }, key = 'skilltext_' + skill.id, pic = scene.textures.exists(key);
+    var cont = scene.add.container(0, 0).setDepth(98), BIG_W = 300, bigH = 0;
+    var flav = scene.add.text(0, 0, skill.flavor_zh || '', { fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: st.css, stroke: '#1a0a0a', strokeThickness: 5 }).setOrigin(0.5, 1);
+    flav.setShadow(0, 0, st.css, 10, false, true); flav.setStroke(st.edge ? '#' + ('000000' + st.edge.toString(16)).slice(-6) : '#1a0a0a', 6);
+    cont.add(flav);
+    var big = [];
+    if (pic) {
+      var img = scene.textures.get(key).getSourceImage(), k = BIG_W / img.width; bigH = img.height * k;
+      var offs = [[-3, 0], [3, 0], [0, -3], [0, 3], [-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]];   // dark edge (contrast against any background): eight offset copies tinted dark
+      offs.forEach(function (o) { var e = scene.add.image(o[0], -30 + o[1], key).setOrigin(0.5, 1).setScale(k).setTint(st.edge || 0x1a0a0a).setAlpha(0.95); cont.add(e); big.push(e); });
+      var ga = st.glowA || 0.2;
+      [[1.14, ga], [1.06, ga * 1.8]].forEach(function (g) {   // glow: two larger additive copies behind
+        var s2 = scene.add.image(0, -30, key).setOrigin(0.5, 1).setScale(k * g[0]).setTint(st.glow).setAlpha(g[1]).setBlendMode(Phaser.BlendModes.ADD); cont.add(s2); big.push(s2);
+      });
+      var s1 = scene.add.image(0, -30, key).setOrigin(0.5, 1).setScale(k).setTint(st.col); cont.add(s1); big.push(s1);
+    } else {
+      var tx = scene.add.text(0, -26, skill.name_zh || '', { fontFamily: FONT, fontSize: '34px', fontStyle: 'bold', color: st.css, stroke: '#1a0a0a', strokeThickness: 6 }).setOrigin(0.5, 1);
+      tx.setShadow(0, 0, st.css, 14, false, true); cont.add(tx); big.push(tx);
+    }
+    var t0 = scene.time.now, LIFE = 1500, FADE = 380, dead = false;
+    var pos = function () { var b = p.sprite.body; cont.setPosition(p.sprite.x, (b ? b.top : p.sprite.y - 50) - 12); };
+    pos(); cont.setScale(0.55); cont.setAlpha(0);
+    scene.tweens.add({ targets: cont, scaleX: 1, scaleY: 1, alpha: 1, duration: 170, ease: 'Back.Out' });
+    var upd = function () {
+      if (dead) return;
+      if (!p.sprite || !p.sprite.active) { done(); return; }
+      pos();
+      var el = scene.time.now - t0;
+      if (el > LIFE - FADE) cont.setAlpha(Math.max(0, (LIFE - el) / FADE));
+      if (el >= LIFE) done();
+    };
+    var done = function () { if (dead) return; dead = true; scene.events.off('update', upd); cont.destroy(); };
+    scene.events.on('update', upd);
+    scene.events.once('shutdown', done);
   }
 
   function telegraphCircle(scene, x, y, radius, ms) {
@@ -1929,7 +1967,7 @@ var FX = (function () {
     hitEnemy: hitEnemy, killEnemy: killEnemy, hurtPlayer: hurtPlayer, healPlayer: healPlayer,
     shieldHit: shieldHit, bossPhase: bossPhase, lowHpBorder: lowHpBorder, deathSequence: deathSequence,
     stirFry: stirFry,
-    takeProfit: takeProfit,
+    takeProfit: takeProfit, skillCastText: skillCastText,
     takeProfitAura: takeProfitAura,
     goldPop: goldPop,
     stunDizzy: stunDizzy,
