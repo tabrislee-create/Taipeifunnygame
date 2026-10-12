@@ -264,7 +264,7 @@ class HowToScene extends Phaser.Scene {
       callout(396, cy, 306, '③ 金幣', '撿金幣；過關後可刷新獎勵。');
       let cy2 = 12;
       cy2 += callout(RX, cy2, 234, '跳出的數字', '白＝你打出的傷害\n黃＝暴擊\n紅＝你受到的傷害') + 10;
-      callout(RX, cy2, 234, '地上的坑', '尖刺：扣血並送回洞前\n鵝卵石：減速\n火焰、毒液：持續扣血');
+      callout(RX, cy2, 234, '地上的坑', '尖刺、鵝卵石\n火焰、毒液、無底洞');
       const pcx = PR.x + PR.w / 2; T(pcx, PR.y - 18, '這是你', 18, '#ffc94a').setOrigin(0.5, 1).setDepth(4);
       box.fillStyle(GOLD, 1); box.fillTriangle(pcx, PR.y - 4, pcx - 10, PR.y - 16, pcx + 10, PR.y - 16);
 
