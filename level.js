@@ -685,7 +685,7 @@ class LevelScene extends Phaser.Scene {
             const life = 1300 + 700 * frac(si * 3.3 + 1), u = ((t + life * frac(si * 5.1 + 2)) % life) / life, kS = SF + (1 - SF) * (0.35 + 0.6 * frac(si * 2.7 + 3));
             const base = P(l + 14 + (r - l - 28) * frac(si * 4.3 + 5), F - 16, kS);
             const sx = base[0] + (8 + 14 * frac(si * 1.7)) * u + 6 * Math.sin(t / 380 + si), sy = base[1] - (14 + 105 * (1 - Math.pow(1 - u, 1.4)));
-            const rad = (11 + 22 * u) * (0.6 + 0.4 * kS), al = 0.8 * Math.min(1, u * 8) * (1 - u * u);
+            const rad = (5 + 9 * u) * (0.6 + 0.4 * kS), al = 0.8 * Math.min(1, u * 8) * (1 - u * u);   // small puffs (user 2026-10-12: smaller diameter)
             gs.fillStyle(0x4a4541, al * 0.5); gs.fillCircle(sx, sy, rad * 1.3);
             gs.fillStyle(0x16130f, al); gs.fillCircle(sx, sy, rad);
           }
@@ -705,8 +705,18 @@ class LevelScene extends Phaser.Scene {
           const bx = l + 8 + (W - 16) * frac(bi * 3.7 + 1), rise = 14 + 16 * frac(bi * 2.3 + 4), sway = Math.sin(prog * 6 + bi) * 3;
           const sc = prog < 0.8 ? 1 + 0.5 * (prog / 0.8) : 1.5 + (prog - 0.8) * 5, al = prog < 0.8 ? 0.5 : 0.5 * (1 - (prog - 0.8) / 0.2);
           const bp = P(bx + sway, F - rise * prog, kb), br = (2 + 3 * frac(bi * 1.9 + 5)) * sc * kb / SP;
-          g2.fillStyle(hx(1, tone([200, 255, 176])), al); g2.fillCircle(bp[0], bp[1], br);
-          g2.lineStyle(1, edge, al); g2.strokeCircle(bp[0], bp[1], br);
+          g3.fillStyle(hx(1, tone([200, 255, 176])), al); g3.fillCircle(bp[0], bp[1], br);   // bubbles and vapour are in front of the warning board (like the flames), clipped to the opening
+          g3.lineStyle(1, edge, al); g3.strokeCircle(bp[0], bp[1], br);
+        }
+        if (gs) {   // green vapour: small pale puffs rise from the pool out of the hole, thin out and fade (fixed seeds, position from the clock); the smoke layer's mask keeps them off the cross-section
+          for (let vi = 0; vi < 20; vi++) {
+            const life = 1500 + 900 * frac(vi * 3.1 + 1), u = ((t + life * frac(vi * 6.3 + 2)) % life) / life, kV = SF + (1 - SF) * (0.3 + 0.7 * frac(vi * 2.9 + 3));
+            const base = P(l + 12 + (W - 24) * frac(vi * 4.7 + 5), F - 6, kV);
+            const vx = base[0] + (6 + 10 * frac(vi * 1.3)) * u + 5 * Math.sin(t / 420 + vi * 1.7), vy = base[1] - (10 + 95 * (1 - Math.pow(1 - u, 1.3)));
+            const rad = (2.5 + 5 * u) * (0.6 + 0.4 * kV), al = 0.5 * Math.min(1, u * 6) * (1 - u);
+            gs.fillStyle(hx(1, tone([120, 255, 140])), al * 0.45); gs.fillCircle(vx, vy, rad * 1.5);
+            gs.fillStyle(hx(1, tone([190, 255, 190])), al); gs.fillCircle(vx, vy, rad);
+          }
         }
       }
       if (pit._warnT) {   // the warning board, mounted on the far wall (user 2026-10-12: 警語位置改到洞的剖面牆上); drawn in the wall's own scale
