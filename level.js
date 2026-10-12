@@ -13,7 +13,7 @@ const MAX_PLATFORM_H = 130;
 // The floating touch pad (200 wide, clamped to x 8..208 at the far left) must not cover the character, so the player starts to its right.
 const PLAYER_SPAWN_X = 310;   // was 230; moved right 80px so the level-1 touch hint (far left) does not overlap the player
 
-// Perspective ground (levels 1-4, user 2026-10-12): numbers are in the backdrop's own picture rows (3168 px wide source), made by art_eval/persp/make_persp_assets.py.
+// Perspective ground (levels 1-6, user 2026-10-12): numbers are in the backdrop's own picture rows (3168 px wide source), made by art_eval/persp/make_persp_assets.py.
 // bottom = source row at the picture's bottom edge, band = rows of walkable ground at the bottom, vpy = source row of the horizon, vpx = vanishing point as a fraction of the picture width,
 // base / pave = lit / typical colour of the band's paving in the picture (raw, before any colour look): the walls and floor of the hole are shades of base, the coping stones use pave;
 // _drawPitsPersp runs both through the current weather look (WX.skyLook: saturation / brightness) so they follow the backdrop in every weather.
@@ -22,10 +22,12 @@ const PERSP = {
   2: { bottom: 1129, band: 65, vpy: 967, vpx: 0.5, base: [245, 215, 190], pave: [241, 206, 181], frontMax: 528 },   // frontMax: the front edge of the hole's floor (front plane) must stay above this screen row (user 2026-10-12: level 2's pit floor ran off the bottom edge); the pit gets shallower to fit
   3: { bottom: 1215, band: 70, vpy: 1040, vpx: 0.5, base: [108, 91, 96], pave: [81, 70, 80], frontMax: 528 },
   4: { bottom: 1250, band: 60, vpy: 1100, vpx: 0.5781, base: [42, 57, 133], pave: [32, 42, 121], glass: true },   // glass: the rim of a hole is the bright teal glass edge (like the cross-section's top rows), with red warning lamps
-  5: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [157, 137, 126], pave: [145, 128, 120] }   // level 5 (user 2026-10-12): perspective floor like levels 1-4; no pits on this level, so only the band / cross-section are used
+  5: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [157, 137, 126], pave: [145, 128, 120] },   // level 5 (user 2026-10-12): perspective floor like levels 1-4; no pits on this level, so only the band / cross-section are used
+  6: { bottom: 1135, band: 76, vpy: 980, vpx: 0.5, base: [198, 135, 77], pave: [153, 103, 67], frontMax: 528 }   // level 6 (user 2026-10-12, night market): picture cut at the street band in front of the shops; same frontMax as level 3 (same y_ground)
 };
 // Pebble pit (level data pit_kind: 'pebble', user 2026-10-12: Taiwan's pebble health-walk path at the bottom of a pit): the player on the pebbles walks slower and every step hurts a little. Values are first guesses.
 const PEBBLE_SLOW = 0.6, PEBBLE_DMG = 3, PEBBLE_TICK_MS = 600;
+const ENEMY_SLIP_ACCEL = 1600;   // px/s^2 of an enemy's ground speed change on a dry street's worth of grip (x wetGrip when wet); the player uses 3600. First guess, user to tune.
 const FIRE_ENTER_DMG = 8, FIRE_DMG = 2, FIRE_TICK_MS = 500, FIRE_LINGER_MS = 2500;
 const POISON_DMG = 1, POISON_TICK_MS = 500, POISON_LINGER_MS = 8000;
 // Warning board lines per pit kind (a random one is shown on the far wall of each pit). spikes / pebble / fire = the user's words (2026-10-12); poison = suggestions, to be picked by the user. The level-4 bottomless pit uses the level's own pit_warning_texts.
@@ -79,7 +81,7 @@ class LevelScene extends Phaser.Scene {
     // level 1 is a far view: the picture ends at the foot of the building, so sit its bottom edge on the ground line (the plaza tile is drawn by the program)
     this._persp = isCustomArt ? PERSP[RUN.level] : null;   // levels 1-4: perspective ground (the picture's bottom strip is the walkable band, see _drawPitsPersp)
     this._lvKey = lvKey;
-    if ((RUN.level === 1 || RUN.level === 2 || RUN.level === 3 || RUN.level === 4 || RUN.level === 5) && isCustomArt) { bd.setOrigin(0.5, 1); bd.y = lvl.y_ground + (this._persp ? PERSP_FACE_DY : 8); }
+    if ((RUN.level === 1 || RUN.level === 2 || RUN.level === 3 || RUN.level === 4 || RUN.level === 5 || RUN.level === 6) && isCustomArt) { bd.setOrigin(0.5, 1); bd.y = lvl.y_ground + (this._persp ? PERSP_FACE_DY : 8); }
 
     this.backdrop = bd;
 
@@ -147,8 +149,9 @@ class LevelScene extends Phaser.Scene {
     }
 
     // Weather
-    this.weatherId = WX.pick(RUN.level);
-    this.wx = WX.start(this, theme.id, this.weatherId);
+    this.cond = WX.pick(RUN.level);   // { time: day | dusk | night, wx: weather id or null }
+    this.weatherId = this.cond.wx;
+    this.wx = WX.start(this, theme.id, this.cond);
 
     // Enemies group (before player)
     this.enemies = this.physics.add.group();
@@ -313,6 +316,16 @@ class LevelScene extends Phaser.Scene {
       const r = s.ref;
       if (r && !r.dead) {
         r.update(time, delta, this.player);
+        // Wet street (weather.js sets this.wetGrip < 1): a ground enemy's speed change is rate-limited like the player's, so it slides when it stops or turns (user 2026-10-12: enemies slip too).
+        // Flyers, knockback (_knockUntil) and anything in the air are left alone; the command r.update just wrote to the body is the target the real speed eases toward.
+        if (s.body) {
+          const grip = this.wetGrip || 1, onGround = s.body.blocked.down || s.body.touching.down;
+          if (grip < 1 && onGround && !(r.isFlyer && r.isFlyer()) && time > (r._knockUntil || 0)) {
+            const cmd = s.body.velocity.x, prev = r._slipVx === undefined ? cmd : r._slipVx, a = ENEMY_SLIP_ACCEL * grip * (delta / 1000);
+            const vx = Math.abs(cmd - prev) <= a ? cmd : prev + Math.sign(cmd - prev) * a;
+            s.body.setVelocityX(vx); r._slipVx = vx;
+          } else r._slipVx = s.body.velocity.x;
+        }
         // Enemy pit effects
         if (this._sysm && s.body) {
           const pit = this._pitAt(s.x);
@@ -564,7 +577,7 @@ class LevelScene extends Phaser.Scene {
     const SF = (BT - VPY) / (YB - VPY), SP = (yg - VPY) / (YB - VPY);
     const P = (x, y, k) => [VPX + (k / SP) * (x - VPX), VPY + k * (y - VPY)];   // x is a world x on the FEET plane (k = SP, where the characters walk and the collision is): the hole is exactly as wide as the physical pit there, wider in front (k = 1), narrower behind
     const lerp = (a, b, t) => a + (b - a) * t;
-    const lk = this._look || (this._look = WX.skyLook(this.weatherId));   // same saturation / brightness as the backdrop gets
+    const lk = this._look || (this._look = WX.skyLook(this.cond));   // same saturation / brightness as the backdrop gets
     const tone = (c) => { const gr = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; return c.map((v) => Math.max(0, Math.min(255, (gr + (v - gr) * (1 + lk.sat)) * lk.bri))); };
     const bs = tone(cf.base), pv = tone(cf.pave), sh = (k) => [bs[0] * k, bs[1] * k, bs[2] * k], hx = (k, c) => { c = c || bs; return (Math.min(255, Math.round(c[0] * k)) << 16) | (Math.min(255, Math.round(c[1] * k)) << 8) | Math.min(255, Math.round(c[2] * k)); };   // shades of the level's paving colour
     const mix = (c0, c1, t) => (Math.round(lerp(c0[0], c1[0], t)) << 16) | (Math.round(lerp(c0[1], c1[1], t)) << 8) | Math.round(lerp(c0[2], c1[2], t));

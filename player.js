@@ -157,7 +157,7 @@ class Player {
       }
       moveSpeed *= (this.terrainSlow || 1);   // slow terrain (the level sets it each frame: pebble pit floor)
       const target = dirIn * moveSpeed + (grounded ? 0 : (scene.windX || 0)); // typhoon: gusts push the player only while airborne
-      const accel = 3600 * dt; // same on the ground and in the air: Mario-style free air control, a full reversal takes ~0.12s
+      const accel = 3600 * dt * (grounded ? (scene.wetGrip || 1) : 1); // same on the ground and in the air: Mario-style free air control, a full reversal takes ~0.12s; wet street (scene.wetGrip < 1, set by weather.js): the ground accel / braking is weaker = slide
       const cur = b.velocity.x;
       b.setVelocityX(Math.abs(target - cur) <= accel ? target : cur + Math.sign(target - cur) * accel);
     }

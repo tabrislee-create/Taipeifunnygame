@@ -52,7 +52,7 @@ function charStats(ch) {
 }
 
 // Developer menu (user 2026-10-12: the old title screen is gone, the landing page in index.html is the only start page): opened by the landing page's 開發者選項 button.
-// 3 steps: character -> weather -> level 1..30; starts a fresh run with that character at that level, the weather is forced via WX.devWeather. 關閉 / Esc goes back to the landing page.
+// 4 steps: character -> time of day -> weather -> level 1..30; starts a fresh run with that character at that level, forced via WX.devTime / WX.devWx (two axes, user 2026-10-12). 關閉 / Esc goes back to the landing page.
 class DevMenuScene extends Phaser.Scene {
   constructor() { super('DevMenu'); }
   create() {
@@ -61,7 +61,7 @@ class DevMenuScene extends Phaser.Scene {
     bg.fillGradientStyle(0x1f4d2b, 0x1f4d2b, 0x8fd18f, 0x8fd18f, 1);
     bg.fillRect(0, 0, GAME_W, 540);
     bg.setDepth(-50);
-    var self = this, objs = [], pick = { char: null, weather: undefined };
+    var self = this, objs = [], pick = { char: null, time: undefined, weather: undefined };
     var cx = GAME_W / 2;
     function add(o) { o.setDepth(200); objs.push(o); return o; }
     function clear() { for (var i = 0; i < objs.length; i++) objs[i].destroy(); objs = []; }
@@ -98,12 +98,17 @@ class DevMenuScene extends Phaser.Scene {
     }
     function stepChar() {
       var items = Object.keys(GAME_DATA.characters).map(function (id) { return { label: GAME_DATA.characters[id].name_zh, value: id }; });
-      panel('開發者選項 1/3：選擇角色', items, 4, 140, 56, function (id) { pick.char = id; stepWeather(); }, null);
+      panel('開發者選項 1/4：選擇角色', items, 4, 140, 56, function (id) { pick.char = id; stepTime(); }, null);
+    }
+    function stepTime() {
+      var T = [['隨機', ''], ['白天', 'day'], ['黃昏', 'dusk'], ['夜晚', 'night']];
+      var items = T.map(function (t) { return { label: t[0], value: t[1] }; });
+      panel('開發者選項 2/4：選擇時間', items, 4, 112, 56, function (v) { pick.time = v === '' ? undefined : v; stepWeather(); }, stepChar);
     }
     function stepWeather() {
-      var W = [['隨機', undefined], ['晴天', 'none'], ['陰天', 'cloudy'], ['細雨', 'drizzle'], ['大雨', 'rain'], ['雷陣雨', 'thunder'], ['大霧', 'fog'], ['黃昏', 'dusk'], ['颱風', 'typhoon']];
+      var W = [['隨機', undefined], ['晴天', 'none'], ['陰天', 'cloudy'], ['細雨', 'drizzle'], ['大雨', 'rain'], ['雷陣雨', 'thunder'], ['大霧', 'fog'], ['颱風', 'typhoon']];
       var items = W.map(function (w) { return { label: w[0], value: w[1] === undefined ? '' : w[1] }; });
-      panel('開發者選項 2/3：選擇天氣', items, 5, 112, 56, function (v) { pick.weather = v === '' ? undefined : v; stepLevel(); }, stepChar);
+      panel('開發者選項 3/4：選擇天氣', items, 4, 112, 56, function (v) { pick.weather = v === '' ? undefined : v; stepLevel(); }, stepTime);
     }
     function stepLevel() {
       var n = Math.min(30, GAME_DATA.levels.length), items = [];
@@ -111,10 +116,10 @@ class DevMenuScene extends Phaser.Scene {
         var isBoss = lv % 5 === 0, nm = (GAME_DATA.levels[lv - 1] && GAME_DATA.levels[lv - 1].name_zh) || '';
         items.push({ label: '第 ' + lv + ' 關' + (isBoss ? '·魔王' : ''), sub: nm, boss: isBoss, value: lv });
       }
-      panel('開發者選項 3/3：選擇關卡', items, 6, 112, 56, function (lv) {
+      panel('開發者選項 4/4：選擇關卡', items, 6, 112, 56, function (lv) {
         newRun(pick.char, HARD_MODE);
         RUN.level = lv;
-        WX.devWeather = pick.weather;
+        WX.devTime = pick.time; WX.devWx = pick.weather;
         clear(); fadeTo(self, 'Level');
       }, stepWeather);
     }
@@ -125,7 +130,7 @@ class DevMenuScene extends Phaser.Scene {
 
 class CharSelectScene extends Phaser.Scene {
   constructor() { super('CharSelect'); }
-  init() { this._cards = []; this._sel = false; this._popupOpen = false; this._popupObjs = []; WX.devWeather = undefined; }
+  init() { this._cards = []; this._sel = false; this._popupOpen = false; this._popupObjs = []; WX.devTime = undefined; WX.devWx = undefined; }
   create() {
     this.cameras.main.fadeIn(300);
     var bg = this.add.graphics();

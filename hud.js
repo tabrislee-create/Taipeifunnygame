@@ -52,7 +52,8 @@ class HUD {
     this.levelChipText = T(14, '#3a2a00', '#ffc94a').setOrigin(0.5).setText('第 ' + RUN.level + ' 關');   // 'N / 30' was not understood (user 2026-10-12): just the level number
     this.levelText = T(18, '#ffffff').setOrigin(0, 0.5).setText(lvl.name_zh);
     this.weatherLabel = T(14, '#9fb4d0').setOrigin(0, 0.5).setText('天氣');
-    this.weatherText = T(18, '#ffffff').setOrigin(0, 0.5).setText(WX.name(s.weatherId));
+    this.weatherText = T(18, '#ffffff').setOrigin(0, 0.5).setText(WX.name(s.cond));
+    this.windText = (s.cond && s.cond.wx === 'typhoon') ? T(16, '#ffffff').setOrigin(0.5).setVisible(false) : null;   // typhoon only: arrow + wind scale under the weather pill
     this.enemyLabel = T(14, '#9fb4d0').setOrigin(0, 0.5).setText('敵人');
     this.enemyText = T(18, '#ffffff').setOrigin(0, 0.5);
     this._setHpText(hp, maxHp);
@@ -122,7 +123,28 @@ class HUD {
     const py = PY + PH + HUD_L.PILL_GAP, ph = HUD_L.PILL_H, my = py + ph / 2, pw = (PW - 2 * GAP) / 3;
     const pill = (i) => { const x = PX + i * (pw + GAP); g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(x, py, pw, ph, 16); g.lineStyle(1.5, 0xffffff, 0.22); g.strokeRoundedRect(x, py, pw, ph, 16); return x; };
     const pair = (x, a, b) => { const tot = a.width + 8 + b.width, x0 = x + (pw - tot) / 2; a.setPosition(x0, my); b.setPosition(x0 + a.width + 8, my); };
-    pair(pill(0), this.weatherLabel, this.weatherText);
+    {   // weather pill: a long name ("夜晚·雷陣雨") must not overflow it: first drop the "天氣" label, then shrink the text to fit
+      const wl = this.weatherLabel, wt = this.weatherText, x = pill(0), room = pw - 14;
+      wt.setScale(1); wl.setVisible(true);
+      if (wl.width + 8 + wt.width > room) {
+        wl.setVisible(false);
+        if (wt.width > room) wt.setScale(room / wt.width);
+        wt.setPosition(x + (pw - wt.width * wt.scaleX) / 2, my);
+      } else pair(x, wl, wt);
+    }
+    // Typhoon wind chip under the weather pill (user 2026-10-12): arrow = push direction, N級 = strength (|slant| 40..90 -> 9..12, a game scale, not a real wind speed).
+    // While the rain has already slanted but the push on the player has not arrived yet (0.7 s, weather.js; also while the push still points the old way), the chip blinks yellow = "wind is coming, do not jump"; then it stays white.
+    if (this.windText) {
+      const wi = this.scene.windInfo, a = wi ? Math.abs(wi.slant) : 0;
+      if (a < 1) this.windText.setVisible(false);
+      else {
+        const lvl = Math.max(9, Math.min(12, 9 + Math.round(3 * (a - 40) / 50))), warn = Math.abs(wi.push - wi.slant) > 0.15 * a;
+        const cx = HUD_L.PX + pw / 2, cy = py + ph + 6 + 13;
+        this.windText.setText((wi.slant > 0 ? '→ ' : '← ') + lvl + ' 級').setColor(warn ? '#ffc94a' : '#ffffff').setPosition(cx, cy).setVisible(true);
+        this.windText.setAlpha(warn ? 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(this.scene.time.now * 0.02)) : 1);
+        g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(HUD_L.PX, py + ph + 6, pw, 26, 13); g.lineStyle(1.5, warn ? 0xffc94a : 0xffffff, warn ? 0.6 : 0.22); g.strokeRoundedRect(HUD_L.PX, py + ph + 6, pw, 26, 13);
+      }
+    }
     pair(pill(1), this.enemyLabel, this.enemyText);
     // coin stack (three coins, side view, 20 px wide) + the number (extras.js coinText, moved here every frame)
     const px = pill(2), ct = this.scene._ex && this.scene._ex.coinText, nw = ct ? ct.width : 12;
@@ -345,6 +367,7 @@ class HUD {
     if (this.levelText) this.levelText.destroy();
     if (this.weatherLabel) this.weatherLabel.destroy();
     if (this.weatherText) this.weatherText.destroy();
+    if (this.windText) this.windText.destroy();
     if (this.enemyLabel) this.enemyLabel.destroy();
     if (this.enemyText) this.enemyText.destroy();
     for (let i = 0; i < this.buffIcons.length; i++) { if (this.buffIcons[i]) this.buffIcons[i].destroy(); }
