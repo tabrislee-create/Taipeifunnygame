@@ -111,7 +111,7 @@ class LevelScene extends Phaser.Scene {
     this._sysm = sysm;
     this._pits = [];
     this._look = null;
-    this._pitFG = null; this._pitFM = null; this._pitSmoke = null; this._pitFire = null; this._pitSM = null;
+    this._pitFG = null; this._pitFM = null; this._pitSmoke = null; this._pitFire = null; this._pitSM = null; this._pitFireF = null; this._pitSmokeF = null;
     this._pitG = null;   // the scene object is reused between levels: drop the previous run's (destroyed) pit graphics
     this._pitStatus = { burn: { until: 0, nextTick: 0 }, poison: { until: 0, nextTick: 0 } };
     this._inPit = null;
@@ -487,6 +487,9 @@ class LevelScene extends Phaser.Scene {
         this._pitSM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitSmoke.setMask(this._pitSM.createGeometryMask());
         this._pitFG = this.add.graphics().setDepth(-0.1); this._pitFM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitFG.setMask(this._pitFM.createGeometryMask());
         this._pitFire.setMask(this._pitFM.createGeometryMask());
+        // front copies (user 2026-10-12: a character that falls in stands BETWEEN the back and the front flames / smoke / vapour): the rows nearer than the feet plane (k > SP) are drawn above the characters
+        this._pitFireF = this.add.graphics().setDepth(2.5); this._pitFireF.setMask(this._pitFM.createGeometryMask());
+        this._pitSmokeF = this.add.graphics().setDepth(2.52); this._pitSmokeF.setMask(this._pitSM.createGeometryMask());
       }
       if (pit.deep) return;   // bottomless (level data deep_pit): no floor body, no blades; falling in ends the level (see update)
       const fp = this.add.rectangle((pit.l + pit.r) / 2, pit.floor + 10, pit.r - pit.l, 20, 0x000000, 0);
@@ -551,7 +554,7 @@ class LevelScene extends Phaser.Scene {
   // backdrop parallax. The picture's bottom strip is the walkable band; each face is clipped to the visible hole (band opening + front notch). Spikes are black blades in 4 depth rows.
   _drawPitsPersp() {
     const g = this._pitG; g.clear();
-    const gs = this._pitSmoke, g3 = this._pitFire, sm = this._pitSM; if (gs) gs.clear(); if (g3) g3.clear(); if (sm) sm.clear();
+    const gs = this._pitSmoke, g3 = this._pitFire, sm = this._pitSM, gsf = this._pitSmokeF, g3f = this._pitFireF; if (gs) gs.clear(); if (g3) g3.clear(); if (gsf) gsf.clear(); if (g3f) g3f.clear(); if (sm) sm.clear();
     const g2 = this._pitFG, hm = this._pitFM; g2.clear(); hm.clear(); hm.fillStyle(0xffffff, 1);
     const bd = this.backdrop, cf = this._persp, sx = this.cameras.main.scrollX, dw = bd.displayWidth;
     const ppr = bd.scaleY * bd.width / 3168;                                   // screen px per source-picture row
@@ -657,12 +660,12 @@ class LevelScene extends Phaser.Scene {
       if (!pit.deep && pit.kind === 'fire') {
         // Same flame shape as the vendor's stir-fry fire (effects.js STIR_FIRE / tongue): five layers (outer red feather ... pale core), a base that leans and a tip that sways and curls, flickering height.
         // Three rows of tongues, back row first, each row drawn with k = its depth; heights are in front-plane px (a tongue at depth k is k times as tall on screen).
-        const t = this.time.now, ts = t / 1000, rowK = [0.22, 0.58, 0.95], rowN = [4, 5, 6];
+        const t = this.time.now, ts = t / 1000, rowK = [0.12, 0.4, 0.72, 0.97], rowN = [4, 5, 5, 6];
         const LAY = [[1.35, 1.12, 0xff2a00, 0.22], [1.0, 1.0, 0xff5a00, 0.78], [0.72, 0.8, 0xff9500, 0.8], [0.45, 0.55, 0xffd23a, 0.85], [0.22, 0.28, 0xfff4c0, 0.9]];
-        for (let ri = 0; ri < 3; ri++) {
-          const k = SF + (1 - SF) * rowK[ri], n = rowN[ri], spacing = (r - l - 20) / n;
+        for (let ri = 0; ri < 4; ri++) {
+          const k = SF + (1 - SF) * rowK[ri], n = rowN[ri], spacing = (r - l - 20) / n, G = k < SP ? g3 : g3f;   // rows behind the feet plane under the characters, rows in front of it over them
           const gp0 = P((l + r) / 2, F, k);
-          g3.fillStyle(0xff4a00, 0.22); g3.fillEllipse(gp0[0], gp0[1], (r - l) * 0.95 * k / SP, 16 * k);   // glow on the floor under the row
+          G.fillStyle(0xff4a00, 0.22); G.fillEllipse(gp0[0], gp0[1], (r - l) * 0.95 * k / SP, 16 * k);   // glow on the floor under the row
           for (let fi = 0; fi < n; fi++) {
             const fx = Math.max(l + 10, Math.min(r - 10, l + 10 + (fi + 0.5) * spacing + (ri % 2 ? 0.3 : -0.3) * spacing));
             const ph = ri * 2.1 + fi * 1.7, wB = spacing * 1.25, hB = (46 + 34 * frac(ri * 5 + fi + 1)) * (ri === 0 ? 1.15 : 1);
@@ -676,7 +679,7 @@ class LevelScene extends Phaser.Scene {
                 const pr = P(fx + dx + hw, F - hh * u, k), pl = P(fx + dx - hw, F - hh * u, k);
                 right.push({ x: pr[0], y: pr[1] }); left.unshift({ x: pl[0], y: pl[1] });
               }
-              g3.fillStyle(L[2], L[3]); g3.fillPoints(right.concat(left.slice(1)), true);
+              G.fillStyle(L[2], L[3]); G.fillPoints(right.concat(left.slice(1)), true);
             }
           }
         }
@@ -686,8 +689,9 @@ class LevelScene extends Phaser.Scene {
             const base = P(l + 14 + (r - l - 28) * frac(si * 4.3 + 5), F - 16, kS);
             const sx = base[0] + (8 + 14 * frac(si * 1.7)) * u + 6 * Math.sin(t / 380 + si), sy = base[1] - (14 + 105 * (1 - Math.pow(1 - u, 1.4)));
             const rad = (5 + 9 * u) * (0.6 + 0.4 * kS), al = 0.8 * Math.min(1, u * 8) * (1 - u * u);   // small puffs (user 2026-10-12: smaller diameter)
-            gs.fillStyle(0x4a4541, al * 0.5); gs.fillCircle(sx, sy, rad * 1.3);
-            gs.fillStyle(0x16130f, al); gs.fillCircle(sx, sy, rad);
+            const GS = kS < SP ? gs : gsf;
+            GS.fillStyle(0x4a4541, al * 0.5); GS.fillCircle(sx, sy, rad * 1.3);
+            GS.fillStyle(0x16130f, al); GS.fillCircle(sx, sy, rad);
           }
         }
       }
@@ -705,8 +709,9 @@ class LevelScene extends Phaser.Scene {
           const bx = l + 8 + (W - 16) * frac(bi * 3.7 + 1), rise = 14 + 16 * frac(bi * 2.3 + 4), sway = Math.sin(prog * 6 + bi) * 3;
           const sc = prog < 0.8 ? 1 + 0.5 * (prog / 0.8) : 1.5 + (prog - 0.8) * 5, al = prog < 0.8 ? 0.5 : 0.5 * (1 - (prog - 0.8) / 0.2);
           const bp = P(bx + sway, F - rise * prog, kb), br = (2 + 3 * frac(bi * 1.9 + 5)) * sc * kb / SP;
-          g3.fillStyle(hx(1, tone([200, 255, 176])), al); g3.fillCircle(bp[0], bp[1], br);   // bubbles and vapour are in front of the warning board (like the flames), clipped to the opening
-          g3.lineStyle(1, edge, al); g3.strokeCircle(bp[0], bp[1], br);
+          const GB = kb < SP ? g3 : g3f;
+          GB.fillStyle(hx(1, tone([200, 255, 176])), al); GB.fillCircle(bp[0], bp[1], br);   // bubbles and vapour are in front of the warning board (like the flames), clipped to the opening
+          GB.lineStyle(1, edge, al); GB.strokeCircle(bp[0], bp[1], br);
         }
         if (gs) {   // green vapour: small pale puffs rise from the pool out of the hole, thin out and fade (fixed seeds, position from the clock); the smoke layer's mask keeps them off the cross-section
           for (let vi = 0; vi < 20; vi++) {
@@ -714,8 +719,9 @@ class LevelScene extends Phaser.Scene {
             const base = P(l + 12 + (W - 24) * frac(vi * 4.7 + 5), F - 6, kV);
             const vx = base[0] + (6 + 10 * frac(vi * 1.3)) * u + 5 * Math.sin(t / 420 + vi * 1.7), vy = base[1] - (10 + 95 * (1 - Math.pow(1 - u, 1.3)));
             const rad = (2.5 + 5 * u) * (0.6 + 0.4 * kV), al = 0.5 * Math.min(1, u * 6) * (1 - u);
-            gs.fillStyle(hx(1, tone([120, 255, 140])), al * 0.45); gs.fillCircle(vx, vy, rad * 1.5);
-            gs.fillStyle(hx(1, tone([190, 255, 190])), al); gs.fillCircle(vx, vy, rad);
+            const GV = kV < SP ? gs : gsf;
+            GV.fillStyle(hx(1, tone([120, 255, 140])), al * 0.45); GV.fillCircle(vx, vy, rad * 1.5);
+            GV.fillStyle(hx(1, tone([190, 255, 190])), al); GV.fillCircle(vx, vy, rad);
           }
         }
       }
