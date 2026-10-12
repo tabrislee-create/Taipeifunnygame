@@ -1,0 +1,329 @@
+[
+ {
+  "id": "slime_green",
+  "name_en": "Green Slime",
+  "name_zh": "綠色史萊姆",
+  "behavior": "Patrol",
+  "size": "small",
+  "hp": 20,
+  "damage": 5,
+  "speed": 40,
+  "params": {
+   "patrol_range": 150,
+   "death_goo": {
+    "duration_ms": 3000,
+    "damage": 6,
+    "width": 100
+   }
+  },
+  "first_level": 2,
+  "art_prompt": "chibi cute green slime with a cheerful expression, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Hops like the blue slime (hue-shifted sheet). When it dies it leaves a green puddle for 3 s; touching the puddle hurts."
+ },
+ {
+  "id": "slime_blue",
+  "name_en": "Blue Slime",
+  "name_zh": "藍色史萊姆",
+  "behavior": "Patrol",
+  "size": "small",
+  "hp": 30,
+  "damage": 8,
+  "speed": 50,
+  "params": {
+   "patrol_range": 200
+  },
+  "first_level": 1,
+  "art_prompt": "chibi cute blue slime with a slightly angry expression, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Plain hopping slime (tutorial enemy of level 1)."
+ },
+ {
+  "id": "slime_yellow",
+  "name_en": "Yellow Slime",
+  "name_zh": "黃色史萊姆",
+  "behavior": "Patrol",
+  "size": "small",
+  "hp": 30,
+  "damage": 8,
+  "speed": 50,
+  "params": {
+   "patrol_range": 200,
+   "hop_height_px": 104
+  },
+  "first_level": 3,
+  "art_prompt": "chibi cute yellow slime with a slightly angry expression, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Hop apex = player height (84) + 20 = 104 px."
+ },
+ {
+  "id": "slime_red",
+  "name_en": "Red Slime",
+  "name_zh": "紅色史萊姆",
+  "behavior": "Patrol",
+  "size": "small",
+  "hp": 25,
+  "damage": 8,
+  "speed": 50,
+  "params": {
+   "patrol_range": 200,
+   "spit": {
+    "range": 420,
+    "speed": 260,
+    "damage": 10,
+    "min_ms": 2500,
+    "max_ms": 5000
+   }
+  },
+  "first_level": 4,
+  "art_prompt": "chibi cute red slime with a slightly angry expression, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Randomly spits a red liquid blob at mid range (about 420 px) after a short flash."
+ },
+ {
+  "id": "bat_brown",
+  "name_en": "Brown Bat",
+  "name_zh": "棕色蝙蝠",
+  "behavior": "Flyer_Sine",
+  "size": "small",
+  "hp": 15,
+  "damage": 6,
+  "speed": 80,
+  "params": {
+   "amplitude": 40,
+   "frequency": 2.0
+  },
+  "first_level": 1,
+  "art_prompt": "chibi cute brown bat with large wings, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Flies in a sine wave. Hard to hit with melee if player is stationary."
+ },
+ {
+  "id": "bat_purple",
+  "name_en": "Purple Bat",
+  "name_zh": "紫色蝙蝠",
+  "behavior": "Flyer_Sine",
+  "size": "small",
+  "hp": 25,
+  "damage": 10,
+  "speed": 100,
+  "params": {
+   "amplitude": 60,
+   "frequency": 3.0
+  },
+  "first_level": 6,
+  "art_prompt": "chibi cute purple bat with glowing eyes, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Faster and more erratic flight pattern."
+ },
+ {
+  "id": "goblin_grunt",
+  "name_en": "Goblin Grunt",
+  "name_zh": "哥布林小兵",
+  "behavior": "Chase",
+  "size": "medium",
+  "hp": 40,
+  "damage": 12,
+  "speed": 120,
+  "params": {
+   "aggro_range": 300,
+   "attack_range": 40,
+   "attack_cooldown": 1.5,
+   "hit_recoil_ms": 700
+  },
+  "first_level": 2,
+  "art_prompt": "chibi cute green goblin holding a rusty dagger, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Standard melee chaser. Introduces aggro mechanics."
+ },
+ {
+  "id": "goblin_shaman",
+  "name_en": "Goblin Shaman",
+  "name_zh": "哥布林薩滿",
+  "behavior": "Ranged_Shooter",
+  "size": "medium",
+  "hp": 30,
+  "damage": 15,
+  "speed": 20,
+  "params": {
+   "fire_rate": 2.5,
+   "projectile_speed": 300,
+   "projectile_damage": 15
+  },
+  "first_level": 6,
+  "art_prompt": "chibi cute goblin shaman holding a staff with a glowing orb, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Stands still and shoots magic bolts. Forces player to close distance."
+ },
+ {
+  "id": "skeleton_archer",
+  "name_en": "Skeleton Archer",
+  "name_zh": "骷髏弓箭手",
+  "behavior": "Ranged_Shooter",
+  "size": "medium",
+  "hp": 35,
+  "damage": 18,
+  "speed": 10,
+  "params": {
+   "fire_rate": 2.0,
+   "projectile_speed": 400,
+   "projectile_damage": 18
+  },
+  "first_level": 8,
+  "art_prompt": "chibi cute skeleton archer with a bow, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Faster projectile speed than shaman. High damage."
+ },
+ {
+  "id": "knight_guard",
+  "name_en": "Knight Guard",
+  "name_zh": "騎士衛兵",
+  "behavior": "Chase",
+  "size": "medium",
+  "hp": 80,
+  "damage": 20,
+  "speed": 90,
+  "params": {
+   "aggro_range": 250,
+   "attack_range": 50,
+   "attack_cooldown": 2.0
+  },
+  "first_level": 11,
+  "art_prompt": "chibi cute knight in silver armor holding a shield and sword, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Tanky melee enemy. Slow but hits hard."
+ },
+ {
+  "id": "boar_charge",
+  "name_en": "Wild Boar",
+  "name_zh": "野豬",
+  "behavior": "Charge",
+  "size": "medium",
+  "hp": 60,
+  "damage": 25,
+  "speed": 50,
+  "params": {
+   "charge_speed": 400,
+   "charge_duration": 0.8,
+   "cooldown": 3.0
+  },
+  "first_level": 11,
+  "art_prompt": "chibi cute brown wild boar with tusks, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Stands still until player is close, then charges fast. High damage."
+ },
+ {
+  "id": "frog_jumper",
+  "name_en": "Tree Frog",
+  "name_zh": "樹蛙",
+  "behavior": "Jumper",
+  "size": "small",
+  "hp": 25,
+  "damage": 10,
+  "speed": 60,
+  "params": {
+   "jump_height": 150,
+   "jump_distance": 120,
+   "land_damage": 10
+  },
+  "first_level": 6,
+  "art_prompt": "chibi cute green tree frog with big eyes, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Hops towards player. Deals damage on landing."
+ },
+ {
+  "id": "spider_web",
+  "name_en": "Web Spider",
+  "name_zh": "網蛛",
+  "behavior": "Ranged_Shooter",
+  "size": "small",
+  "hp": 20,
+  "damage": 8,
+  "speed": 30,
+  "params": {
+   "fire_rate": 1.5,
+   "projectile_speed": 250,
+   "projectile_damage": 8
+  },
+  "first_level": 9,
+  "art_prompt": "chibi cute black spider with white markings, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Fast fire rate, low damage. Spams projectiles."
+ },
+ {
+  "id": "ghost_wisp",
+  "name_en": "Ghost Wisp",
+  "name_zh": "幽靈火",
+  "behavior": "Flyer_Sine",
+  "size": "small",
+  "hp": 15,
+  "damage": 12,
+  "speed": 120,
+  "params": {
+   "amplitude": 80,
+   "frequency": 1.5
+  },
+  "first_level": 11,
+  "art_prompt": "chibi cute blue ghost flame with a face, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Very fast, erratic movement. Low HP."
+ },
+ {
+  "id": "harpy_flyer",
+  "name_en": "Harpy",
+  "name_zh": "鷹身女妖",
+  "behavior": "Flyer_Dive",
+  "size": "medium",
+  "hp": 50,
+  "damage": 22,
+  "speed": 100,
+  "params": {
+   "hover_height": 150,
+   "dive_speed": 500,
+   "dive_cooldown": 2.5
+  },
+  "first_level": 14,
+  "art_prompt": "chibi cute harpy with wings and claws, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Hovers above player, then dives down. Requires vertical awareness."
+ },
+ {
+  "id": "bomb_rat",
+  "name_en": "Bomb Rat",
+  "name_zh": "炸彈鼠",
+  "behavior": "Exploder",
+  "size": "small",
+  "hp": 10,
+  "damage": 30,
+  "speed": 150,
+  "params": {
+   "fuse_time": 2.0,
+   "explosion_radius": 80,
+   "explosion_damage": 30
+  },
+  "first_level": 14,
+  "art_prompt": "chibi cute rat with a bomb strapped to its back, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Chases player. Explodes on contact or after fuse. High threat."
+ },
+ {
+  "id": "golem_stone",
+  "name_en": "Stone Golem",
+  "name_zh": "石魔像",
+  "behavior": "Chase",
+  "size": "large",
+  "hp": 150,
+  "damage": 35,
+  "speed": 60,
+  "params": {
+   "aggro_range": 400,
+   "attack_range": 60,
+   "attack_cooldown": 2.5
+  },
+  "first_level": 17,
+  "art_prompt": "chibi cute stone golem with moss, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Very tanky. Slow but high damage. Acts as a mini-tank."
+ },
+ {
+  "id": "ogre_club",
+  "name_en": "Ogre",
+  "name_zh": "食人魔",
+  "behavior": "Chase",
+  "size": "large",
+  "hp": 120,
+  "damage": 40,
+  "speed": 80,
+  "params": {
+   "aggro_range": 350,
+   "attack_range": 70,
+   "attack_cooldown": 2.0
+  },
+  "first_level": 18,
+  "art_prompt": "chibi cute green ogre holding a large wooden club, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "notes": "Fast for a large enemy. High damage. Dangerous in groups."
+ }
+]

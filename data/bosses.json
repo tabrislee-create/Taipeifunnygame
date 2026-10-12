@@ -1,0 +1,315 @@
+[
+ {
+  "id": "boss_slime_king",
+  "name_en": "Rainbow Slime King",
+  "name_zh": "幻彩史萊姆王",
+  "level": 5,
+  "hp": 300,
+  "size": "large",
+  "hitbox": {
+   "w": 0.8,
+   "h": 0.85
+  },
+  "phases": [
+   {
+    "hp_below_pct": 100,
+    "patterns": [
+     {
+      "primitive": "dash",
+      "params": {
+       "speed": 250,
+       "distance": 300,
+       "fx": "crescent"
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 3000,
+      "zh_name": "藍色衝撞",
+      "zh_desc": "身體變藍並閃爍，朝玩家方向快速水平衝刺。"
+     },
+     {
+      "primitive": "projectile_fan",
+      "params": {
+       "count": 3,
+       "spread": 40,
+       "speed": 250,
+       "damage": 15
+      },
+      "telegraph_ms": 1200,
+      "cooldown_ms": 3500,
+      "zh_name": "紅色液球噴射",
+      "zh_desc": "從胸口向前方扇形噴射三顆紅色液球。"
+     },
+     {
+      "primitive": "summon_adds",
+      "params": {
+       "count": 6,
+       "enemy_type": "slime_blue",
+       "sequence": [
+        "slime_blue",
+        "slime_blue",
+        "slime_green",
+        "slime_green",
+        "slime_red",
+        "slime_red"
+       ],
+       "interval_ms": 350
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 4000,
+      "zh_name": "召喚小跟班",
+      "zh_desc": "依序召喚藍、藍、綠、綠、紅、紅共六隻小跟班。",
+      "skill_cd_ms": 30000
+     }
+    ]
+   },
+   {
+    "hp_below_pct": 66,
+    "patterns": [
+     {
+      "primitive": "jump_slam",
+      "params": {
+       "jump_height": 104,
+       "shockwave_radius": 120,
+       "damage": 18
+      },
+      "telegraph_ms": 1200,
+      "cooldown_ms": 3000,
+      "zh_name": "黃色跳壓",
+      "zh_desc": "跳起並在玩家腳下落地，產生黃色衝擊波。"
+     },
+     {
+      "primitive": "green_terrain_aoe",
+      "params": {
+       "radius": 150,
+       "duration": 3000,
+       "damage_per_tick": 5,
+       "tick_interval": 500
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 5000,
+      "zh_name": "綠色毒潭",
+      "zh_desc": "在玩家位置噴出一大灘綠色液體，停留期間持續傷害。"
+     }
+    ]
+   },
+   {
+    "hp_below_pct": 33,
+    "patterns": [
+     {
+      "primitive": "rainbow_homing_projectile",
+      "params": {
+       "count": 4,
+       "speed": 180,
+       "damage": 15,
+       "lifetime": 3000
+      },
+      "telegraph_ms": 1200,
+      "cooldown_ms": 4000,
+      "zh_name": "幻彩追蹤彈",
+      "zh_desc": "噴射四顆不同顏色的液球，會緩慢追蹤玩家。"
+     },
+     {
+      "primitive": "dash",
+      "params": {
+       "speed": 400,
+       "distance": 400,
+       "fx": "rage"
+      },
+      "telegraph_ms": 800,
+      "cooldown_ms": 2500,
+      "zh_name": "狂暴連衝",
+      "zh_desc": "極速水平衝刺，速度快但距離短，預警時間短。"
+     }
+    ]
+   }
+  ],
+  "art_prompt": "This is an RGBA image with transparency. A large cute boss monster for a 2D platformer game: a giant glossy jelly slime blob with no arms, no legs, no hands and no feet, just a smooth rounded blob body that melts into a puddle at the bottom, big shiny round eyes with a fierce smug expression and a mischievous smile. Its body is a translucent glass-like gel with smooth faceted glass panels, filled with prismatic colors, flowing ribbons of orange, yellow, hot pink, cyan and blue inside the body. Cute chibi proportions, painted look with a thick clean dark outline, three-quarter side view facing left, a single sprite centered. No sparkles, no star glints, no lens flare, no light rays and no glow outside the body outline, nothing but the slime itself. The image has alpha channel and the background is transparent.",
+  "intro_text_zh": "來玩大的啦，阿北！",
+  "notes": "Level-5 boss, replaces boss_forest_guardian there. Skills drafted by Strata UD-IQ4_XS (plan/slime_boss_skills_a.json); green_terrain_aoe and rainbow_homing_projectile are new primitives implemented in boss.js.",
+  "walk_speed": 50,
+  "roam_min_x": 1000,
+  "sink": 14
+ },
+ {
+  "id": "boss_forest_guardian",
+  "name_en": "Forest Guardian",
+  "name_zh": "森林守護者",
+  "level": 5,
+  "hp": 300,
+  "size": "large",
+  "phases": [
+   {
+    "hp_below_pct": 100,
+    "patterns": [
+     {
+      "primitive": "dash",
+      "params": {
+       "speed": 300,
+       "distance": 200
+      },
+      "telegraph_ms": 800,
+      "cooldown_ms": 2000
+     },
+     {
+      "primitive": "projectile_fan",
+      "params": {
+       "count": 3,
+       "spread": 30,
+       "speed": 250,
+       "damage": 15
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 3000
+     }
+    ]
+   }
+  ],
+  "art_prompt": "chibi cute large tree spirit with glowing green eyes and leafy arms, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "intro_text_zh": "森林守護者甦醒了！",
+  "notes": "First boss. Teaches dash and projectile dodging. HP scaled to 3.0x base enemy HP."
+ },
+ {
+  "id": "boss_cave_king",
+  "name_en": "Cave King",
+  "name_zh": "洞穴之王",
+  "level": 10,
+  "hp": 600,
+  "size": "large",
+  "phases": [
+   {
+    "hp_below_pct": 100,
+    "patterns": [
+     {
+      "primitive": "jump_slam",
+      "params": {
+       "jump_height": 200,
+       "shockwave_radius": 150,
+       "damage": 25
+      },
+      "telegraph_ms": 1200,
+      "cooldown_ms": 3500
+     },
+     {
+      "primitive": "ground_wave",
+      "params": {
+       "speed": 200,
+       "damage": 20
+      },
+      "telegraph_ms": 800,
+      "cooldown_ms": 2500
+     }
+    ]
+   }
+  ],
+  "art_prompt": "chibi cute large mole king wearing a crown and holding a pickaxe, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "intro_text_zh": "洞穴之王從地底鑽出！",
+  "notes": "Second boss. Introduces ground waves and jump slams. HP scaled to 4.0x base enemy HP."
+ },
+ {
+  "id": "boss_shadow_lord",
+  "name_en": "Shadow Lord",
+  "name_zh": "暗影領主",
+  "level": 15,
+  "hp": 1000,
+  "size": "large",
+  "phases": [
+   {
+    "hp_below_pct": 100,
+    "patterns": [
+     {
+      "primitive": "summon_adds",
+      "params": {
+       "count": 2,
+       "enemy_type": "bat_purple"
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 5000
+     },
+     {
+      "primitive": "laser_sweep",
+      "params": {
+       "duration": 1.5,
+       "damage": 30
+      },
+      "telegraph_ms": 1500,
+      "cooldown_ms": 4000
+     }
+    ]
+   }
+  ],
+  "art_prompt": "chibi cute dark shadow figure with purple glowing eyes and a cloak, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "intro_text_zh": "暗影領主降臨！",
+  "notes": "Third boss. Introduces summons and laser sweeps. HP scaled to 5.0x base enemy HP."
+ },
+ {
+  "id": "boss_dragon_king",
+  "name_en": "Dragon King",
+  "name_zh": "龍王",
+  "level": 20,
+  "hp": 2000,
+  "size": "large",
+  "phases": [
+   {
+    "hp_below_pct": 100,
+    "patterns": [
+     {
+      "primitive": "projectile_fan",
+      "params": {
+       "count": 5,
+       "spread": 45,
+       "speed": 300,
+       "damage": 35
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 2500
+     },
+     {
+      "primitive": "dash",
+      "params": {
+       "speed": 400,
+       "distance": 300
+      },
+      "telegraph_ms": 800,
+      "cooldown_ms": 2000
+     }
+    ]
+   },
+   {
+    "hp_below_pct": 50,
+    "patterns": [
+     {
+      "primitive": "jump_slam",
+      "params": {
+       "jump_height": 250,
+       "shockwave_radius": 200,
+       "damage": 40
+      },
+      "telegraph_ms": 1200,
+      "cooldown_ms": 3000
+     },
+     {
+      "primitive": "summon_adds",
+      "params": {
+       "count": 3,
+       "enemy_type": "bomb_rat"
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 6000
+     },
+     {
+      "primitive": "laser_sweep",
+      "params": {
+       "duration": 2.0,
+       "damage": 45
+      },
+      "telegraph_ms": 1500,
+      "cooldown_ms": 5000
+     }
+    ]
+   }
+  ],
+  "art_prompt": "chibi cute large red dragon with golden horns and wings, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
+  "intro_text_zh": "龍王現身，最終決戰開始！",
+  "notes": "Final boss. Multi-phase. Uses all primitives. HP scaled to 8.0x base enemy HP."
+ }
+]

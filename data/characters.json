@@ -1,0 +1,107 @@
+[
+ {
+  "id": "vendor",
+  "name_zh": "火旺伯",
+  "name_en": "Vendor",
+  "concept_zh": "高血量防禦的夜市硬漢",
+  "bio_zh": "夜市傳奇，一手顛鍋一手撒鹽。怪獸敢擋他的攤位？一鍋大火快炒下去，讓牠們好好感受什麼叫夜市的熱情！",
+  "quote_zh": "加辣不加價！",
+  "attack_desc_zh": "命中著火、抵消投射物（Boss 除外）。",
+  "look_zh": "壯碩中年男子，圍裙沾滿醬汁，頭綁毛巾。主色調為火紅色。手持巨大鐵鍋，鍋中冒著火焰，腰間掛著一串辣椒。",
+  "stats": {
+   "max_hp": {
+    "type": "percent",
+    "value": 0.2
+   },
+   "move_speed": {
+    "type": "percent",
+    "value": -0.1
+   },
+   "attack_damage": {
+    "type": "percent",
+    "value": 0.15
+   },
+   "attack_range": {
+    "type": "flat",
+    "value": 20
+   },
+   "attack_speed": {
+    "type": "percent",
+    "value": -0.1
+   },
+   "defense": {
+    "type": "flat",
+    "value": 4
+   }
+  },
+  "skill": {
+   "id": "stir_fry",
+   "name_zh": "大火快炒",
+   "desc_zh": "半徑 200 內敵人受 2.5 倍傷害並灼燒 2 秒（每 0.5 秒 10 血，Boss 也會燒）。自身 4 秒無敵、定身。",
+   "flavor_zh": "這鍋，夠燙！",
+   "cooldown": 10,
+   "params": {
+    "radius": 200,
+    "damage_multiplier": 2.5,
+    "buff_duration": 4,
+    "burn_duration": 2,
+    "burn_interval": 0.5,
+    "burn_damage": 10
+   }
+  }
+ },
+ {
+  "id": "auntie",
+  "name_zh": "發財嫂",
+  "name_en": "Auntie",
+  "concept_zh": "高暴擊招財的幸運女神",
+  "bio_zh": "家庭主婦兼股市高手，精打細算。她認為打怪就像投資，抓準時機出手、見好就收，擊倒怪獸就是最漂亮的「獲利了結」，招財進寶沒在怕。",
+  "quote_zh": "停損？不，是停利！",
+  "look_zh": "親切中年婦女，短捲髮，穿碎花襯衫與長褲。主色調為金黃色。手持竹編菜籃，籃中裝著發光的股票圖表與蔬菜。",
+  "stats": {
+   "max_hp": {
+    "type": "percent",
+    "value": 0.05
+   },
+   "move_speed": {
+    "type": "percent",
+    "value": 0.0
+   },
+   "attack_damage": {
+    "type": "percent",
+    "value": 0.05
+   },
+   "attack_range": {
+    "type": "flat",
+    "value": 15
+   },
+   "crit_chance": {
+    "type": "flat",
+    "value": 0.15
+   },
+   "crit_multiplier": {
+    "type": "flat",
+    "value": 0.3
+   },
+   "attack_speed": {
+    "type": "percent",
+    "value": -0.1
+   }
+  },
+  "skill": {
+   "id": "take_profit",
+   "name_zh": "獲利了結",
+   "desc_zh": "5 根紅 K 棒各 0.5 倍傷害，小怪擊飛暈眩 1 秒（Boss 除外），施放期間無敵。每關首次：棒頂金幣也 0.5 倍傷害並 +2 金幣；擊中每隻敵人 +1 金幣。",
+   "flavor_zh": "落袋為安！",
+   "cooldown": 6,
+   "params": {
+    "bar_count": 5,
+    "hit_multiplier": 0.5,
+    "launch_height": 110,
+    "stun_seconds": 1,
+    "coins_per_bar": 2,
+    "coins_per_enemy": 1
+   }
+  }
+ }
+]

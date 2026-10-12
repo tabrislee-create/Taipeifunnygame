@@ -1,0 +1,96 @@
+[
+ {
+  "id": "a_leather_vest",
+  "name_en": "Raincoat",
+  "name_zh": "雨衣",
+  "slot": "armor",
+  "rarity": "common",
+  "stats": {
+   "max_hp": {
+    "type": "flat",
+    "value": 20
+   },
+   "defense": {
+    "type": "flat",
+    "value": 5
+   }
+  },
+  "hooks": [],
+  "desc_zh": "輕便的透明雨衣，提供少量生命值和防禦。",
+  "icon_prompt": "a light yellow plastic raincoat poncho with a hood, chibi style, thick black outline, centered on transparent background."
+ },
+ {
+  "id": "b_runner_shoes",
+  "name_en": "Canvas Shoes",
+  "name_zh": "帆布鞋",
+  "slot": "boots",
+  "rarity": "common",
+  "stats": {
+   "move_speed": {
+    "type": "percent",
+    "value": 0.1
+   }
+  },
+  "hooks": [],
+  "desc_zh": "輕便的帆布鞋，小幅提升移動速度。",
+  "icon_prompt": "a pair of white canvas sneakers, chibi style, thick black outline, centered on transparent background."
+ },
+ {
+  "id": "c_health_amulet",
+  "name_en": "Chicken Essence",
+  "name_zh": "滴雞精",
+  "slot": "charm",
+  "rarity": "common",
+  "stats": {
+   "max_hp": {
+    "type": "flat",
+    "value": 25
+   }
+  },
+  "hooks": [],
+  "desc_zh": "一瓶滴雞精補元氣，增加最大生命值。",
+  "icon_prompt": "a small bottle of golden chicken essence with a red cap, chibi style, thick black outline, centered on transparent background."
+ },
+ {
+  "id": "c_power_ring",
+  "name_en": "Beef Noodle Soup",
+  "name_zh": "牛肉麵",
+  "slot": "charm",
+  "rarity": "rare",
+  "stats": {
+   "attack_damage": {
+    "type": "flat",
+    "value": 8
+   }
+  },
+  "hooks": [],
+  "desc_zh": "一碗紅燒牛肉麵吃飽有力氣，提升攻擊力。",
+  "icon_prompt": "a steaming bowl of Taiwanese beef noodle soup with beef chunks, chibi style, thick black outline, centered on transparent background."
+ },
+ {
+  "id": "w_sim_card",
+  "name_en": "Taiwan Da-Da-Da SIM Card",
+  "name_zh": "台灣大大大SIM卡",
+  "slot": "weapon",
+  "rarity": "rare",
+  "attack_shape": "projectile",
+  "projectile": {
+   "speed": 420,
+   "damage_mult": 1.0,
+   "pierce": 2
+  },
+  "stats": {
+   "attack_damage": {
+    "type": "flat",
+    "value": 6
+   },
+   "attack_range": {
+    "type": "flat",
+    "value": 90
+   }
+  },
+  "hooks": [],
+  "desc_zh": "取代普攻 30 次：天線與訊號依序亮起，擊飛前方敵人（不暈眩）。",
+  "icon_prompt": "a SIM card with gold chip emitting blue electromagnetic signal waves, chibi style, thick black outline, centered on transparent background."
+ }
+]

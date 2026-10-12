@@ -1,0 +1,118 @@
+[
+ {
+  "id": "shop_atk_flat",
+  "name_zh": "力量藥水",
+  "desc_zh": "下一關攻擊力 +5",
+  "price": 8,
+  "effect_type": "stat",
+  "stat_key": "attack_damage",
+  "stat_type": "flat",
+  "stat_value": 5,
+  "price_reason": "基礎攻擊提升，效果穩定但非倍率，定價偏低讓前期買得起。"
+ },
+ {
+  "id": "shop_atk_pct",
+  "name_zh": "狂暴藥水",
+  "desc_zh": "下一關攻擊力 +10%",
+  "price": 12,
+  "effect_type": "stat",
+  "stat_key": "attack_damage",
+  "stat_type": "percent",
+  "stat_value": 0.1,
+  "price_reason": "百分比增益後期強，但前期基數低，定價中等。"
+ },
+ {
+  "id": "shop_hp_flat",
+  "name_zh": "生命藥水",
+  "desc_zh": "下一關最大生命 +20",
+  "price": 10,
+  "effect_type": "stat",
+  "stat_key": "max_hp",
+  "stat_type": "flat",
+  "stat_value": 20,
+  "price_reason": "生存能力直接提升，20點約2次小怪攻擊，定價合理。"
+ },
+ {
+  "id": "shop_hp_pct",
+  "name_zh": "活力藥水",
+  "desc_zh": "下一關最大生命 +15%",
+  "price": 14,
+  "effect_type": "stat",
+  "stat_key": "max_hp",
+  "stat_type": "percent",
+  "stat_value": 0.15,
+  "price_reason": "百分比生命後期極強，定價稍高以平衡。"
+ },
+ {
+  "id": "shop_shield",
+  "name_zh": "護盾卷軸",
+  "desc_zh": "下一關獲得 30 點護盾",
+  "price": 12,
+  "effect_type": "shield",
+  "value": 30,
+  "price_reason": "護盾可吸收傷害，30點約3次小怪攻擊，實用性高。"
+ },
+ {
+  "id": "shop_range_x2",
+  "name_zh": "長矛",
+  "desc_zh": "下一關攻擊範圍 x2",
+  "price": 14,
+  "effect_type": "stat",
+  "stat_key": "attack_range",
+  "stat_type": "percent",
+  "stat_value": 1.0,
+  "price_reason": "範圍翻倍大幅降低操作難度，定價中高。"
+ },
+ {
+  "id": "shop_range_x3",
+  "name_zh": "巨戟",
+  "desc_zh": "下一關攻擊範圍 x3",
+  "price": 16,
+  "effect_type": "stat",
+  "stat_key": "attack_range",
+  "stat_type": "percent",
+  "stat_value": 2.0,
+  "price_reason": "範圍三倍極強，幾乎無死角，定價最高。"
+ },
+ {
+  "id": "shop_jump",
+  "name_zh": "輕羽鞋",
+  "desc_zh": "增加體能，跳躍高度上升",
+  "price": 12,
+  "effect_type": "stat",
+  "stat_key": "jump_velocity",
+  "stat_type": "flat",
+  "stat_value": -249,
+  "calc_note": "Base jump_velocity is -600. Height is proportional to v^2. To double height, v must be multiplied by sqrt(2) (~1.414). -600 * 1.414 = -848.4. Flat mod = -848.4 - (-600) = -248.4. Rounded to -249.",
+  "price_reason": "跳躍高度翻倍對坑洞關卡幫助大，定價中等。"
+ },
+ {
+  "id": "shop_cd",
+  "name_zh": "時鐘碎片",
+  "desc_zh": "下一關技能冷卻 -30%",
+  "price": 16,
+  "effect_type": "skill_cd",
+  "value": 0.3,
+  "price_reason": "技能冷卻 -30%（2026-10-11 由固定 4 秒改為百分比，避免長增益角色整關無敵），定價維持最高。"
+ },
+ {
+  "id": "shop_aspd",
+  "name_zh": "加速藥水",
+  "desc_zh": "下一關攻擊速度 x2",
+  "price": 15,
+  "effect_type": "stat",
+  "stat_key": "attack_speed",
+  "stat_type": "percent",
+  "stat_value": 1.0,
+  "price_reason": "攻速翻倍等同DPS翻倍，定價高。"
+ },
+ {
+  "id": "shop_lifesteal",
+  "name_zh": "吸血牙",
+  "desc_zh": "下一關每次擊中或踩中敵人回血 3 點",
+  "price": 10,
+  "effect_type": "lifesteal_flat",
+  "value": 3,
+  "price_reason": "固定回血在前期有效，後期比例低，定價中等偏低。"
+ }
+]

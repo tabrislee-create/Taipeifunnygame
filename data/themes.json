@@ -1,0 +1,147 @@
+[
+ {
+  "id": "forest",
+  "name_en": "Whispering Woods",
+  "name_zh": "低語森林",
+  "levels": [
+   1,
+   2,
+   3,
+   4
+  ],
+  "sky_gradient_top": "#87CEEB",
+  "sky_gradient_bottom": "#E0F7FA",
+  "ground_prompt": "Grassy earth tiles with visible roots and small mushrooms, 32x32px, seamless horizontal tiling, top edge distinct with lush green grass blades.",
+  "backdrop_prompt": "Dense deciduous trees with varying shades of green and brown trunks, soft sunlight filtering through leaves, parallax layers of distant hills, no characters.",
+  "ambient_effect": "falling_leaves",
+  "music_note": "calm_acoustic",
+  "hazards": []
+ },
+ {
+  "id": "orchard",
+  "name_en": "Autumn Orchard",
+  "name_zh": "秋日果園",
+  "levels": [
+   5,
+   6,
+   7
+  ],
+  "sky_gradient_top": "#FFB74D",
+  "sky_gradient_bottom": "#FFF3E0",
+  "ground_prompt": "Dirt paths covered in orange and red fallen leaves, scattered apples, 32x32px, seamless horizontal tiling, top edge distinct with leaf litter.",
+  "backdrop_prompt": "Rows of apple trees with heavy red fruit, warm golden hour lighting, distant windmills, parallax layers of rolling hills, no characters.",
+  "ambient_effect": "falling_leaves",
+  "music_note": "upbeat_folk",
+  "hazards": []
+ },
+ {
+  "id": "desert",
+  "name_en": "Sunken Ruins",
+  "name_zh": "沉沒遺跡",
+  "levels": [
+   8,
+   9,
+   10
+  ],
+  "sky_gradient_top": "#FFCC80",
+  "sky_gradient_bottom": "#FFF9C4",
+  "ground_prompt": "Cracked sandstone tiles with ancient carvings, broken pillars, 32x32px, seamless horizontal tiling, top edge distinct with weathered stone.",
+  "backdrop_prompt": "Vast desert dunes with distant crumbling stone arches, heat haze effect, bright sun, parallax layers of sandstorms, no characters.",
+  "ambient_effect": "dust",
+  "music_note": "mysterious_ambient",
+  "hazards": [
+   "pits"
+  ]
+ },
+ {
+  "id": "cave",
+  "name_en": "Crystal Caverns",
+  "name_zh": "水晶洞穴",
+  "levels": [
+   11,
+   12,
+   13
+  ],
+  "sky_gradient_top": "#1A237E",
+  "sky_gradient_bottom": "#3949AB",
+  "ground_prompt": "Dark stone tiles with glowing blue crystal veins, 32x32px, seamless horizontal tiling, top edge distinct with sharp crystal formations.",
+  "backdrop_prompt": "Deep cave walls with large glowing crystals, stalactites hanging from ceiling, bioluminescent fungi, parallax layers of dark tunnels, no characters.",
+  "ambient_effect": "fireflies",
+  "music_note": "echoing_drones",
+  "hazards": [
+   "spikes"
+  ]
+ },
+ {
+  "id": "swamp",
+  "name_en": "Misty Marsh",
+  "name_zh": "迷霧沼澤",
+  "levels": [
+   14,
+   15,
+   16
+  ],
+  "sky_gradient_top": "#455A64",
+  "sky_gradient_bottom": "#B0BEC5",
+  "ground_prompt": "Muddy tiles with floating lily pads and moss, 32x32px, seamless horizontal tiling, top edge distinct with wet mud and roots.",
+  "backdrop_prompt": "Dense foggy swamp with twisted dead trees, hanging moss, murky water reflections, parallax layers of distant reeds, no characters.",
+  "ambient_effect": "bubbles",
+  "music_note": "eerie_flute",
+  "hazards": [
+   "pits"
+  ]
+ },
+ {
+  "id": "volcano",
+  "name_en": "Molten Core",
+  "name_zh": "熔岩核心",
+  "levels": [
+   17,
+   18,
+   19
+  ],
+  "sky_gradient_top": "#BF360C",
+  "sky_gradient_bottom": "#FF5722",
+  "ground_prompt": "Obsidian tiles with glowing lava cracks, 32x32px, seamless horizontal tiling, top edge distinct with cooling magma.",
+  "backdrop_prompt": "Active volcano with flowing lava rivers, smoke plumes, ash clouds, parallax layers of distant erupting peaks, no characters.",
+  "ambient_effect": "embers",
+  "music_note": "intense_percussion",
+  "hazards": [
+   "spikes"
+  ]
+ },
+ {
+  "id": "sky",
+  "name_en": "Sky Castle",
+  "name_zh": "天空城堡",
+  "levels": [
+   20
+  ],
+  "sky_gradient_top": "#E1F5FE",
+  "sky_gradient_bottom": "#B3E5FC",
+  "ground_prompt": "Floating white stone tiles with gold trim, 32x32px, seamless horizontal tiling, top edge distinct with clean marble.",
+  "backdrop_prompt": "High altitude clouds, floating islands in distance, bright blue sky, sun rays, parallax layers of distant mountains, no characters.",
+  "ambient_effect": "clouds",
+  "music_note": "epic_orchestral",
+  "hazards": [
+   "pits"
+  ]
+ },
+ {
+  "id": "night_village",
+  "name_en": "Moonlit Village",
+  "name_zh": "月光村莊",
+  "levels": [
+   5,
+   10,
+   15
+  ],
+  "sky_gradient_top": "#0D47A1",
+  "sky_gradient_bottom": "#1976D2",
+  "ground_prompt": "Cobblestone tiles with lantern light reflections, 32x32px, seamless horizontal tiling, top edge distinct with worn stone.",
+  "backdrop_prompt": "Quiet village houses with lit windows, full moon, stars, parallax layers of distant hills, no characters.",
+  "ambient_effect": "fireflies",
+  "music_note": "mysterious_ambient",
+  "hazards": []
+ }
+]

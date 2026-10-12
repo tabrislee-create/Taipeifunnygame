@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="theme-color" content="#102a18"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"><title>台北好好玩（試玩版）</title><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-192.png"><link rel="icon" type="image/png" href="icon-192.png">
+<style>html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}#game{display:flex;justify-content:center;align-items:center;height:100%}#rot{display:none;position:fixed;inset:0;z-index:9999;background:#102a18;color:#fff;font:600 22px 'Microsoft JhengHei',sans-serif;align-items:center;justify-content:center;flex-direction:column;text-align:center}
+#rot .ph{width:70px;height:120px;border:6px solid #fff;border-radius:14px;margin-bottom:24px;animation:rotp 2s ease-in-out infinite}
+@keyframes rotp{0%,30%{transform:rotate(0)}70%,100%{transform:rotate(-90deg)}}
+@media (orientation:portrait){#rot{display:flex}}
+</style>
+</head><body><div id="game"></div>
+<div id="rot"><div class="ph"></div>請將手機橫放<br><small>橫向全螢幕才能遊玩</small></div>
+<script src="viewport.js?v=20261009a"></script>
+<script src="phaser.min.js?v=20261009a"></script>
+<script src="shims.js?v=20261009a"></script>
+<script src="state.js?v=20261010c"></script>
+<script src="effects.js?v=20261011g"></script>
+<script src="weather.js?v=20261012b"></script>
+<script src="hooks.js?v=20261012a"></script>
+<script src="hud.js?v=20261012a"></script>
+<script src="player.js?v=20261011b"></script>
+<script src="enemy.js?v=20261011c"></script>
+<script src="boss.js?v=20261009a"></script>
+<script src="extras.js?v=20261012a"></script>
+<script src="touch.js?v=20261012a"></script>
+<script src="level.js?v=20261012a"></script>
+<script src="ui.js?v=20261012b"></script>
+<script src="choice.js?v=20261012b"></script>
+<script src="charpanel.js?v=20261012b"></script>
+<script src="main.js?v=20261012b"></script>
+<script>
+// Fullscreen comes from installing the page as an app (manifest.webmanifest: display fullscreen, landscape); opened from the home-screen icon there is
+// no browser UI and no "viewing full screen" notice. The old first-touch requestFullscreen() call is gone: the notice it triggered is drawn by the browser and cannot be hidden.
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+}
+</script>
+</body></html>

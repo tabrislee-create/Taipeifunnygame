@@ -1,0 +1,453 @@
+[
+ {
+  "n": 1,
+  "name_zh": "松菸文創大樓",
+  "theme": "forest",
+  "width": 3200,
+  "ground": [
+   {
+    "x": 0,
+    "w": 1000,
+    "y": 400
+   },
+   {
+    "x": 1150,
+    "w": 750,
+    "y": 400
+   },
+   {
+    "x": 2050,
+    "w": 1150,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 500,
+    "y": 300,
+    "w": 100
+   },
+   {
+    "x": 1500,
+    "y": 320,
+    "w": 100
+   }
+  ],
+  "spawns": [
+   {
+    "type": "slime_blue",
+    "x": 400,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_blue",
+    "x": 800,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_blue",
+    "x": 1200,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_blue",
+    "x": 1600,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_blue",
+    "x": 2200,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 2600,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3100,
+  "intro_text_zh": "歡迎來到台北好好玩！冒險從松菸文創大樓前的廣場開始。",
+  "y_ground": 400,
+  "pit_kinds": [
+   "spikes",
+   "pebble",
+   "fire",
+   "poison"
+  ]
+ },
+ {
+  "n": 2,
+  "name_zh": "國父紀念館",
+  "theme": "forest",
+  "width": 3400,
+  "ground": [
+   {
+    "x": 0,
+    "w": 800,
+    "y": 400
+   },
+   {
+    "x": 950,
+    "w": 600,
+    "y": 400
+   },
+   {
+    "x": 1700,
+    "w": 700,
+    "y": 400
+   },
+   {
+    "x": 2550,
+    "w": 850,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 300,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 1200,
+    "y": 300,
+    "w": 100
+   },
+   {
+    "x": 2000,
+    "y": 260,
+    "w": 150
+   }
+  ],
+  "spawns": [
+   {
+    "type": "slime_blue",
+    "x": 300,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 600,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_blue",
+    "x": 1100,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 1400,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_blue",
+    "x": 1900,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 2200,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_blue",
+    "x": 2700,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 3000,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3300,
+  "intro_text_zh": "金黃色的大屋頂前有寬闊的廣場，是台北人散步運動的好地方。",
+  "y_ground": 400,
+  "pit_kinds": [
+   "spikes",
+   "pebble",
+   "fire",
+   "poison"
+  ]
+ },
+ {
+  "n": 3,
+  "name_zh": "台北大巨蛋",
+  "theme": "forest",
+  "width": 3600,
+  "ground": [
+   {
+    "x": 0,
+    "w": 700,
+    "y": 400
+   },
+   {
+    "x": 850,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1500,
+    "w": 600,
+    "y": 400
+   },
+   {
+    "x": 2250,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2900,
+    "w": 700,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 400,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 1000,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 1800,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 2500,
+    "y": 270,
+    "w": 120
+   }
+  ],
+  "spawns": [
+   {
+    "type": "slime_green",
+    "x": 300,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 600,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 900,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 1200,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 1600,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 1900,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 2400,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 2700,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_red",
+    "x": 3100,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3500,
+  "intro_text_zh": "台北市首座大型室內巨蛋，棒球與演唱會的新舞台。",
+  "y_ground": 400,
+  "pit_kinds": [
+   "spikes",
+   "pebble",
+   "fire",
+   "poison"
+  ]
+ },
+ {
+  "n": 4,
+  "name_zh": "台北111觀景台",
+  "theme": "forest",
+  "width": 3800,
+  "ground": [
+   {
+    "x": 0,
+    "w": 1800,
+    "y": 400
+   },
+   {
+    "x": 1950,
+    "w": 1850,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 300,
+    "y": 260,
+    "w": 100
+   },
+   {
+    "x": 900,
+    "y": 240,
+    "w": 120
+   },
+   {
+    "x": 1600,
+    "y": 280,
+    "w": 100
+   },
+   {
+    "x": 2200,
+    "y": 250,
+    "w": 120
+   },
+   {
+    "x": 2900,
+    "y": 270,
+    "w": 100
+   }
+  ],
+  "spawns": [
+   {
+    "type": "slime_yellow",
+    "x": 200,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_red",
+    "x": 400,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 800,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_red",
+    "x": 1000,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 1500,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_red",
+    "x": 1720,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 2200,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_red",
+    "x": 2500,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 2800,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_red",
+    "x": 3100,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 3400,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3700,
+  "intro_text_zh": "你要徒手爬111？你加油，我們坐電梯上去就好。",
+  "y_ground": 400,
+  "deep_pit": true,
+  "pit_warning_texts": [
+   "很深",
+   "小心",
+   "別這樣",
+   "趕時間",
+   "祝好運"
+  ]
+ },
+ {
+  "n": 5,
+  "name_zh": "象山",
+  "theme": "night_village",
+  "width": 2000,
+  "ground": [
+   {
+    "x": 0,
+    "w": 2000,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 400,
+    "y": 250,
+    "w": 150
+   },
+   {
+    "x": 1400,
+    "y": 250,
+    "w": 150
+   }
+  ],
+  "spawns": [
+   {
+    "type": "slime_blue",
+    "x": 700,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_green",
+    "x": 1000,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_yellow",
+    "x": 1300,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_red",
+    "x": 1600,
+    "y_hint": 380
+   },
+   {
+    "type": "boss_slime_king",
+    "x": 1600,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 1900,
+  "intro_text_zh": "爬完階梯回頭看，111和台北市區全都在腳下。",
+  "y_ground": 400
+ }
+]

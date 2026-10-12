@@ -1,0 +1,86 @@
+[
+ {
+  "id": "hit_spark",
+  "trigger": "Player attack hits enemy or enemy attack hits player",
+  "recipe": "5-8 white/yellow circles, radius 2-4px, expand to 10px, fade out over 0.2s, random velocity",
+  "used_by": "all_combat"
+ },
+ {
+  "id": "slash_arc",
+  "trigger": "Player melee attack",
+  "recipe": "White crescent shape, rotates with attack direction, fades out over 0.15s, scale 1.0 to 1.2",
+  "used_by": "player_melee"
+ },
+ {
+  "id": "damage_number",
+  "trigger": "Damage dealt to enemy or player",
+  "recipe": "White text (crit: yellow), 12px, floats up 30px, fades out over 0.8s, slight random horizontal offset",
+  "used_by": "all_damage"
+ },
+ {
+  "id": "death_poof",
+  "trigger": "Enemy death",
+  "recipe": "10-15 gray smoke particles, radius 3-6px, expand and fade over 0.5s, upward drift",
+  "used_by": "all_enemies"
+ },
+ {
+  "id": "telegraph_circle",
+  "trigger": "Boss attack telegraph",
+  "recipe": "Red semi-transparent circle, radius 50-100px, pulses opacity 0.3-0.7, duration 0.5-1.5s",
+  "used_by": "boss_slam, boss_explode"
+ },
+ {
+  "id": "telegraph_line",
+  "trigger": "Boss laser or dash telegraph",
+  "recipe": "Red semi-transparent line, width 4px, length 200-400px, pulses opacity 0.3-0.7, duration 0.5-1.5s",
+  "used_by": "boss_laser, boss_dash"
+ },
+ {
+  "id": "projectile_trail",
+  "trigger": "Ranged projectile movement",
+  "recipe": "3-5 small circles, color matches projectile, fade out over 0.3s, follow projectile path",
+  "used_by": "ranged_shooter, boss_fan"
+ },
+ {
+  "id": "explosion_ring",
+  "trigger": "Exploder enemy death or boss slam",
+  "recipe": "Orange/yellow ring, expands from 0 to 100px, fades out over 0.4s, thickness 5px",
+  "used_by": "exploder, boss_slam"
+ },
+ {
+  "id": "heal_glow",
+  "trigger": "Player heals",
+  "recipe": "Green particles, radius 2-3px, rise from player, fade out over 0.6s, count 8-12",
+  "used_by": "heal_buff, heal_on_kill"
+ },
+ {
+  "id": "shield_shimmer",
+  "trigger": "Player shield active",
+  "recipe": "Blue semi-transparent circle around player, radius 30px, pulses opacity 0.2-0.4, duration matches shield",
+  "used_by": "shield_on_damaged"
+ },
+ {
+  "id": "burn_flame",
+  "trigger": "Burn status effect on enemy",
+  "recipe": "Orange/red particles, radius 2-4px, rise from enemy, fade out over 0.4s, count 3-5 per second",
+  "used_by": "burn_status"
+ },
+ {
+  "id": "stun_stars",
+  "trigger": "Stun status effect on enemy",
+  "recipe": "Yellow stars, radius 3px, orbit around enemy head, duration 1s, count 3",
+  "used_by": "stun_status"
+ },
+ {
+  "id": "dash_trail",
+  "trigger": "Player dash or boss dash",
+  "recipe": "White/gray streaks, length 20px, fade out over 0.2s, follow movement direction, count 5-8",
+  "used_by": "dash_hook, boss_dash"
+ },
+ {
+  "id": "level_clear_flash",
+  "trigger": "Level cleared",
+  "recipe": "White screen flash, opacity 0.8 to 0, duration 0.3s, followed by gold particles rising from exit door",
+  "used_by": "level_clear"
+ }
+]

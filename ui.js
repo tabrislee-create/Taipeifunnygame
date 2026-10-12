@@ -1,0 +1,538 @@
+var TITLE_COPY = [
+  "在松菸喝杯咖啡，結果哥布林比我還先搶到限量咖啡豆",
+  "別去象山看夜景了，史萊姆已經把觀景台變成溜滑梯現場",
+  "龍山寺求事業運，結果招來一堆異世界哥布林跟我搶職缺",
+  "士林夜市大腸包小腸剛買好，食人魔說他想吃大腸包哥布林",
+  "北投泡溫泉太舒服，不小心把穿越來的史萊姆煮成白玉湯圓",
+  "經典傳承十八褶小籠包，被骷髏當成球玩結果湯汁噴他一身",
+  "西門町逛大街，蝙蝠倒掛在招牌上嚇壞正要打卡的小姐姐",
+  "桃園機場航班延誤？因為異世界怪物在航廈裡玩捉迷藏",
+  "哥布林在松菸書店翻書，被店員瞪到自動結帳走人",
+  "111樓層打哥布林，結果電梯排隊排到怪物先投降",
+  "史萊姆入侵士林夜市，攤商：這豆漿怎麼會動啊？",
+  "骷髏兵泡湯北投溫泉，出來發現骨頭都泡軟了",
+  "蝙蝠在西門町亂飛，被街頭藝人當成表演道具",
+  "經典傳承十八褶遇到食人魔，一籠十八顆湯包直接撐爆牠",
+  "龍山寺求神問卜，神明說史萊姆不能收油飯啊",
+  "松菸書店的怪書都活了？拿書當武器把史萊姆壓成餅乾！",
+  "台北111頂樓有蝙蝠？別慌，先拍張照發IG再把它趕走。",
+  "士林夜市炸雞飄香？食人魔聞到味兒，丟下武器排隊買。",
+  "北投溫泉泡湯中？水裡冒出骷髏手別怕，那是新的按摩手法。",
+  "經典傳承小籠包熱騰騰？餡汁濺到異世界怪，燙得牠嗷嗷叫。",
+  "龍山寺拜拜求平安？異世界怪插隊求財，被香煙嗆到退散。",
+  "厚底眼鏡反光太強，史萊姆以為是雷射炮直接原地融化。",
+  "哥布林偷走筆電包，科技宅說那是我的第二顆心臟。",
+  "在陽明山小油坑，科技宅說這硫磺味像燒壞的晶片。",
+  "在信義區打怪，科技宅說這 BUG 比台北 111 還難修。",
+  "科技宅用鍵盤敲出節奏，食人魔以為是 DJ 開始跳舞。",
+  "參考書飛出去，史萊姆被知識的重量壓成薄餅。",
+  "制服沾到史萊姆，小綠綠說這顏色像不及格的紅筆。",
+  "馬尾甩中蝙蝠，小綠綠說這題我背過，別擋我看書。",
+  "在騎樓打怪，小綠綠說這地形比考場還複雜。",
+  "毛巾沾滿汗水，火旺伯說這比夜市的蒸氣還熱。",
+  "在陽明山，火旺伯說這硫磺味像燒焦的蔥。",
+  "鐵鍋敲出火花，史萊姆以為是新的煙火秀。",
+  "哥布林偷走鐵鍋，火旺伯說那是我的傳家寶。",
+  "大火快炒啟動，火旺伯在鐵皮屋頂炒出滿天火花。",
+  "菜籃裡裝滿史萊姆，發財嫂說這是新的投資標的。",
+  "短捲髮被風吹亂，發財嫂說這比股市波動還亂。",
+  "在淡水夕陽下，發財嫂說這景色比漲停板還美。",
+  "碎花襯衫沾到血，發財嫂說這是新的流行色。",
+  "哥布林偷走菜籃，發財嫂說那是我的金庫。"
+];  // written by IQ4 (UD-IQ4_XS), raw output in notes/title_copy_raw.txt; one is picked at random on the title screen
+var HARD_MODE = false;
+// Developer menu on the title screen (bottom button -> pop-up to jump to any level). RELEASE: set DEV_MENU = false and the button/pop-up are never created.
+var DEV_MENU = true;
+var FONT = 'Microsoft JhengHei, PingFang TC, sans-serif';
+var RARITY_COLOR = { common: 0xaaaaaa, rare: 0x4aa3ff, epic: 0xb061ff };
+var RARITY_ZH = { common: '普通', rare: '稀有', epic: '傳奇' };
+var SLOT_ZH = { weapon: '武器', armor: '防具', boots: '鞋子', charm: '飾品' };
+
+var STAT_ZH = { max_hp: '生命', move_speed: '移動速度', jump_velocity: '跳躍', attack_damage: '攻擊力', attack_range: '攻擊範圍', crit_chance: '暴擊率', crit_multiplier: '暴擊倍率', defense: '防禦', lifesteal: '吸血', attack_speed: '攻擊速度' };
+// one stat modifier -> comparable number and display text (percent mods and chance-like flat mods are shown as %)
+function statNum(m) { return m ? m.value : 0; }
+function statText(k, m) {
+  if (!m) return '無';
+  var v = m.value, pct = m.type === 'percent' || k === 'crit_chance' || k === 'lifesteal';
+  var n = pct ? Math.round(v * 1000) / 10 : Math.round(v * 100) / 100;
+  return (n >= 0 ? '+' : '') + n + (pct ? '%' : '');
+}
+
+function hexColor(c) { return '#' + c.toString(16).padStart(6, '0'); }
+function fmtTime(ms) {
+  var mm = Math.floor(ms / 60000);
+  var ss = Math.floor((ms % 60000) / 1000);
+  return (mm < 10 ? '0' : '') + mm + ':' + (ss < 10 ? '0' : '') + ss;
+}
+function mkBtn(scene, x, y, w, h, label, keyName, fn) {
+  var rect = scene.add.rectangle(x, y, w, h, 0x2a6a3a).setInteractive();
+  var t = scene.add.text(x, y, label, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+  var btn = { rect: rect, t: t, fn: fn, label: label, hover: false };
+  rect.on('pointerover', function () { btn.hover = true; rect.setFillStyle(0xffcc00); t.setColor('#111111'); rect.setScale(1.1); t.setScale(1.1); });
+  rect.on('pointerout', function () { btn.hover = false; rect.setFillStyle(0x2a6a3a); t.setColor('#ffffff'); rect.setScale(1); t.setScale(1); });
+  rect.on('pointerdown', function () { rect.setScale(0.95); t.setScale(0.95); fn(); });
+  rect.on('pointerup', function () { if (!btn.hover) { rect.setScale(1); t.setScale(1); } });
+  if (keyName) {
+    var K = scene.input.keyboard.addKeys(keyName);
+    K[keyName].on('down', function () { fn(); });
+  }
+  return btn;
+}
+function fadeTo(scene, key, data) {
+  scene.cameras.main.fadeOut(300);
+  scene.cameras.main.once('camerafadeoutcomplete', function () { scene.scene.start(key, data); });
+}
+function charStats(ch) {
+  var s = { maxHp: 100, move_speed: 220, attack_damage: 10 };
+  var st = ch.stats || {};
+  for (var k in st) {
+    var m = st[k];
+    if (m.type === 'percent') s[k] = s[k] * (1 + m.value);
+    else s[k] = s[k] + m.value;
+  }
+  return s;
+}
+
+class TitleScene extends Phaser.Scene {
+  constructor() { super('Title'); }
+  init() { this._btns = []; this._devOpen = false; WX.devWeather = undefined; }
+  create() {
+    this.cameras.main.fadeIn(300);
+    var bg = this.add.graphics();
+    bg.fillGradientStyle(0x1f4d2b, 0x1f4d2b, 0x8fd18f, 0x8fd18f, 1);
+    bg.fillRect(0, 0, GAME_W, 540);
+    bg.setDepth(-50);
+    // random level backdrop, washed out (white veil) and very slightly blurred
+    var keys = []; for (var li = 1; li <= (window.DEMO ? 5 : 30); li++) { var bk = 'backdrop_lv' + (li < 10 ? '0' : '') + li; if (this.textures.exists(bk)) keys.push(bk); }
+    if (keys.length) {
+      var pic = this.add.image(GAME_W / 2, 270, keys[Math.floor(Math.random() * keys.length)]).setDepth(-49);
+      pic.setScale(Math.max(GAME_W / pic.width, 540 / pic.height));
+      if (pic.postFX && pic.postFX.addBlur) pic.postFX.addBlur(1, 1.5, 1.5, 1, 0xffffff, 4);
+      this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0xffffff, 0.38).setDepth(-48);
+    }
+    this._bg = WX.start(this, 'title');
+    if (this.textures.exists('title_logo')) {
+      // brush-script title (white on transparent) with a black silhouette outline so it stays readable on the washed-out backdrop
+      var lw = Math.min(460, GAME_W - 80), lc = this.add.container(GAME_W / 2, 105);
+      var offs = [[-3, 0], [3, 0], [0, -3], [0, 3], [-2, -2], [2, -2], [-2, 2], [2, 2], [3, 4]];
+      for (var oi = 0; oi < offs.length; oi++) {
+        var sh = this.add.image(offs[oi][0], offs[oi][1], 'title_logo').setTintFill(0x000000).setAlpha(oi === offs.length - 1 ? 0.45 : 0.9);
+        sh.setScale(lw / sh.width); lc.add(sh);
+      }
+      var lg = this.add.image(0, 0, 'title_logo'); lg.setScale(lw / lg.width); lc.add(lg);
+      this._logo = lc;
+      this._logo.setAlpha(0);
+      var self = this;
+      this.tweens.add({
+        targets: this._logo,
+        alpha: 1,
+        duration: 3200,
+        ease: 'Sine.InOut'
+      });
+      // Gold light sweep over the letters only (like a film-studio logo glint). The built-in Shine FX only brightens, which is invisible on
+      // pure white letters, so each frame a slanted gold band is drawn on a canvas texture and clipped to the logo's alpha ("destination-in"),
+      // then shown on top of lg. Works in WebGL and Canvas renderers. It starts 200 ms before the fade-in ends (fade 3200 ms, glint from
+      // 3000 ms) and its window is 7000 ms (one slow sweep of 6000 ms), so the whole intro lasts 3000 + 7000 = 10000 ms.
+      var gw = 500, gh = Math.round(gw * lg.height / lg.width);
+      var gtex = this.textures.exists('title_glint') ? this.textures.get('title_glint') : this.textures.createCanvas('title_glint', gw, gh);
+      var logoImg = this.textures.get('title_logo').getSourceImage();
+      var glint = this.add.image(0, 0, 'title_glint').setScale(lw / gw).setVisible(false); lc.add(glint);
+      var GLINT_MS = 7000, GLINT_CYCLE = GLINT_MS, GLINT_SWEEP = 6000, GLINT_WIDE = 300, GLINT_CORE = 110, GLINT_SKEW = 0.35;
+      // one soft diagonal band centred on cx: horizontal gradient with a gaussian-like fall-off (no hard edge), so it reads as light, not paint
+      var glintBand = function (c, cx, width, r, gr, b, peak) {
+        var g = c.createLinearGradient(cx - width / 2, 0, cx + width / 2, 0);
+        for (var i = 0; i <= 12; i++) {
+          var u = i / 12, k = Math.exp(-Math.pow((u - 0.5) / 0.22, 2));
+          g.addColorStop(u, 'rgba(' + r + ',' + gr + ',' + b + ',' + (peak * k).toFixed(3) + ')');
+        }
+        var sk = gh * GLINT_SKEW / 2, hw = width / 2;
+        c.fillStyle = g; c.beginPath();
+        c.moveTo(cx - hw + sk, 0); c.lineTo(cx + hw + sk, 0); c.lineTo(cx + hw - sk, gh); c.lineTo(cx - hw - sk, gh);
+        c.closePath(); c.fill();
+      };
+      var drawGlint = function (p) {
+        var c = gtex.getContext(), e = p;   // constant speed (an ease-in/out looked too fast in the middle)
+        var reach = GLINT_WIDE / 2 + gh * GLINT_SKEW / 2, cx = -reach + e * (gw + 2 * reach);
+        c.clearRect(0, 0, gw, gh);
+        glintBand(c, cx, GLINT_WIDE, 255, 190, 60, 0.85);  // wide warm-gold glow
+        glintBand(c, cx, GLINT_CORE, 255, 225, 140, 0.75); // narrower pale-gold core
+        c.globalCompositeOperation = 'destination-in'; c.drawImage(logoImg, 0, 0, gw, gh); c.globalCompositeOperation = 'source-over';
+        gtex.refresh();
+      };
+      // The start is the tween's own `delay` (not this.time.delayedCall): tweens and scene timers ran on different clocks at low frame
+      // rates, which pushed the glint far past the end of the fade-in.
+      self.tweens.addCounter({
+        from: 0, to: GLINT_MS, duration: GLINT_MS, delay: 3000,
+        onUpdate: function (tw) {
+          var t = tw.getValue() % GLINT_CYCLE;
+          if (t < GLINT_SWEEP) { drawGlint(t / GLINT_SWEEP); glint.setVisible(true); } else glint.setVisible(false);
+        },
+        onComplete: function () { glint.setVisible(false); }
+      });
+    } else {
+      this._logo = this.add.text(GAME_W / 2, 125, '台北好好玩', { fontFamily: FONT, fontSize: 56, fontStyle: 'bold', stroke: '#000000', strokeThickness: 6, color: '#ffffff' }).setOrigin(0.5);
+      this._logo.setAlpha(0);
+      var self = this;
+      this.tweens.add({
+        targets: this._logo,
+        alpha: 1,
+        duration: 3200,
+        ease: 'Sine.InOut'
+      });
+    }
+    this.tweens.add({ targets: this._logo, y: this._logo.y - 5, duration: 2000, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this.add.text(GAME_W / 2, 175, TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)], { fontFamily: FONT, fontSize: 28, color: '#ffffff', stroke: '#000000', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 760), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
+    var spr = this.add.sprite(GAME_W / 2, 300, 'player_' + (function () { var ids = Object.keys(GAME_DATA.characters); return ids[Math.floor(Math.random() * ids.length)]; })());
+    spr.setScale(120 / spr.height);
+    this.tweens.add({ targets: spr, y: 294, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    this._btns.push(mkBtn(this, GAME_W / 2, 360, 200, 60, '開始遊戲', 'ENTER', function () { if (this._devOpen) return; fadeTo(this, 'CharSelect'); }.bind(this)));
+    var self = this;
+    if (window.DEMO) this.add.text(GAME_W / 2, 524, '© 2026 tabrislee-create｜試玩版 v0.1｜AI 輔助製作', { fontFamily: FONT, fontSize: 14, color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setAlpha(0.9);   // author line (user 2026-10-12)
+    if (window.DEMO) {   // trial build: no hard mode, no developer menu; the label "試玩版" sits under the start button (user 2026-10-12)
+      HARD_MODE = false;
+      this.add.text(GAME_W / 2, 436, '試玩版', { fontFamily: FONT, fontSize: 26, fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 5 }).setOrigin(0.5);
+    } else {
+      this._btns.push(mkBtn(this, GAME_W / 2, 440, 200, 40, '困難模式：關', 'H', function () {
+        if (self._devOpen) return;
+        HARD_MODE = !HARD_MODE;
+        var b = self._btns[1];
+        b.label = HARD_MODE ? '困難模式：開' : '困難模式：關';
+        b.t.text = b.label;
+      }));
+      if (DEV_MENU) {
+        var dev = this.add.text(GAME_W / 2, 510, '開發者選項', { fontFamily: FONT, fontSize: 16, color: '#ffffff', backgroundColor: '#00000066', padding: { x: 14, y: 5 } }).setOrigin(0.5).setAlpha(0.75).setInteractive({ useHandCursor: true });
+        dev.on('pointerover', function () { dev.setAlpha(1); });
+        dev.on('pointerout', function () { dev.setAlpha(0.75); });
+        dev.on('pointerdown', function () { self._openDevMenu(); });
+        this._devBtn = dev;
+      }
+    }
+  }
+  // Pop-up in 3 steps: character -> weather -> level 1..30. Starts a fresh run with that character at that level; the weather is forced via WX.devWeather.
+  _openDevMenu() {
+    if (this._devOpen) return;
+    this._devOpen = true;
+    var self = this, objs = [], pick = { char: null, weather: undefined };
+    var cx = GAME_W / 2;
+    function add(o) { o.setDepth(200); objs.push(o); return o; }
+    function clear() { for (var i = 0; i < objs.length; i++) objs[i].destroy(); objs = []; }
+    function close() { clear(); self._devOpen = false; if (self._devEsc) { self._devEsc.off('down', close); } }
+    // items: [{ label, sub, boss, value }]; draws a titled grid panel, calls onPick(value). backFn adds a 上一步 button.
+    function panel(title, items, cols, cw, ch, onPick, backFn) {
+      clear();
+      var gap = 8, n = items.length, rows = Math.ceil(n / cols);
+      var pw = Math.max(cols * cw + (cols - 1) * gap + 40, 360), ph = rows * ch + (rows - 1) * gap + 112, top = 270 - ph / 2;
+      var dim = add(self.add.rectangle(cx, 270, GAME_W, 540, 0x000000, 0.6).setInteractive());
+      dim.on('pointerdown', function () { /* swallow clicks behind the panel */ });
+      add(self.add.rectangle(cx, 270, pw, ph, 0x16301f, 0.97).setStrokeStyle(2, 0x6ab07a));
+      add(self.add.text(cx, top + 24, title, { fontFamily: FONT, fontSize: 22, fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5));
+      var rowN = Math.min(cols, n), x0 = cx - (rowN * cw + (rowN - 1) * gap) / 2 + cw / 2, y0 = top + 56 + ch / 2;
+      items.forEach(function (it, i) {
+        var gx = x0 + (i % cols) * (cw + gap), gy = y0 + Math.floor(i / cols) * (ch + gap);
+        var base = it.boss ? 0x6a2a2a : 0x2a6a3a;
+        var r = add(self.add.rectangle(gx, gy, cw, ch, base).setInteractive({ useHandCursor: true }));
+        var t1 = add(self.add.text(gx, gy - (it.sub ? 11 : 0), it.label, { fontFamily: FONT, fontSize: 17, fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5));
+        var t2 = it.sub ? add(self.add.text(gx, gy + 11, it.sub, { fontFamily: FONT, fontSize: 12, color: '#dddddd' }).setOrigin(0.5)) : null;
+        r.on('pointerover', function () { r.setFillStyle(0xffcc00); t1.setColor('#111111'); if (t2) t2.setColor('#222222'); });
+        r.on('pointerout', function () { r.setFillStyle(base); t1.setColor('#ffffff'); if (t2) t2.setColor('#dddddd'); });
+        r.on('pointerdown', function () { onPick(it.value); });
+      });
+      var by = top + ph - 28;
+      if (backFn) {
+        var bb = add(self.add.rectangle(cx - 80, by, 120, 36, 0x444444).setInteractive({ useHandCursor: true }));
+        add(self.add.text(cx - 80, by, '上一步', { fontFamily: FONT, fontSize: 17, color: '#ffffff' }).setOrigin(0.5));
+        bb.on('pointerdown', backFn);
+      }
+      var cb = add(self.add.rectangle(backFn ? cx + 80 : cx, by, 120, 36, 0x444444).setInteractive({ useHandCursor: true }));
+      add(self.add.text(backFn ? cx + 80 : cx, by, '關閉 (Esc)', { fontFamily: FONT, fontSize: 17, color: '#ffffff' }).setOrigin(0.5));
+      cb.on('pointerdown', close);
+    }
+    function stepChar() {
+      var items = Object.keys(GAME_DATA.characters).map(function (id) { return { label: GAME_DATA.characters[id].name_zh, value: id }; });
+      panel('開發者選項 1/3：選擇角色', items, 4, 140, 56, function (id) { pick.char = id; stepWeather(); }, null);
+    }
+    function stepWeather() {
+      var W = [['隨機', undefined], ['晴天', 'none'], ['陰天', 'cloudy'], ['細雨', 'drizzle'], ['大雨', 'rain'], ['雷陣雨', 'thunder'], ['大霧', 'fog'], ['黃昏', 'dusk'], ['颱風', 'typhoon']];
+      var items = W.map(function (w) { return { label: w[0], value: w[1] === undefined ? '' : w[1] }; });
+      panel('開發者選項 2/3：選擇天氣', items, 5, 112, 56, function (v) { pick.weather = v === '' ? undefined : v; stepLevel(); }, stepChar);
+    }
+    function stepLevel() {
+      var n = Math.min(30, GAME_DATA.levels.length), items = [];
+      for (var lv = 1; lv <= n; lv++) {
+        var isBoss = lv % 5 === 0, nm = (GAME_DATA.levels[lv - 1] && GAME_DATA.levels[lv - 1].name_zh) || '';
+        items.push({ label: '第 ' + lv + ' 關' + (isBoss ? '·魔王' : ''), sub: nm, boss: isBoss, value: lv });
+      }
+      panel('開發者選項 3/3：選擇關卡', items, 6, 112, 56, function (lv) {
+        newRun(pick.char, HARD_MODE);
+        RUN.level = lv;
+        WX.devWeather = pick.weather;
+        close(); self._devOpen = true;   // stay locked while fading out
+        fadeTo(self, 'Level');
+      }, stepWeather);
+    }
+    stepChar();
+    this._devEsc = this.input.keyboard.addKey('ESC');
+    this._devEsc.on('down', close);
+  }
+  destroy() { if (this._bg) this._bg.destroy(); }
+}
+
+class CharSelectScene extends Phaser.Scene {
+  constructor() { super('CharSelect'); }
+  init() { this._cards = []; this._sel = false; this._popupOpen = false; this._popupObjs = []; }
+  create() {
+    this.cameras.main.fadeIn(300);
+    var bg = this.add.graphics();
+    bg.fillGradientStyle(0x1f4d2b, 0x1f4d2b, 0x8fd18f, 0x8fd18f, 1);
+    bg.fillRect(0, 0, GAME_W, 540);
+    bg.setDepth(-50);
+    this._bg = WX.start(this, 'title');
+    this.add.text(GAME_W / 2, 32, '選擇你的角色', { fontFamily: FONT, fontSize: 30, fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
+    var ids = Object.keys(GAME_DATA.characters);
+    var cx = GAME_W / 2;
+    // 4 cards layout: spacing adjusted for 960 width. Card width 200, gap 20. Total 860. (The trial build has 2 characters: the same cards, centred.)
+    var W = 200;
+    var gap = 20;
+    var nCards = Math.min(4, ids.length);
+    var totalW = nCards * W + (nCards - 1) * gap;
+    var startX = cx - totalW / 2 + W / 2;
+    var xs = []; for (var xi = 0; xi < nCards; xi++) xs.push(startX + xi * (W + gap));
+    var K = this.input.keyboard.addKeys('ONE,TWO,THREE,FOUR');
+    var self = this;
+    for (var i = 0; i < nCards; i++) {
+      var id = ids[i];
+      var ch = GAME_DATA.characters[id];
+      var card = this._mkCard(id, xs[i], 290, ch, W);
+      card._zone = this.add.zone(xs[i], 290, card.w, card.h).setInteractive();
+      (function (card, i) {
+        card._zone.on('pointerover', function () { if (self._popupOpen) return; card.cont.setScale(1.05); card.border.clear(); card.border.lineStyle(3, 0xffcc00, 1); card.border.strokeRoundedRect(-card.w / 2, 0, card.w, card.h, 12); });
+        card._zone.on('pointerout', function () { if (self._popupOpen) return; card.cont.setScale(1); card.border.clear(); card.border.fillStyle(0x1a3a2a, 0.9); card.border.lineStyle(2, 0x3a6a4a, 1); card.border.fillRoundedRect(-card.w / 2, 0, card.w, card.h, 12); card.border.strokeRoundedRect(-card.w / 2, 0, card.w, card.h, 12); });
+        card._zone.on('pointerdown', function () { if (!self._popupOpen) self._pick(i); });
+        var keyName = ['ONE', 'TWO', 'THREE', 'FOUR'][i];
+        K[keyName].on('down', function () { if (!self._popupOpen) self._pick(i); });
+      })(card, i);
+      this._cards.push(card);
+    }
+  }
+  _mkCard(id, x, y, ch, W) {
+    var TW = W - 20, cont = this.add.container(x, y), yy = 14, T = 26;
+    var border = this.add.graphics();
+    cont.add(border);
+    function txt(scene, str, color, bold, wrap) {
+      var o = scene.add.text(0, yy, str, { fontFamily: FONT, fontSize: T, fontStyle: bold ? 'bold' : 'normal', color: color, wordWrap: wrap ? { width: TW, useAdvancedWrap: true } : undefined, align: 'center' }).setOrigin(0.5, 0);
+      cont.add(o); yy += o.height + 6; return o;
+    }
+    var hasAv = this.textures.exists('avatar_' + id), AV = 112;
+    var spr = this.add.sprite(0, yy + (hasAv ? AV / 2 : 32), hasAv ? 'avatar_' + id : 'player_' + id);
+    spr.setScale((hasAv ? AV : 64) / spr.height);
+    cont.add(spr); yy += hasAv ? AV + 8 : 70;
+    var nm = txt(this, ch.name_zh, '#ffffff', true); nm.setFontSize(34);
+    txt(this, ch.concept_zh, '#dddddd', false, true);
+    var H = Math.max(yy + 8, 250);
+    border.fillStyle(0x1a3a2a, 0.9); border.lineStyle(2, 0x3a6a4a, 1);
+    border.fillRoundedRect(-W / 2, 0, W, H, 12); border.strokeRoundedRect(-W / 2, 0, W, H, 12);
+    for (var k = 0; k < cont.list.length; k++) cont.list[k].y -= H / 2;
+    cont.y = y + 100;
+    this.tweens.add({ targets: cont, y: y, duration: 400, delay: 0, ease: 'Back.Out' });
+    this.tweens.add({ targets: spr, y: spr.y - 3, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
+    return { cont: cont, border: border, id: id, w: W, h: H };
+  }
+  _pick(i) {
+    if (this._sel) return;
+    this._showPopup(this._cards[i].id);
+  }
+  _showPopup(id) {
+    var self = this;
+    this._popupOpen = true;
+    var ch = GAME_DATA.characters[id];
+    var objs = [];
+    function add(o, d) { o.setDepth(d || 201); objs.push(o); return o; }
+    // Dim background (solid enough that the cards behind do not show through the popup area)
+    var dim = add(this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0x000000, 0.82).setInteractive(), 200);
+    dim.on('pointerdown', function () { /* swallow */ });
+
+    var pw = 840, PAD = 26, BTN_H = 46;
+    var px = GAME_W / 2;
+    var TW = pw - PAD * 2;
+    var cx = px;
+    // Content is laid out from y = 0 first; the panel is then sized to fit and centred, so long texts never run under the buttons.
+    var y = 0;
+    var items = [];
+    function put(o, dy) { items.push(o); o._ly = y; y += o.height + dy; return o; }
+    function T(text, size, color, bold, italic, wrap) {
+      var st = { fontFamily: FONT, fontSize: size, color: color };
+      if (bold) st.fontStyle = 'bold';
+      if (italic) st.fontStyle = 'italic';
+      if (wrap) { st.wordWrap = { width: TW, useAdvancedWrap: true }; st.align = 'center'; st.lineSpacing = 2; }
+      return self.add.text(cx, 0, text, st).setOrigin(0.5, 0);
+    }
+    var dividers = [];
+    function divider() { y += 2; dividers.push(y); y += 10; }
+
+    // Name, bio, quote
+    put(T(ch.name_zh, 38, '#ffffff', true), 6);
+    put(T(ch.bio_zh, 24, '#dddddd', false, false, true), 8);
+    put(T('"' + ch.quote_zh + '"', 24, '#ffd966', false, true, true), 6);
+    divider();
+
+    // Stats: 3-column grid, gains in green and penalties in red
+    var stats = ch.stats || {};
+    var cells = [];
+    for (var k in stats) cells.push({ label: STAT_ZH[k] || k, val: statText(k, stats[k]) });
+    var COLS = 3, CW = TW / COLS, ROW_H = 30;
+    for (var i = 0; i < cells.length; i++) {
+      var col = i % COLS, row = Math.floor(i / COLS);
+      var neg = cells[i].val.charAt(0) === '-';
+      var label = this.add.text(px - TW / 2 + col * CW + 8, 0, cells[i].label, { fontFamily: FONT, fontSize: 21, color: '#a9c9b1' }).setOrigin(0, 0);
+      var val = this.add.text(px - TW / 2 + (col + 1) * CW - 26, 0, cells[i].val, { fontFamily: FONT, fontSize: 22, fontStyle: 'bold', color: neg ? '#ff9a8a' : '#b5f0a8' }).setOrigin(1, 0);
+      label._ly = val._ly = y + row * ROW_H;
+      items.push(label, val);
+    }
+    y += Math.ceil(cells.length / COLS) * ROW_H + 2;
+    divider();
+
+    // Normal-attack effect (only characters whose normal attack has an extra effect)
+    if (ch.attack_desc_zh) {
+      put(T('普攻特效', 26, '#ffd966', true), 2);
+      put(T(ch.attack_desc_zh, 23, '#e8e8e8', false, false, true), 6);
+      divider();
+    }
+
+    // Skill, cooldown on the title line
+    var skill = ch.skill;
+    put(T('技能: ' + skill.name_zh + '　冷卻 ' + skill.cooldown + ' 秒', 26, '#ffd966', true), 2);
+    put(T(skill.desc_zh, 23, '#e8e8e8', false, false, true), 0);
+
+    var contentH = y;
+    var ph = Math.min(536, contentH + PAD * 2 + 14 + BTN_H + 12);
+    var py = 270, top = py - ph / 2;
+    add(this.add.rectangle(px, py, pw, ph, 0x16301f, 1).setStrokeStyle(2, 0x6ab07a), 200);
+    var base = top + PAD;
+    for (var j = 0; j < items.length; j++) { items[j].y = base + items[j]._ly; add(items[j]); }
+    var g = add(this.add.graphics());
+    g.lineStyle(1, 0x3a6a4a, 1);
+    for (var d = 0; d < dividers.length; d++) {
+      g.lineBetween(px - TW / 2, base + dividers[d], px + TW / 2, base + dividers[d]);
+    }
+
+    // Buttons
+    var btnY = top + ph - PAD / 2 - BTN_H / 2 - 4;
+    var okBtn = add(this.add.rectangle(cx - 100, btnY, 150, BTN_H, 0x2a6a3a).setInteractive({ useHandCursor: true }));
+    add(this.add.text(cx - 100, btnY, '確定', { fontFamily: FONT, fontSize: 24, color: '#ffffff' }).setOrigin(0.5));
+    okBtn.on('pointerdown', function () {
+      self._closePopup();
+      self._sel = true;
+      newRun(id, HARD_MODE);
+      fadeTo(self, 'Level');
+    });
+
+    var cancelBtn = add(this.add.rectangle(cx + 100, btnY, 150, BTN_H, 0x6a2a2a).setInteractive({ useHandCursor: true }));
+    add(this.add.text(cx + 100, btnY, '取消', { fontFamily: FONT, fontSize: 24, color: '#ffffff' }).setOrigin(0.5));
+    cancelBtn.on('pointerdown', function () {
+      self._closePopup();
+    });
+
+    this._popupObjs = objs;
+  }
+  _closePopup() {
+    for (var i = 0; i < this._popupObjs.length; i++) {
+      this._popupObjs[i].destroy();
+    }
+    this._popupObjs = [];
+    this._popupOpen = false;
+  }
+  destroy() { if (this._bg) this._bg.destroy(); }
+}
+
+class ClearedScene extends Phaser.Scene {
+  constructor() { super('Cleared'); }
+  init(data) { this._done = false; this._cleared = data.cleared; this._stats = data.stats; }
+  create() {
+    this.cameras.main.fadeIn(300);
+    var bgG = this.add.graphics();
+    bgG.fillGradientStyle(0x1f4d2b, 0x1f4d2b, 0x2f7a45, 0x2f7a45, 1);
+    bgG.fillRect(0, 0, GAME_W, 540);
+    bgG.setDepth(-50);
+    this._bg = WX.start(this, 'forest');
+    var lvl = GAME_DATA.levels[this._cleared - 1];
+    var title = this.add.text(GAME_W / 2, 150, '第 ' + lvl.n + ' / ' + GAME_DATA.levels.length + ' 關完成！', { fontFamily: FONT, fontSize: 40, fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
+    title.setScale(0);
+    this.tweens.add({ targets: title, scaleX: 1, scaleY: 1, duration: 600, ease: 'Elastic.Out' });
+    var elapsed = this._stats.time;
+    var t1 = this.add.text(GAME_W / 2, 260, '用時 ' + fmtTime(elapsed), { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+    var t2 = this.add.text(GAME_W / 2, 300, '受傷次數 ' + this._stats.hits, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+    var t3 = this.add.text(GAME_W / 2, 340, '擊敗敵人 ' + this._stats.kills, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+    t1.setAlpha(0); t2.setAlpha(0); t3.setAlpha(0);
+    this.tweens.add({ targets: t1, alpha: 1, duration: 800 });
+    this.tweens.add({ targets: t2, alpha: 1, duration: 800, delay: 200 });
+    this.tweens.add({ targets: t3, alpha: 1, duration: 800, delay: 400 });
+    var self = this;
+    var K = this.input.keyboard.addKeys('ENTER,SPACE');
+    K.ENTER.on('down', function () { self._go(); });
+    K.SPACE.on('down', function () { self._go(); });
+    this.add.zone(GAME_W / 2, 270, GAME_W, 540).setInteractive().on('pointerdown', function () { self._go(); });
+    this.time.delayedCall(2200, function () { self._go(); });
+  }
+  _go() {
+    if (this._done) return;
+    this._done = true;
+    fadeTo(this, 'Choice', { cleared: this._cleared });
+  }
+  destroy() { if (this._bg) this._bg.destroy(); }
+}
+
+class EndScene extends Phaser.Scene {
+  constructor() { super('End'); }
+  init(data) { this._btns = []; this._confetti = []; this._result = data.result; this._noiseTimer = 0; }
+  create() {
+    this.cameras.main.fadeIn(300);
+    var self = this;
+    if (this._result === 'dead') {
+      this._bg = this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0x3a0a0a);
+      var title = this.add.text(GAME_W / 2, 150, '遊戲結束', { fontFamily: FONT, fontSize: 64, fontStyle: 'bold', color: '#ff3333' }).setOrigin(0.5);
+      this.tweens.add({ targets: title, x: GAME_W / 2 - 8, duration: 100, yoyo: true, repeat: 3, onComplete: function () { title.x = GAME_W / 2; } });
+      this._noise = this.add.graphics();
+      this.add.text(GAME_W / 2, 260, '抵達第 ' + RUN.level + ' / ' + GAME_DATA.levels.length + ' 關', { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+      this.add.text(GAME_W / 2, 300, '擊敗敵人：' + RUN.kills, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+      this._btns.push(mkBtn(this, GAME_W / 2, 400, 220, 50, '重新挑戰本關', 'R', function () { RUN.deaths++; RUN.hp = calcStats().max_hp; fadeTo(self, 'Level'); }));
+      this._btns.push(mkBtn(this, GAME_W / 2, 470, 220, 50, '回主選單', 'M', function () { fadeTo(self, 'Title'); }));
+    } else {
+      this._bg = this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0x8a6a10);
+      var vt = this.add.text(GAME_W / 2, 150, '勝利！', { fontFamily: FONT, fontSize: 72, fontStyle: 'bold', color: '#ffd700' }).setOrigin(0.5);
+      vt.setScale(0);
+      this.tweens.add({ targets: vt, scaleX: 1.5, scaleY: 1.5, duration: 400, ease: 'Sine.Out', onComplete: function () { self.tweens.add({ targets: vt, scaleX: 1, scaleY: 1, duration: 400, ease: 'Bounce.Out' }); } });
+      this.add.text(GAME_W / 2, 210, (window.DEMO ? '試玩版到此結束，完整版共 30 關' : '你征服了台北好好玩'), { fontFamily: FONT, fontSize: 24, color: '#ffd700' }).setOrigin(0.5);
+      var elapsed = Date.now() - RUN.startTime;
+      this.add.text(GAME_W / 2, 280, '總時間 ' + fmtTime(elapsed), { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+      this.add.text(GAME_W / 2, 320, '擊敗敵人：' + RUN.kills, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+      this.add.text(GAME_W / 2, 360, '死亡次數：' + RUN.deaths, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+      if (window.DEMO) this.add.text(GAME_W / 2, 402, '感謝遊玩！', { fontFamily: FONT, fontSize: 32, fontStyle: 'bold', color: '#ffffff', stroke: '#5a3a00', strokeThickness: 5 }).setOrigin(0.5);   // trial build (user 2026-10-12)
+      var cols = [0xffd700, 0xff4444, 0x44ff44, 0x4444ff, 0xff44ff, 0x44ffff];
+      for (var i = 0; i < 40; i++) {
+        var r = this.add.rectangle(Math.random() * GAME_W, Math.random() * 540, 6, 6, cols[Math.floor(Math.random() * 6)]);
+        r.setDepth(50);
+        this._confetti.push({ r: r, vy: 60 + Math.random() * 120, rv: (Math.random() - 0.5) * 200 });
+      }
+      this._btns.push(mkBtn(this, GAME_W / 2, 450, 220, 50, '再玩一次', 'ENTER', function () { newRun(); fadeTo(self, 'Title'); }));
+    }
+  }
+  update(time, delta) {
+    if (this._result === 'dead') {
+      this._noiseTimer += delta;
+      if (this._noiseTimer > 100) {
+        this._noiseTimer = 0;
+        this._noise.clear();
+        this._noise.fillStyle(0x888888, 0.08);
+        for (var i = 0; i < 60; i++) this._noise.fillRect(Math.random() * GAME_W, Math.random() * 540, 4, 4);
+      }
+    } else {
+      for (var j = 0; j < this._confetti.length; j++) {
+        var c = this._confetti[j];
+        c.r.y += c.vy * delta / 1000;
+        c.r.rotation += c.rv * delta / 1000;
+        if (c.r.y > 560) { c.r.y = -10; c.r.x = Math.random() * GAME_W; }
+      }
+    }
+  }
+  destroy() { if (this._bg && this._bg.destroy) this._bg.destroy(); }
+}

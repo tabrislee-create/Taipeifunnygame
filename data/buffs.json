@@ -1,0 +1,18 @@
+[
+ {
+  "id": "buff_vit",
+  "name_en": "Bubble Tea",
+  "name_zh": "珍珠奶茶",
+  "rarity": "common",
+  "max_stacks": 5,
+  "stats": {
+   "max_hp": {
+    "type": "flat",
+    "value": 20
+   }
+  },
+  "hooks": [],
+  "desc_zh": "半糖少冰的珍珠奶茶，最大生命值+20",
+  "icon_prompt": "a cup of bubble milk tea with tapioca pearls and a fat straw, chibi style, thick black outline, centered on transparent background."
+ }
+]
