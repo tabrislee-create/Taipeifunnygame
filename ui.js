@@ -265,7 +265,7 @@ class CharSelectScene extends Phaser.Scene {
       var ch = lockedCh || GAME_DATA.characters[id];
       var card = this._mkCard(id, xs[i], 290, ch, W);
       if (lockedCh) {   // greyed out, no hover / click / key, a small 開發中 under the card
-        card.cont.setAlpha(0.5); card.cont.list.forEach(function (o) { if (o.setTint) o.setTint(0x777777); });
+        card.border.clear(); card.border.fillStyle(0x5a5f5c, 0.95); card.border.lineStyle(2, 0x8a908c, 1); card.border.fillRoundedRect(-card.w / 2, 0, card.w, card.h, 12); card.border.strokeRoundedRect(-card.w / 2, 0, card.w, card.h, 12);   // only the card's background turns grey (user 2026-10-12); portrait and texts keep their normal colours
         this.add.text(xs[i], 290 + card.h / 2 + 18, '開發中', { fontFamily: FONT, fontSize: 18, fontStyle: 'bold', color: '#dddddd', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5);
         card.locked = true; this._cards.push(card); continue;
       }
