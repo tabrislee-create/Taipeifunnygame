@@ -223,8 +223,9 @@ class HowToScene extends Phaser.Scene {
       drawTabs();
       const mode = this._mode;
       const holes = this.make.graphics({ x: 0, y: 0, add: false }); holes.fillStyle(0xffffff, 1);
+      const BXs = GW - 90, RX = GW - 242;   // the touch buttons sit at GW - 90 (touch.js); the right-hand callout column is anchored to the right edge: this page is laid out for any screen width, not only 960
       const spots = [];
-      if (mode !== 'install') { spots.push([4, 4, 372, 156, 16], [262, 336, 96, 130, 14]); if (mode === 'touch') spots.push([746 - 62, 333 - 62, 62 + 124 + 62 + 62, 62 + 107 + 62 + 12, 20], [150 - 78, 410 - 56, 156, 112, 20]); }   // HUD, the player, (touch view) the buttons and the walk pad
+      if (mode !== 'install') { spots.push([4, 4, 372, 156, 16], [262, 336, 96, 130, 14]); if (mode === 'touch') spots.push([BXs - 124 - 62, 333 - 62, Math.min(62 + 124 + 62 + 62, GW - 4 - (BXs - 124 - 62)), 62 + 107 + 62 + 12, 20], [150 - 78, 410 - 56, 156, 112, 20]); }   // HUD, the player, (touch view) the buttons and the walk pad
       spots.forEach((r) => holes.fillRoundedRect(r[0], r[1], r[2], r[3], r[4]));
       rt.clear(); rt.fill(0x000000, mode === 'install' ? 0.8 : 0.66); if (spots.length) rt.erase(holes); holes.destroy();
       if (spots.length) {
@@ -256,17 +257,17 @@ class HowToScene extends Phaser.Scene {
       cy += callout(396, cy, 306, '② 敵人', '場上剩幾隻；全打倒後出口箭頭出現，走到畫面右端過關。') + 10;
       callout(396, cy, 306, '③ 金幣', '撿金幣；過關後可刷新獎勵。');
       let cy2 = 12;
-      cy2 += callout(718, cy2, 234, '跳出的數字', '白＝你打出的傷害\n黃＝暴擊\n紅＝你受到的傷害') + 10;
-      callout(718, cy2, 234, '地上的坑', '尖刺：扣血並送回洞前\n鵝卵石：減速\n火焰、毒液：持續扣血');
+      cy2 += callout(RX, cy2, 234, '跳出的數字', '白＝你打出的傷害\n黃＝暴擊\n紅＝你受到的傷害') + 10;
+      callout(RX, cy2, 234, '地上的坑', '尖刺：扣血並送回洞前\n鵝卵石：減速\n火焰、毒液：持續扣血');
       T(310, 318, '這是你', 18, '#ffc94a').setOrigin(0.5, 1).setDepth(4);
       box.fillStyle(GOLD, 1); box.fillTriangle(310, 332, 300, 320, 320, 320);
 
       if (mode === 'touch') {   // touch controls: the walk pad on the left half, three buttons at the bottom right
         if (!hasTouch) this._mockTouch(box);   // on a computer the level has no touch controls: draw them so the highlighted places are not empty
         callout(16, 248, 236, '左半邊螢幕', '按住往左右滑動就會移動。', [140, 344, 140, 356]);
-        callout(396, 332, 270, '右下三顆按鈕', '上＝跳躍　左＝技能　右＝攻擊。從上方跳踩在敵人頭上，也能攻擊（魔王除外）。', [666, 400, 688, 416]);
+        callout(396, 332, 270, '右下三顆按鈕', '上＝跳躍　左＝技能　右＝攻擊。從上方跳踩在敵人頭上，也能攻擊（魔王除外）。', [666, 400, BXs - 124 - 62 - 4, 416]);
       } else {                   // keyboard
-        const bx = 396, by = 328, bw = 556, bh2 = 152;
+        const bx = 396, by = 328, bw = GW - 396 - 8, bh2 = 152;
         box.fillStyle(0x0a1224, 0.96); box.fillRoundedRect(bx, by, bw, bh2, 14); box.lineStyle(2, 0xffffff, 0.25); box.strokeRoundedRect(bx, by, bw, bh2, 14);
         box.fillStyle(GOLD, 1); box.fillRoundedRect(bx, by + 10, 5, 20, 2);
         T(bx + 16, by + 10, '鍵盤操作', 20, '#ffc94a').setDepth(4);
@@ -285,18 +286,19 @@ class HowToScene extends Phaser.Scene {
 
   // illustration of the touch controls (pad hint + the three round buttons, same places and glyphs as touch.js) for the touch view when the player is on a computer
   _mockTouch(box) {
+    const GW = (typeof GAME_W !== 'undefined' && GAME_W) ? GAME_W : 960, BX = GW - 90;   // same anchor as touch.js
     const ink = (w, a) => box.lineStyle(w, 0xffffff, a == null ? 0.95 : a);
     const circ = (x, y, r) => { box.fillStyle(0x000000, 0.35); box.fillCircle(x, y, r); box.lineStyle(2, 0xffffff, 0.55); box.strokeCircle(x, y, r); };
-    circ(808, 333, 56); ink(6); [[-9, 8], [-9, -4]].forEach((o) => { box.beginPath(); box.moveTo(808 - 18, 333 + o[1] + 6); box.lineTo(808, 333 + o[1] - 10 + 6); box.lineTo(808 + 18, 333 + o[1] + 6); box.strokePath(); });   // jump: two chevrons
-    circ(746, 440, 56); box.fillStyle(0xffffff, 0.95); box.fillTriangle(746, 440 - 26, 746 + 9, 440 - 9, 746 - 9, 440 - 9); box.fillTriangle(746 + 26, 440, 746 + 9, 440 + 9, 746 + 9, 440 - 9); box.fillTriangle(746, 440 + 26, 746 - 9, 440 + 9, 746 + 9, 440 + 9); box.fillTriangle(746 - 26, 440, 746 - 9, 440 - 9, 746 - 9, 440 + 9); box.fillRect(746 - 9, 440 - 9, 18, 18);   // skill: four-point star
-    circ(870, 440, 56); ink(7); box.lineBetween(870 - 4, 440 + 4, 870 + 22, 440 - 22); ink(6); box.lineBetween(870 - 17, 440 - 5, 870 + 5, 440 + 17); ink(8); box.lineBetween(870 - 8, 440 + 8, 870 - 19, 440 + 19);   // attack: a sword
+    circ((BX - 62), 333, 56); ink(6); [[-9, 8], [-9, -4]].forEach((o) => { box.beginPath(); box.moveTo((BX - 62) - 18, 333 + o[1] + 6); box.lineTo((BX - 62), 333 + o[1] - 10 + 6); box.lineTo((BX - 62) + 18, 333 + o[1] + 6); box.strokePath(); });   // jump: two chevrons
+    circ((BX - 124), 440, 56); box.fillStyle(0xffffff, 0.95); box.fillTriangle((BX - 124), 440 - 26, (BX - 124) + 9, 440 - 9, (BX - 124) - 9, 440 - 9); box.fillTriangle((BX - 124) + 26, 440, (BX - 124) + 9, 440 + 9, (BX - 124) + 9, 440 - 9); box.fillTriangle((BX - 124), 440 + 26, (BX - 124) - 9, 440 + 9, (BX - 124) + 9, 440 + 9); box.fillTriangle((BX - 124) - 26, 440, (BX - 124) - 9, 440 - 9, (BX - 124) - 9, 440 + 9); box.fillRect((BX - 124) - 9, 440 - 9, 18, 18);   // skill: four-point star
+    circ(BX, 440, 56); ink(7); box.lineBetween(BX - 4, 440 + 4, BX + 22, 440 - 22); ink(6); box.lineBetween(BX - 17, 440 - 5, BX + 5, 440 + 17); ink(8); box.lineBetween(BX - 8, 440 + 8, BX - 19, 440 + 19);   // attack: a sword
     box.fillStyle(0x000000, 0.35); box.fillRoundedRect(150 - 78, 410 - 36, 156, 72, 36); box.lineStyle(2, 0xffffff, 0.55); box.strokeRoundedRect(150 - 78, 410 - 36, 156, 72, 36);   // walk pad: a pill with a knob
     box.fillStyle(0xffffff, 0.9); box.fillCircle(150, 410, 22); ink(4, 0.8); box.lineBetween(150 - 60, 410, 150 - 36, 410); box.lineBetween(150 + 36, 410, 150 + 60, 410);
   }
 
   // "安裝到桌面": how to add the game to the home screen on Android (Chrome) and iOS (Safari)
   _buildInstall(box, T, callout) {
-    const GOLD = 0xffc94a, px = 40, py = 16, pw = 880, ph = 462;
+    const GW = (typeof GAME_W !== 'undefined' && GAME_W) ? GAME_W : 960, GOLD = 0xffc94a, pw = 880, px = Math.round((GW - pw) / 2), py = 16, ph = 462;
     box.fillStyle(0x0a1224, 0.97); box.fillRoundedRect(px, py, pw, ph, 18); box.lineStyle(2, 0xffffff, 0.25); box.strokeRoundedRect(px, py, pw, ph, 18);
     T(px + 24, py + 30, '安裝到桌面', 28, '#ffffff').setOrigin(0, 0.5).setDepth(4);
     T(px + 24, py + 62, '加到主畫面後，從桌面圖示開啟就是全螢幕、不用再輸入網址。請先把手機橫放。', 18, '#9fb4d0').setOrigin(0, 0.5).setDepth(4);
