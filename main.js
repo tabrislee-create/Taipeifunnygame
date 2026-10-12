@@ -117,7 +117,6 @@ class BootScene extends Phaser.Scene {
           sl.sprite = self.add.image(sl.x, rowY, key).setOrigin(0.5, 1);
           sl.sprite.setScale((PLAYER_DISPLAY_H[sl.id] || SPR_H) / sl.sprite.height);   // same display heights as in the game (height standard), feet on rowY (origin 0.5,1; all textures reach their bottom row)
           sl.sy = sl.sprite.scaleY; sl.phase = i * 1.3;
-          if (sl.locked) { self.add.text(sl.x, rowY + 3, '開發中', { fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif', fontSize: '15px', color: '#cccccc', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 0); }
         }
         var ok = sl.frames > 0, f;
         for (f = 1; ok && f <= sl.frames; f++) ok = self.textures.exists(key + '_w' + f);
