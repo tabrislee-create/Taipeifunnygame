@@ -62,7 +62,7 @@ function bootGame() {
     parent: 'game',
     backgroundColor: '#000',
     physics: { default: 'arcade', arcade: { gravity: { y: 1000 }, debug: false } },
-    scene: [BootScene, TitleScene, CharSelectScene, LevelScene, ClearedScene, ChoiceScene, EndScene, CharPanelScene, HowToScene]
+    scene: [BootScene, DevMenuScene, CharSelectScene, LevelScene, ClearedScene, ChoiceScene, EndScene, CharPanelScene, HowToScene]
   });
   if (window.__landingDone) setTimeout(window.__landingDone, 350);   // the loading screen (BootScene) takes over from the landing page
 }
@@ -189,7 +189,7 @@ class BootScene extends Phaser.Scene {
 
   create() {
     if (this._walkStep) this.game.events.off('step', this._walkStep);
-    this.scene.start(window.__fromLanding ? 'CharSelect' : 'Title');   // started from the landing page (index.html): straight to the character select; ?go=1 / automated browsers (no landing) keep the title screen
+    this.scene.start(window.__entry === 'dev' ? 'DevMenu' : 'CharSelect');   // the landing page (index.html) is the only start page: its start button -> character select, its 開發者選項 button -> the developer menu
   }
 }
 

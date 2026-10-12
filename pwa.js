@@ -55,7 +55,7 @@ var PWA = (function () {
       if (id === 'fs') toggleFullscreen();
       else if (id === 'install') install();
       else if (id === 'howto') {
-        if (scene.scene.key === 'Title' || scene.scene.key === 'Choice') { scene.scene.pause(); scene.scene.launch('HowTo', { from: scene.scene.key, mode: 'install' }); }
+        if (scene.scene.key === 'Choice') { scene.scene.pause(); scene.scene.launch('HowTo', { from: scene.scene.key, mode: 'install' }); }
         else if (scene.scene.key === 'CharPanel') { scene.scene.launch('HowTo', { from: 'CharPanel', mode: 'install' }); scene.scene.pause(); }
       }
     }
@@ -71,10 +71,6 @@ var PWA = (function () {
         z.on('pointerup', function () { act(b.id); });
         objs.push(g, t, z);
       });
-      if (isLine && scene.scene.key === 'Title') {
-        var n = scene.add.text(GAME_W / 2, y, '目前在 LINE 等內建瀏覽器：無法全螢幕與安裝。請點右上角「⋯」→「用預設瀏覽器開啟」。', { fontFamily: F, fontSize: '14px', fontStyle: 'bold', color: '#ffd966', stroke: '#0a1224', strokeThickness: 3, align: 'center', wordWrap: { width: 760 } }).setOrigin(0.5).setDepth(depth + 1).setScrollFactor(0);
-        objs.push(n);
-      }
     }
     listeners.push(build);
     var done = function () { dead = true; var i = listeners.indexOf(build); if (i >= 0) listeners.splice(i, 1); clear(); };

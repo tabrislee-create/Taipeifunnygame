@@ -29,11 +29,12 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 #lload .bar{height:2.2vmin;min-height:12px;max-height:20px;border:2px solid #fff;border-radius:99px;background:rgba(0,0,0,.35);overflow:hidden}
 #lload .bar i{display:block;height:100%;width:0;background:#4caf50;transition:width .15s}
 #lload .txt{margin-top:1vmin;font-weight:700;text-shadow:0 2px 4px #000}
-body.loading #lstart{display:none}body.loading #lload{display:block}body.loading #linst,body.loading #lhint{visibility:hidden}
+body.loading #lstart{display:none}body.loading #lload{display:block}body.loading #linst,body.loading #lopts,body.loading #lhint{visibility:hidden}
 #lflag{font-weight:800;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000}
 #lhint{opacity:.95;text-shadow:0 1px 4px #000,0 0 6px #000;font-weight:700}
-#linst{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
-#linst button{appearance:none;font:700 15px 'Microsoft JhengHei','PingFang TC',sans-serif;color:#fff;background:rgba(10,18,36,.82);border:2px solid rgba(255,255,255,.55);border-radius:99px;padding:6px 16px;cursor:pointer}
+#linst,#lopts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+#lopts button.on{background:#b3541e}
+#linst button,#lopts button{appearance:none;font:700 15px 'Microsoft JhengHei','PingFang TC',sans-serif;color:#fff;background:rgba(10,18,36,.82);border:2px solid rgba(255,255,255,.55);border-radius:99px;padding:6px 16px;cursor:pointer}
 #lline{display:none;font-weight:800;color:#ffd966;text-shadow:-1px -1px 0 #0a1224,1px -1px 0 #0a1224,-1px 1px 0 #0a1224,1px 1px 0 #0a1224;max-width:90%}
 #lfoot{position:absolute;left:0;right:0;bottom:max(6px,env(safe-area-inset-bottom));text-align:center;font-size:12px;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
 /* landscape: short and wide - everything is sized from the screen HEIGHT */
@@ -81,6 +82,7 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
     <div id="lload"><div class="bar"><i></i></div><div class="txt">載入中 0%</div></div>
     <div id="lflag"></div>
     <div id="lhint">開始後會自動切換成橫向全螢幕</div>
+    <div id="lopts"></div>
     <div id="linst"></div>
     <div id="lline">目前在 LINE 等內建瀏覽器：無法全螢幕與安裝。請點右上角「⋯」→「用預設瀏覽器開啟」。</div>
   </div>
@@ -92,7 +94,8 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
   </div></div>
 </div>
 
-<script>window.DEMO_BUILD = true;   // the public demo bundle (tools/make_demo_bundle.py) sets this to true</script>
+<script>window.DEMO_BUILD = true;   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
+window.DEV_MENU = true;      // the 開發者選項 button on this page (full build only); set false for a public full release</script>
 <script src="viewport.js?v=20261009a"></script>
 <script src="titlecopy.js?v=20261012a"></script>
 <script src="pwa.js?v=20261012b"></script>
@@ -119,27 +122,50 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
     try { if (PWA.canFullscreen() && !PWA.standalone() && !document.fullscreenElement) p = document.documentElement.requestFullscreen({ navigationUI: 'hide' }); } catch (e) {}
     Promise.resolve(p).catch(function () {}).then(function () { try { if (screen.orientation && screen.orientation.lock) screen.orientation.lock('landscape').catch(function () {}); } catch (e) {} });
   }
-  function start() {
-    if (started) return; started = true;
-    window.__fromLanding = !bypass;
+  // This page is the only start page (user 2026-10-12): the game's 回主選單 / 再玩一次 buttons come back here (window.showLanding), the start button goes to the character select,
+  // 開發者選項 to the developer menu.  The first press loads the game; later presses just switch scenes.
+  function start(entry) {
+    if (started && !window.__game) return;   // still loading
+    window.__entry = entry || 'play';
     document.body.classList.add('playing');
-    if (!bypass) { enterLandscape(); document.body.classList.add('loading'); }
+    if (!bypass) enterLandscape();
+    if (window.__game) {   // the game is already loaded (we came back from it): stop whatever is running and open the chosen scene
+      var g = window.__game; g.loop.wake();
+      g.scene.getScenes(true).forEach(function (sc) { g.scene.stop(sc.scene.key); });
+      g.scene.start(window.__entry === 'dev' ? 'DevMenu' : 'CharSelect');
+      window.__landingDone(); return;
+    }
+    started = true;
+    if (!bypass) document.body.classList.add('loading');
     loadGame();
   }
-  window.__landingDone = function () { var l = $('landing'); l.classList.add('out'); setTimeout(function () { l.style.display = 'none'; }, 450); };
+  window.__landingDone = function () { var l = $('landing'); l.classList.add('out'); setTimeout(function () { if (l.classList.contains('out')) l.style.display = 'none'; }, 450); };
+  window.showLanding = function () {
+    var l = $('landing'); l.style.display = 'block'; void l.offsetWidth; l.classList.remove('out');
+    document.body.classList.remove('playing', 'loading');
+    if (window.__game) window.__game.loop.sleep();
+    if (window.setLandingTag) window.setLandingTag();
+  };
 
-  if (bypass) { $('landing').style.display = 'none'; start(); return; }
 
   // background picture: a random level backdrop (the first five in the demo; same idea as the old title screen), blurred; the picture is only decoration
   $('lbg').style.backgroundImage = 'url(assets/backdrop_lv' + ('0' + (1 + Math.floor(Math.random() * (demo ? 5 : 30)))).slice(-2) + '.jpg)';
-  var tag = TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)]; $('ltag').textContent = demoName(tag, demo);
+  window.setLandingTag = function () { $('ltag').textContent = demoName(TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)], demo); };
+  window.setLandingTag();
   ['geek', 'greenie', 'vendor', 'auntie'].forEach(function (id) {   // the demo plays only vendor and auntie: the other two are greyed out with 開發中
     var locked = demo && (id === 'geek' || id === 'greenie'), w = document.createElement('div'); w.className = 'av' + (locked ? ' lock' : '');
     var im = new Image(); im.src = 'assets/avatar_' + id + '.png'; im.alt = ''; w.appendChild(im);
     $('lava').appendChild(w);
   });
   if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 v0.1｜AI 輔助製作'; }
-  $('lstart').addEventListener('click', start);
+  $('lstart').addEventListener('click', function () { start('play'); });
+  // full build only: 困難模式 toggle and 開發者選項 (the trial build has neither)
+  if (!demo) {
+    var hb = document.createElement('button'); hb.type = 'button'; hb.textContent = '困難模式：關';
+    hb.addEventListener('click', function () { window.__landingHard = !window.__landingHard; hb.textContent = '困難模式：' + (window.__landingHard ? '開' : '關'); hb.classList.toggle('on', !!window.__landingHard); });
+    $('lopts').appendChild(hb);
+    if (window.DEV_MENU !== false) { var db = document.createElement('button'); db.type = 'button'; db.textContent = '開發者選項'; db.addEventListener('click', function () { start('dev'); }); $('lopts').appendChild(db); }
+  }
   // install buttons (pwa.js): 安裝遊戲 where the browser offers its prompt, 安裝說明 on other touch devices; a hint for LINE's in-app browser
   function renderInstall() {
     var box = $('linst'); box.innerHTML = '';
@@ -153,7 +179,8 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
   }
   PWA.onChange(renderInstall); renderInstall();
   $('lmodalok').addEventListener('click', function () { $('lmodal').classList.remove('on'); });
-  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && !started) start(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && document.body.classList.contains('playing') === false && $('landing').style.display !== 'none') start('play'); });
+  if (bypass) { $('landing').style.display = 'none'; window.__entry = /[?&]go=dev/.test(location.search) ? 'dev' : 'play'; started = true; document.body.classList.add('playing'); loadGame(); }   // ?go=1 / automated browsers: no start page at first (it is still there for 回主選單)
 })();
 </script>
 <script>

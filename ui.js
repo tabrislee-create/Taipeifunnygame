@@ -1,7 +1,6 @@
 // TITLE_COPY moved to titlecopy.js (the landing page in index.html needs it before the game scripts are loaded)
-var HARD_MODE = false;
-// Developer menu on the title screen (bottom button -> pop-up to jump to any level). RELEASE: set DEV_MENU = false and the button/pop-up are never created.
-var DEV_MENU = true;
+// Hard mode is a toggle on the landing page (index.html: window.__landingHard); the trial build never has it.
+Object.defineProperty(window, 'HARD_MODE', { get: function () { return !!window.__landingHard && !window.DEMO; }, set: function (v) { window.__landingHard = !!v; } });
 var FONT = 'Microsoft JhengHei, PingFang TC, sans-serif';
 var RARITY_COLOR = { common: 0xaaaaaa, rare: 0x4aa3ff, epic: 0xb061ff };
 var RARITY_ZH = { common: '普通', rare: '稀有', epic: '傳奇' };
@@ -52,131 +51,21 @@ function charStats(ch) {
   return s;
 }
 
-class TitleScene extends Phaser.Scene {
-  constructor() { super('Title'); }
-  init() { this._btns = []; this._devOpen = false; WX.devWeather = undefined; }
+// Developer menu (user 2026-10-12: the old title screen is gone, the landing page in index.html is the only start page): opened by the landing page's 開發者選項 button.
+// 3 steps: character -> weather -> level 1..30; starts a fresh run with that character at that level, the weather is forced via WX.devWeather. 關閉 / Esc goes back to the landing page.
+class DevMenuScene extends Phaser.Scene {
+  constructor() { super('DevMenu'); }
   create() {
-    this.cameras.main.fadeIn(300);
+    this.cameras.main.fadeIn(200);
     var bg = this.add.graphics();
     bg.fillGradientStyle(0x1f4d2b, 0x1f4d2b, 0x8fd18f, 0x8fd18f, 1);
     bg.fillRect(0, 0, GAME_W, 540);
     bg.setDepth(-50);
-    // random level backdrop, washed out (white veil) and very slightly blurred
-    var keys = []; for (var li = 1; li <= (window.DEMO ? 5 : 30); li++) { var bk = 'backdrop_lv' + (li < 10 ? '0' : '') + li; if (this.textures.exists(bk)) keys.push(bk); }
-    if (keys.length) {
-      var pic = this.add.image(GAME_W / 2, 270, keys[Math.floor(Math.random() * keys.length)]).setDepth(-49);
-      pic.setScale(Math.max(GAME_W / pic.width, 540 / pic.height));
-      if (pic.postFX && pic.postFX.addBlur) pic.postFX.addBlur(1, 1.5, 1.5, 1, 0xffffff, 4);
-      this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0xffffff, 0.38).setDepth(-48);
-    }
-    this._bg = WX.start(this, 'title');
-    if (this.textures.exists('title_logo')) {
-      // brush-script title (white on transparent) with a black silhouette outline so it stays readable on the washed-out backdrop
-      var lw = Math.min(460, GAME_W - 80), lc = this.add.container(GAME_W / 2, 105);
-      var offs = [[-3, 0], [3, 0], [0, -3], [0, 3], [-2, -2], [2, -2], [-2, 2], [2, 2], [3, 4]];
-      for (var oi = 0; oi < offs.length; oi++) {
-        var sh = this.add.image(offs[oi][0], offs[oi][1], 'title_logo').setTintFill(0x000000).setAlpha(oi === offs.length - 1 ? 0.45 : 0.9);
-        sh.setScale(lw / sh.width); lc.add(sh);
-      }
-      var lg = this.add.image(0, 0, 'title_logo'); lg.setScale(lw / lg.width); lc.add(lg);
-      this._logo = lc;
-      this._logo.setAlpha(0);
-      var self = this;
-      this.tweens.add({
-        targets: this._logo,
-        alpha: 1,
-        duration: 3200,
-        ease: 'Sine.InOut'
-      });
-      // Gold light sweep over the letters only (like a film-studio logo glint). The built-in Shine FX only brightens, which is invisible on
-      // pure white letters, so each frame a slanted gold band is drawn on a canvas texture and clipped to the logo's alpha ("destination-in"),
-      // then shown on top of lg. Works in WebGL and Canvas renderers. It starts 200 ms before the fade-in ends (fade 3200 ms, glint from
-      // 3000 ms) and its window is 7000 ms (one slow sweep of 6000 ms), so the whole intro lasts 3000 + 7000 = 10000 ms.
-      var gw = 500, gh = Math.round(gw * lg.height / lg.width);
-      var gtex = this.textures.exists('title_glint') ? this.textures.get('title_glint') : this.textures.createCanvas('title_glint', gw, gh);
-      var logoImg = this.textures.get('title_logo').getSourceImage();
-      var glint = this.add.image(0, 0, 'title_glint').setScale(lw / gw).setVisible(false); lc.add(glint);
-      var GLINT_MS = 7000, GLINT_CYCLE = GLINT_MS, GLINT_SWEEP = 6000, GLINT_WIDE = 300, GLINT_CORE = 110, GLINT_SKEW = 0.35;
-      // one soft diagonal band centred on cx: horizontal gradient with a gaussian-like fall-off (no hard edge), so it reads as light, not paint
-      var glintBand = function (c, cx, width, r, gr, b, peak) {
-        var g = c.createLinearGradient(cx - width / 2, 0, cx + width / 2, 0);
-        for (var i = 0; i <= 12; i++) {
-          var u = i / 12, k = Math.exp(-Math.pow((u - 0.5) / 0.22, 2));
-          g.addColorStop(u, 'rgba(' + r + ',' + gr + ',' + b + ',' + (peak * k).toFixed(3) + ')');
-        }
-        var sk = gh * GLINT_SKEW / 2, hw = width / 2;
-        c.fillStyle = g; c.beginPath();
-        c.moveTo(cx - hw + sk, 0); c.lineTo(cx + hw + sk, 0); c.lineTo(cx + hw - sk, gh); c.lineTo(cx - hw - sk, gh);
-        c.closePath(); c.fill();
-      };
-      var drawGlint = function (p) {
-        var c = gtex.getContext(), e = p;   // constant speed (an ease-in/out looked too fast in the middle)
-        var reach = GLINT_WIDE / 2 + gh * GLINT_SKEW / 2, cx = -reach + e * (gw + 2 * reach);
-        c.clearRect(0, 0, gw, gh);
-        glintBand(c, cx, GLINT_WIDE, 255, 190, 60, 0.85);  // wide warm-gold glow
-        glintBand(c, cx, GLINT_CORE, 255, 225, 140, 0.75); // narrower pale-gold core
-        c.globalCompositeOperation = 'destination-in'; c.drawImage(logoImg, 0, 0, gw, gh); c.globalCompositeOperation = 'source-over';
-        gtex.refresh();
-      };
-      // The start is the tween's own `delay` (not this.time.delayedCall): tweens and scene timers ran on different clocks at low frame
-      // rates, which pushed the glint far past the end of the fade-in.
-      self.tweens.addCounter({
-        from: 0, to: GLINT_MS, duration: GLINT_MS, delay: 3000,
-        onUpdate: function (tw) {
-          var t = tw.getValue() % GLINT_CYCLE;
-          if (t < GLINT_SWEEP) { drawGlint(t / GLINT_SWEEP); glint.setVisible(true); } else glint.setVisible(false);
-        },
-        onComplete: function () { glint.setVisible(false); }
-      });
-    } else {
-      this._logo = this.add.text(GAME_W / 2, 125, '台北好好玩', { fontFamily: FONT, fontSize: 56, fontStyle: 'bold', stroke: '#000000', strokeThickness: 6, color: '#ffffff' }).setOrigin(0.5);
-      this._logo.setAlpha(0);
-      var self = this;
-      this.tweens.add({
-        targets: this._logo,
-        alpha: 1,
-        duration: 3200,
-        ease: 'Sine.InOut'
-      });
-    }
-    this.tweens.add({ targets: this._logo, y: this._logo.y - 5, duration: 2000, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    this.add.text(GAME_W / 2, 175, demoName(TITLE_COPY[Math.floor(Math.random() * TITLE_COPY.length)]), { fontFamily: FONT, fontSize: 28, color: '#ffffff', stroke: '#000000', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 760), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
-    var spr = this.add.sprite(GAME_W / 2, 300, 'player_' + (function () { var ids = Object.keys(GAME_DATA.characters); return ids[Math.floor(Math.random() * ids.length)]; })());
-    spr.setScale(120 / spr.height);
-    this.tweens.add({ targets: spr, y: 294, duration: 1500, yoyo: true, repeat: -1, ease: 'Sine.InOut' });
-    this._btns.push(mkBtn(this, GAME_W / 2, 360, 200, 60, '開始遊戲', 'ENTER', function () { if (this._devOpen) return; fadeTo(this, 'CharSelect'); }.bind(this)));
-    var self = this;
-    this._pwa = PWA.mkButtons(this, GAME_W / 2, 482, 'c');   // fullscreen / install buttons (pwa.js): only the ones that make sense on this device
-    if (window.DEMO) this.add.text(GAME_W / 2, 524, '© 2026 tabrislee-create｜試玩版 v0.1｜AI 輔助製作', { fontFamily: FONT, fontSize: 14, color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setAlpha(0.9);   // author line (user 2026-10-12)
-    if (window.DEMO) {   // trial build: no hard mode, no developer menu; the label "試玩版" sits under the start button (user 2026-10-12)
-      HARD_MODE = false;
-      this.add.text(GAME_W / 2, 436, '試玩版', { fontFamily: FONT, fontSize: 26, fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 5 }).setOrigin(0.5);
-    } else {
-      this._btns.push(mkBtn(this, GAME_W / 2, 440, 200, 40, '困難模式：關', 'H', function () {
-        if (self._devOpen) return;
-        HARD_MODE = !HARD_MODE;
-        var b = self._btns[1];
-        b.label = HARD_MODE ? '困難模式：開' : '困難模式：關';
-        b.t.text = b.label;
-      }));
-      if (DEV_MENU) {
-        var dev = this.add.text(GAME_W / 2, 510, '開發者選項', { fontFamily: FONT, fontSize: 16, color: '#ffffff', backgroundColor: '#00000066', padding: { x: 14, y: 5 } }).setOrigin(0.5).setAlpha(0.75).setInteractive({ useHandCursor: true });
-        dev.on('pointerover', function () { dev.setAlpha(1); });
-        dev.on('pointerout', function () { dev.setAlpha(0.75); });
-        dev.on('pointerdown', function () { self._openDevMenu(); });
-        this._devBtn = dev;
-      }
-    }
-  }
-  // Pop-up in 3 steps: character -> weather -> level 1..30. Starts a fresh run with that character at that level; the weather is forced via WX.devWeather.
-  _openDevMenu() {
-    if (this._devOpen) return;
-    this._devOpen = true;
     var self = this, objs = [], pick = { char: null, weather: undefined };
     var cx = GAME_W / 2;
     function add(o) { o.setDepth(200); objs.push(o); return o; }
     function clear() { for (var i = 0; i < objs.length; i++) objs[i].destroy(); objs = []; }
-    function close() { clear(); self._devOpen = false; if (self._devEsc) { self._devEsc.off('down', close); } }
+    function close() { clear(); if (window.showLanding) window.showLanding(); }
     // items: [{ label, sub, boss, value }]; draws a titled grid panel, calls onPick(value). backFn adds a 上一步 button.
     function panel(title, items, cols, cw, ch, onPick, backFn) {
       clear();
@@ -226,20 +115,17 @@ class TitleScene extends Phaser.Scene {
         newRun(pick.char, HARD_MODE);
         RUN.level = lv;
         WX.devWeather = pick.weather;
-        close(); self._devOpen = true;   // stay locked while fading out
-        fadeTo(self, 'Level');
+        clear(); fadeTo(self, 'Level');
       }, stepWeather);
     }
     stepChar();
-    this._devEsc = this.input.keyboard.addKey('ESC');
-    this._devEsc.on('down', close);
+    this.input.keyboard.addKey('ESC').on('down', close);
   }
-  destroy() { if (this._bg) this._bg.destroy(); }
 }
 
 class CharSelectScene extends Phaser.Scene {
   constructor() { super('CharSelect'); }
-  init() { this._cards = []; this._sel = false; this._popupOpen = false; this._popupObjs = []; }
+  init() { this._cards = []; this._sel = false; this._popupOpen = false; this._popupObjs = []; WX.devWeather = undefined; }
   create() {
     this.cameras.main.fadeIn(300);
     var bg = this.add.graphics();
@@ -461,7 +347,7 @@ class EndScene extends Phaser.Scene {
       this.add.text(GAME_W / 2, 260, '抵達第 ' + RUN.level + ' / ' + GAME_DATA.levels.length + ' 關', { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
       this.add.text(GAME_W / 2, 300, '擊敗敵人：' + RUN.kills, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
       this._btns.push(mkBtn(this, GAME_W / 2, 400, 220, 50, '重新挑戰本關', 'R', function () { RUN.deaths++; RUN.hp = calcStats().max_hp; fadeTo(self, 'Level'); }));
-      this._btns.push(mkBtn(this, GAME_W / 2, 470, 220, 50, '回主選單', 'M', function () { fadeTo(self, 'Title'); }));
+      this._btns.push(mkBtn(this, GAME_W / 2, 470, 220, 50, '回主選單', 'M', function () { if (window.showLanding) window.showLanding(); }));
     } else {
       this._bg = this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0x8a6a10);
       var vt = this.add.text(GAME_W / 2, 150, '勝利！', { fontFamily: FONT, fontSize: 72, fontStyle: 'bold', color: '#ffd700' }).setOrigin(0.5);
@@ -479,7 +365,7 @@ class EndScene extends Phaser.Scene {
         r.setDepth(50);
         this._confetti.push({ r: r, vy: 60 + Math.random() * 120, rv: (Math.random() - 0.5) * 200 });
       }
-      this._btns.push(mkBtn(this, GAME_W / 2, 450, 220, 50, '再玩一次', 'ENTER', function () { newRun(); fadeTo(self, 'Title'); }));
+      this._btns.push(mkBtn(this, GAME_W / 2, 450, 220, 50, '再玩一次', 'ENTER', function () { newRun(); if (window.showLanding) window.showLanding(); }));
     }
   }
   update(time, delta) {
