@@ -1,5 +1,5 @@
 var GAME_DATA = null;
-// Trial build (user 2026-10-12): open the game with ?demo=1 -> two characters (vendor, auntie), levels 1-5 only, sunny weather only (see weather.js pickWeather).
+// Trial build (user 2026-10-12): open the game with ?demo=1 -> two characters (vendor, auntie), levels 1-5 only, the same weather / time of day as the full game (user 2026-10-13).
 window.DEMO = true;
 var SKY_CUT_LEVELS = [1, 2, 3, 4, 5]; // Levels with transparent-sky backdrops (assets/backdrop_lvNN_sky.png)
 

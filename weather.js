@@ -1199,7 +1199,6 @@ var WX = (function () {
   // Returns a condition { time: 'day' | 'dusk' | 'night', wx: null | weather id }; the two axes are drawn separately.
   var CLEAR_DAY = { time: 'day', wx: null };
   function pickWeather(level) {
-    if (window.DEMO) return { time: 'day', wx: null };   // trial build: sunny only (the random light / cloud mix of the sunny sky effects stays)
     var time = WX.devTime, wx = WX.devWx;   // forced from the developer menu (undefined = random; devWx 'none' = clear); cleared on the title screen
     var qs = (typeof location !== 'undefined') ? location.search : '';
     var qw = qs.match(/[?&]weather=([a-z]+)/), qt = qs.match(/[?&]time=([a-z]+)/);
