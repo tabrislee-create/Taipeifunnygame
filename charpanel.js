@@ -223,9 +223,15 @@ class HowToScene extends Phaser.Scene {
       drawTabs();
       const mode = this._mode;
       const holes = this.make.graphics({ x: 0, y: 0, add: false }); holes.fillStyle(0xffffff, 1);
-      const BXs = GW - 90, RX = GW - 242;   // the touch buttons sit at GW - 90 (touch.js); the right-hand callout column is anchored to the right edge: this page is laid out for any screen width, not only 960
-      const spots = [];
-      if (mode !== 'install') { spots.push([4, 4, 372, 156, 16], [262, 336, 96, 130, 14]); if (mode === 'touch') spots.push([BXs - 124 - 62, 333 - 62, Math.min(62 + 124 + 62 + 62, GW - 4 - (BXs - 124 - 62)), 62 + 107 + 62 + 12, 20], [150 - 78, 410 - 56, 156, 112, 20]); }   // HUD, the player, (touch view) the buttons and the walk pad
+      const TL = TouchControls.layout(GW), RX = GW - 242;   // everything below comes from the live game or from the layout functions the game itself uses (TouchControls.layout, HUD_L): nothing is typed in twice
+      const pl = lvl && lvl.player && lvl.player.sprite && lvl.player.sprite.active ? lvl.player.sprite.getBounds() : { x: 291, y: 372, width: 40, height: 80 };
+      const PR = { x: Math.round(pl.x - 8), y: Math.round(pl.y - 8), w: Math.round(pl.width + 16), h: Math.round(pl.height + 16) };   // the player, with a margin
+      const spots = [], R = (r, rad) => [r.x, r.y, r.w, r.h, rad];
+      this._spots = {};
+      if (mode !== 'install') {
+        spots.push(R(HUD_L.rect, 16), R(PR, 14)); this._spots.hud = HUD_L.rect; this._spots.player = PR;
+        if (mode === 'touch') { spots.push(R(TL.buttons, 20), R(TL.hintRect, 20)); this._spots.buttons = TL.buttons; this._spots.pad = TL.hintRect; }
+      }
       spots.forEach((r) => holes.fillRoundedRect(r[0], r[1], r[2], r[3], r[4]));
       rt.clear(); rt.fill(0x000000, mode === 'install' ? 0.8 : 0.66); if (spots.length) rt.erase(holes); holes.destroy();
       if (spots.length) {
@@ -251,7 +257,7 @@ class HowToScene extends Phaser.Scene {
 
       // numbered gold dots on the HUD parts that are explained (1 life bar / avatar, 2 enemies, 3 coins)
       const dot = (n, x, y) => { box.fillStyle(GOLD, 1); box.fillCircle(x, y, 12); box.lineStyle(2, 0x0a1224, 1); box.strokeCircle(x, y, 12); T(x, y, String(n), 16, '#0a1224', { stroke: '#ffc94a', strokeThickness: 0 }).setOrigin(0.5).setDepth(4); };
-      dot(1, 22, 22); dot(2, 140, 138); dot(3, 262, 138);
+      dot(1, 22, 22); dot(2, HUD_L.pill(1).x + 8, HUD_L.pill(1).y + HUD_L.PILL_H / 2); dot(3, HUD_L.pill(2).x + 8, HUD_L.pill(2).y + HUD_L.PILL_H / 2);
       let cy = 12;
       cy += callout(396, cy, 306, '① 血條與頭像', '紅色血條歸零就失敗；點頭像可暫停，看角色數值。') + 10;
       cy += callout(396, cy, 306, '② 敵人', '場上剩幾隻；全打倒後出口箭頭出現，走到畫面右端過關。') + 10;
@@ -259,13 +265,14 @@ class HowToScene extends Phaser.Scene {
       let cy2 = 12;
       cy2 += callout(RX, cy2, 234, '跳出的數字', '白＝你打出的傷害\n黃＝暴擊\n紅＝你受到的傷害') + 10;
       callout(RX, cy2, 234, '地上的坑', '尖刺：扣血並送回洞前\n鵝卵石：減速\n火焰、毒液：持續扣血');
-      T(310, 318, '這是你', 18, '#ffc94a').setOrigin(0.5, 1).setDepth(4);
-      box.fillStyle(GOLD, 1); box.fillTriangle(310, 332, 300, 320, 320, 320);
+      const pcx = PR.x + PR.w / 2; T(pcx, PR.y - 18, '這是你', 18, '#ffc94a').setOrigin(0.5, 1).setDepth(4);
+      box.fillStyle(GOLD, 1); box.fillTriangle(pcx, PR.y - 4, pcx - 10, PR.y - 16, pcx + 10, PR.y - 16);
 
       if (mode === 'touch') {   // touch controls: the walk pad on the left half, three buttons at the bottom right
-        if (!hasTouch) this._mockTouch(box);   // on a computer the level has no touch controls: draw them so the highlighted places are not empty
-        callout(16, 248, 236, '左半邊螢幕', '按住往左右滑動就會移動。', [140, 344, 140, 356]);
-        callout(396, 332, 270, '右下三顆按鈕', '上＝跳躍　左＝技能　右＝攻擊。從上方跳踩在敵人頭上，也能攻擊（魔王除外）。', [666, 400, BXs - 124 - 62 - 4, 416]);
+        if (!hasTouch) this._mockTouch(box);   // on a computer the level has no touch controls: draw them (same layout function) so the highlighted places are not empty
+        const hr = TL.hintRect, br = TL.buttons, cxm = Math.max(396, br.x - 290);
+        callout(16, Math.min(hr.y - 112, 248), 236, '左半邊螢幕', '按住往左右滑動就會移動。', [hr.x + hr.w / 2, Math.min(hr.y - 112, 248) + 96, hr.x + hr.w / 2, hr.y - 2]);
+        callout(cxm, 332, 270, '右下三顆按鈕', '上＝跳躍　左＝技能　右＝攻擊。從上方跳踩在敵人頭上，也能攻擊（魔王除外）。', [cxm + 270, 400, br.x - 3, br.y + br.h / 2]);
       } else {                   // keyboard
         const bx = 396, by = 328, bw = GW - 396 - 8, bh2 = 152;
         box.fillStyle(0x0a1224, 0.96); box.fillRoundedRect(bx, by, bw, bh2, 14); box.lineStyle(2, 0xffffff, 0.25); box.strokeRoundedRect(bx, by, bw, bh2, 14);
@@ -286,14 +293,15 @@ class HowToScene extends Phaser.Scene {
 
   // illustration of the touch controls (pad hint + the three round buttons, same places and glyphs as touch.js) for the touch view when the player is on a computer
   _mockTouch(box) {
-    const GW = (typeof GAME_W !== 'undefined' && GAME_W) ? GAME_W : 960, BX = GW - 90;   // same anchor as touch.js
+    const GW = (typeof GAME_W !== 'undefined' && GAME_W) ? GAME_W : 960, L = TouchControls.layout(GW);
     const ink = (w, a) => box.lineStyle(w, 0xffffff, a == null ? 0.95 : a);
-    const circ = (x, y, r) => { box.fillStyle(0x000000, 0.35); box.fillCircle(x, y, r); box.lineStyle(2, 0xffffff, 0.55); box.strokeCircle(x, y, r); };
-    circ((BX - 62), 333, 56); ink(6); [[-9, 8], [-9, -4]].forEach((o) => { box.beginPath(); box.moveTo((BX - 62) - 18, 333 + o[1] + 6); box.lineTo((BX - 62), 333 + o[1] - 10 + 6); box.lineTo((BX - 62) + 18, 333 + o[1] + 6); box.strokePath(); });   // jump: two chevrons
-    circ((BX - 124), 440, 56); box.fillStyle(0xffffff, 0.95); box.fillTriangle((BX - 124), 440 - 26, (BX - 124) + 9, 440 - 9, (BX - 124) - 9, 440 - 9); box.fillTriangle((BX - 124) + 26, 440, (BX - 124) + 9, 440 + 9, (BX - 124) + 9, 440 - 9); box.fillTriangle((BX - 124), 440 + 26, (BX - 124) - 9, 440 + 9, (BX - 124) + 9, 440 + 9); box.fillTriangle((BX - 124) - 26, 440, (BX - 124) - 9, 440 - 9, (BX - 124) - 9, 440 + 9); box.fillRect((BX - 124) - 9, 440 - 9, 18, 18);   // skill: four-point star
-    circ(BX, 440, 56); ink(7); box.lineBetween(BX - 4, 440 + 4, BX + 22, 440 - 22); ink(6); box.lineBetween(BX - 17, 440 - 5, BX + 5, 440 + 17); ink(8); box.lineBetween(BX - 8, 440 + 8, BX - 19, 440 + 19);   // attack: a sword
-    box.fillStyle(0x000000, 0.35); box.fillRoundedRect(150 - 78, 410 - 36, 156, 72, 36); box.lineStyle(2, 0xffffff, 0.55); box.strokeRoundedRect(150 - 78, 410 - 36, 156, 72, 36);   // walk pad: a pill with a knob
-    box.fillStyle(0xffffff, 0.9); box.fillCircle(150, 410, 22); ink(4, 0.8); box.lineBetween(150 - 60, 410, 150 - 36, 410); box.lineBetween(150 + 36, 410, 150 + 60, 410);
+    const circ = (c) => { box.fillStyle(0x000000, 0.35); box.fillCircle(c.x, c.y, c.r); box.lineStyle(2, 0xffffff, 0.55); box.strokeCircle(c.x, c.y, c.r); };
+    const J = L.jump, S = L.skill, A = L.attack;
+    circ(J); ink(6); [[-9, 8], [-9, -4]].forEach((o) => { box.beginPath(); box.moveTo(J.x - 18, J.y + o[1] + 6); box.lineTo(J.x, J.y + o[1] - 10 + 6); box.lineTo(J.x + 18, J.y + o[1] + 6); box.strokePath(); });   // jump: two chevrons
+    circ(S); box.fillStyle(0xffffff, 0.95); box.fillTriangle(S.x, S.y - 26, S.x + 9, S.y - 9, S.x - 9, S.y - 9); box.fillTriangle(S.x + 26, S.y, S.x + 9, S.y + 9, S.x + 9, S.y - 9); box.fillTriangle(S.x, S.y + 26, S.x - 9, S.y + 9, S.x + 9, S.y + 9); box.fillTriangle(S.x - 26, S.y, S.x - 9, S.y - 9, S.x - 9, S.y + 9); box.fillRect(S.x - 9, S.y - 9, 18, 18);   // skill: four-point star
+    circ(A); ink(7); box.lineBetween(A.x - 4, A.y + 4, A.x + 22, A.y - 22); ink(6); box.lineBetween(A.x - 17, A.y - 5, A.x + 5, A.y + 17); ink(8); box.lineBetween(A.x - 8, A.y + 8, A.x - 19, A.y + 19);   // attack: a sword
+    const H = L.hint; box.fillStyle(0x000000, 0.28); box.fillRoundedRect(H.cx - H.w / 2, H.cy - H.h / 2, H.w, H.h, H.h / 2); box.lineStyle(2, 0xffffff, 0.45); box.strokeRoundedRect(H.cx - H.w / 2, H.cy - H.h / 2, H.w, H.h, H.h / 2);   // walk pad (the level-1 hint)
+    box.fillStyle(0xffffff, 0.5); box.fillCircle(H.cx, H.cy, 30); box.lineStyle(3, 0xffffff, 0.9); box.strokeCircle(H.cx, H.cy, 30);
   }
 
   // "安裝到桌面": how to add the game to the home screen on Android (Chrome) and iOS (Safari)

@@ -1,6 +1,18 @@
 // On-screen touch controls (hand-written). Shown on touch devices or when the URL has ?touch=1.
 // TouchControls.create(scene) -> {left,right,up,attack,skill} booleans (true while the button is held); null when not a touch device.
 var TouchControls = {
+  // Geometry of the on-screen controls for a canvas GW px wide (height is always 540): the three round buttons at the bottom right (BX = GW - 90), the level-1 walk-pad hint at the bottom left.
+  // The controls below are built from this and so is the how-to page (charpanel.js), so a spotlight can never drift away from the real button.  rect = bounding box with a small margin.
+  layout(GW) {
+    const BR = 56, BD = 2 * BR + 12, BX = GW - 90, BY = 440, JY = BY - BD * 0.866, M = 6;
+    const hint = { cx: 150, cy: 410, w: 200, h: 100 };
+    return {
+      BR: BR, BD: BD, BX: BX, BY: BY,
+      attack: { x: BX, y: BY, r: BR }, skill: { x: BX - BD, y: BY, r: BR }, jump: { x: BX - BD / 2, y: JY, r: BR },
+      buttons: { x: BX - BD - BR - M, y: JY - BR - M, w: BD + 2 * BR + 2 * M, h: BY + BR + M - (JY - BR - M) },
+      hint: hint, hintRect: { x: hint.cx - hint.w / 2 - M, y: hint.cy - hint.h / 2 - M, w: hint.w + 2 * M, h: hint.h + 2 * M }
+    };
+  },
   enabled() {
     return /[?&]touch=1/.test(location.search) || ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
   },
@@ -44,7 +56,8 @@ var TouchControls = {
     // Floating direction pad: a touch anywhere in the left half of the screen only shows a pill-shaped pad under the finger (no movement yet);
     // the character walks once the finger slides more than DEAD px (3: any small slide counts) to the left/right of the pad centre. The pad trails the finger by at most TRAIL px (14),
     // so reversing only takes a short slide, and coming back to the centre stops. Lifting the finger removes the pad and releases both directions.
-    const PAD_W = 200, PAD_H = 100, KNOB_R = 30, TRAIL = 14, DEAD = 3;
+    const L = TouchControls.layout(GW);
+    const PAD_W = L.hint.w, PAD_H = L.hint.h, KNOB_R = 30, TRAIL = 14, DEAD = 3;   // the pad size comes from the layout, so the how-to page draws / spotlights exactly this
     const g = scene.add.graphics().setScrollFactor(0).setDepth(120).setVisible(false);
     let padPointerId = null, cx = 0, dir = 0, fingerX = 0, py = 0;
     const paintPad = (gr, x, y, kx, d) => {
@@ -70,7 +83,7 @@ var TouchControls = {
     let hint = null;
     const stopHint = () => { if (hint) { scene.tweens.killTweensOf(hint); hint.destroy(); hint = null; } };
     if (typeof RUN !== 'undefined' && RUN.level === 1) {
-      const hx = 150, hy = 410;   // just left of the player spawn (x=310, left edge ~291): pad right edge 250 leaves a ~40px gap; pad size is the real pad's, unchanged
+      const hx = L.hint.cx, hy = L.hint.cy;   // just left of the player spawn (x=310, left edge ~291): pad right edge 250 leaves a ~40px gap; pad size is the real pad's, unchanged
       hint = scene.add.graphics().setScrollFactor(0).setDepth(119);
       paintPad(hint, hx, hy, hx, 0);
       scene.tweens.add({ targets: hint, alpha: { from: 1, to: 0.2 }, duration: 450, yoyo: true, repeat: -1 });
@@ -102,7 +115,7 @@ var TouchControls = {
     scene.input.on('pointerupoutside', release);
     objs.push(g);
     // Three equal buttons in an equilateral triangle at the bottom right: jump on top, skill bottom-left, attack bottom-right (nearest the thumb).
-    const BR = 56, BD = 2 * BR + 12, BX = GW - 90, BY = 440;
+    const BR = L.BR, BD = L.BD, BX = L.BX, BY = L.BY;
     const [atC, atI] = mk(BX, BY, BR, swordIcon, null, 'attack', 0xcc3333);
     // SIM reward (player.js _simAttack): while it has uses left, the attack button shows "SIM" and the number of uses remaining (user 2026-10-12).
     const atT = scene.add.text(BX, BY, '', { fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif', fontSize: '30px', fontStyle: 'bold', color: '#7fdcff', stroke: '#003a5c', strokeThickness: 5, align: 'center' })
@@ -134,7 +147,8 @@ var TouchControls = {
       }
     };
     scene.events.on('update', skTick);
-    mk(BX - BD / 2, BY - BD * 0.866, BR, jumpIcon, null, 'up', 0x3377cc);
+    const [jpC] = mk(BX - BD / 2, BY - BD * 0.866, BR, jumpIcon, null, 'up', 0x3377cc);
+    st.parts = { attack: atC, skill: skC, jump: jpC, hint: () => hint };   // the real objects (for the layout test, tests/howto_layout_check.py)
     // Drop every held state (character panel opened / closed: the level scene does not see the finger lift while it is paused).
     st.reset = () => {
       padPointerId = null; dir = 0; apply(); g.setVisible(false);

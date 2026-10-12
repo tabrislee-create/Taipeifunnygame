@@ -1,5 +1,10 @@
 const HUD_FONT = 'Microsoft JhengHei, PingFang TC, sans-serif';
 
+// Geometry of the top-left info block (panel + the pill row under it); _redraw() draws from it and the how-to page (charpanel.js) spotlights it.
+const HUD_L = { PX: 10, PY: 10, PW: 360, PH: 100, GAP: 8, PILL_H: 32, PILL_GAP: 10 };
+HUD_L.rect = { x: HUD_L.PX, y: HUD_L.PY, w: HUD_L.PW, h: HUD_L.PH + HUD_L.PILL_GAP + HUD_L.PILL_H };
+HUD_L.pill = function (i) { const pw = (HUD_L.PW - 2 * HUD_L.GAP) / 3; return { x: HUD_L.PX + i * (pw + HUD_L.GAP), y: HUD_L.PY + HUD_L.PH + HUD_L.PILL_GAP, w: pw, h: HUD_L.PILL_H }; };
+
 class HUD {
   constructor(scene) {
     this.scene = scene;
@@ -88,7 +93,7 @@ class HUD {
   _redraw() {
     const g = this.panel;
     const max = this._maxHp(), r = Math.max(0, Math.min(1, RUN.hp / max)), low = r < 0.25;
-    const PX = 10, PY = 10, PW = 360, PH = 100, PAD = 12, GAP = 8, COLX = PX + PAD + 76 + 16, COLR = PX + PW - PAD;
+    const PX = HUD_L.PX, PY = HUD_L.PY, PW = HUD_L.PW, PH = HUD_L.PH, PAD = 12, GAP = HUD_L.GAP, COLX = PX + PAD + 76 + 16, COLR = PX + PW - PAD;
     g.clear();
     g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(PX, PY, PW, PH, 14);
     g.lineStyle(1.5, 0xffffff, 0.22); g.strokeRoundedRect(PX, PY, PW, PH, 14);
@@ -114,7 +119,7 @@ class HUD {
     g.fillStyle(0xffc94a, 1); g.fillRoundedRect(COLX, ly - 12, cw, 24, 12);
     this.levelChipText.setPosition(COLX + cw / 2, ly); this.levelText.setPosition(COLX + cw + 10, ly);
     // pill row: weather / enemies / coins, equal widths spanning the panel width, 10 px below it
-    const py = PY + PH + 10, ph = 32, my = py + ph / 2, pw = (PW - 2 * GAP) / 3;
+    const py = PY + PH + HUD_L.PILL_GAP, ph = HUD_L.PILL_H, my = py + ph / 2, pw = (PW - 2 * GAP) / 3;
     const pill = (i) => { const x = PX + i * (pw + GAP); g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(x, py, pw, ph, 16); g.lineStyle(1.5, 0xffffff, 0.22); g.strokeRoundedRect(x, py, pw, ph, 16); return x; };
     const pair = (x, a, b) => { const tot = a.width + 8 + b.width, x0 = x + (pw - tot) / 2; a.setPosition(x0, my); b.setPosition(x0 + a.width + 8, my); };
     pair(pill(0), this.weatherLabel, this.weatherText);
