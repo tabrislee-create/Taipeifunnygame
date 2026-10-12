@@ -36,7 +36,8 @@ function bootGame() {
     Object.keys(GAME_DATA.equipment).forEach(function (id) { var e = GAME_DATA.equipment[id]; ['name_zh', 'name_en', 'desc_zh'].forEach(function (k) { if (e[k]) e[k] = demoName(e[k]); }); });
   }
   if (window.DEMO) {   // trial build: keep two characters and the first five levels (every 'N / total' text and the last-level victory follow GAME_DATA.levels.length)
-    Object.keys(GAME_DATA.characters).forEach(function (k) { if (k !== 'vendor' && k !== 'auntie') delete GAME_DATA.characters[k]; });
+    GAME_DATA.charOrder = Object.keys(GAME_DATA.characters); GAME_DATA.lockedChars = {};   // the other two characters are shown greyed out as 開發中 (start / loading / select screens) but cannot be played
+    Object.keys(GAME_DATA.characters).forEach(function (k) { if (k !== 'vendor' && k !== 'auntie') { var c0 = GAME_DATA.characters[k]; GAME_DATA.lockedChars[k] = { id: k, name_zh: c0.name_zh, concept_zh: c0.concept_zh }; delete GAME_DATA.characters[k]; } });
     GAME_DATA.levels = GAME_DATA.levels.slice(0, 5);
   }
   // Player now starts at x=310 (level.js PLAYER_SPAWN_X): push ground enemies that start (or patrol: range up to 200) near it out to x=560 (same 250px gap as the old 230/480).
@@ -99,13 +100,13 @@ class BootScene extends Phaser.Scene {
     // The four playable characters walking in a row above the title.  Their art is queued first, so each one appears as soon as it has loaded;
     // frame-by-frame walk art is used where it exists (PLAYER_WALK_FRAMES), others only bob (missing art stays missing).
     var D = GAME_DATA;
-    var chars = Object.keys(D.characters);
+    var chars = D.charOrder || Object.keys(D.characters);   // trial build: all four, the locked two (D.lockedChars) are drawn greyed out with 開發中
     var self = this, slots = [], rowY = H / 2 - 82, SPR_H = 96;
     for (var ci = 0; ci < chars.length; ci++) {
       this.load.image('player_' + chars[ci], 'assets/player_' + chars[ci] + '.png');
       this.load.image('avatar_' + chars[ci], 'assets/avatar_' + chars[ci] + '.png');   // select-screen card portrait (falls back to the full-body art if missing)
-      for (var cw = 1; cw <= (PLAYER_WALK_FRAMES[chars[ci]] || 0); cw++) this.load.image('player_' + chars[ci] + '_w' + cw, 'assets/player_' + chars[ci] + '_w' + cw + '.png');
-      slots.push({ id: chars[ci], x: W / 2 + (ci - (chars.length - 1) / 2) * 140, sprite: null, frames: PLAYER_WALK_FRAMES[chars[ci]] || 0 });
+      for (var cw = 1; cw <= (D.lockedChars && D.lockedChars[chars[ci]] ? 0 : (PLAYER_WALK_FRAMES[chars[ci]] || 0)); cw++) this.load.image('player_' + chars[ci] + '_w' + cw, 'assets/player_' + chars[ci] + '_w' + cw + '.png');
+      slots.push({ id: chars[ci], x: W / 2 + (ci - (chars.length - 1) / 2) * 140, sprite: null, frames: PLAYER_WALK_FRAMES[chars[ci]] || 0, locked: !!(D.lockedChars && D.lockedChars[chars[ci]]) });
     }
     this._walkStep = function () {
       var t = performance.now();
@@ -116,7 +117,9 @@ class BootScene extends Phaser.Scene {
           sl.sprite = self.add.image(sl.x, rowY, key).setOrigin(0.5, 1);
           sl.sprite.setScale((PLAYER_DISPLAY_H[sl.id] || SPR_H) / sl.sprite.height);   // same display heights as in the game (height standard), feet on rowY (origin 0.5,1; all textures reach their bottom row)
           sl.sy = sl.sprite.scaleY; sl.phase = i * 1.3;
+          if (sl.locked) { sl.sprite.setTint(0x6f6f6f).setAlpha(0.6); self.add.text(sl.x, rowY + 3, '開發中', { fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif', fontSize: '15px', color: '#cccccc', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 0); }
         }
+        if (sl.locked) { sl.sprite.y = rowY; continue; }   // locked characters stand still
         var ok = sl.frames > 0, f;
         for (f = 1; ok && f <= sl.frames; f++) ok = self.textures.exists(key + '_w' + f);
         if (ok) {
@@ -134,7 +137,7 @@ class BootScene extends Phaser.Scene {
     this.load.image('fx_wafer', 'assets/fx_wafer.png');
     for (var i = 0; i < chars.length; i++) {
       var c = D.characters[chars[i]];
-      if (c.skill && c.skill.id) {
+      if (c && c.skill && c.skill.id) {
         this.load.image('skill_' + c.skill.id, 'assets/skill_' + c.skill.id + '.png');
         this.load.image('skilltext_' + c.skill.id, 'assets/skilltext_' + c.skill.id + '.png');   // brush-calligraphy skill name for the cast banner (missing files are ignored: the name is drawn as text)
       }

@@ -1,5 +1,17 @@
 [
  {
+  "id": "geek",
+  "name_zh": "科技宅",
+  "concept_zh": "高攻速高暴擊的鍵盤戰士",
+  "locked": true
+ },
+ {
+  "id": "greenie",
+  "name_zh": "小綠綠",
+  "concept_zh": "文武雙全的滿級考生",
+  "locked": true
+ },
+ {
   "id": "vendor",
   "name_zh": "火旺伯",
   "name_en": "Vendor",

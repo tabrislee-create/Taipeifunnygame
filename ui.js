@@ -248,7 +248,7 @@ class CharSelectScene extends Phaser.Scene {
     bg.setDepth(-50);
     this._bg = WX.start(this, 'title');
     this.add.text(GAME_W / 2, 32, '選擇你的角色', { fontFamily: FONT, fontSize: 30, fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5);
-    var ids = Object.keys(GAME_DATA.characters);
+    var ids = GAME_DATA.charOrder || Object.keys(GAME_DATA.characters);   // trial build: all four; the locked two (GAME_DATA.lockedChars) are greyed out and cannot be picked
     var cx = GAME_W / 2;
     // 4 cards layout: spacing adjusted for 960 width. Card width 200, gap 20. Total 860. (The trial build has 2 characters: the same cards, centred.)
     var W = 200;
@@ -261,8 +261,14 @@ class CharSelectScene extends Phaser.Scene {
     var self = this;
     for (var i = 0; i < nCards; i++) {
       var id = ids[i];
-      var ch = GAME_DATA.characters[id];
+      var lockedCh = GAME_DATA.lockedChars && GAME_DATA.lockedChars[id];
+      var ch = lockedCh || GAME_DATA.characters[id];
       var card = this._mkCard(id, xs[i], 290, ch, W);
+      if (lockedCh) {   // greyed out, no hover / click / key, a small 開發中 under the card
+        card.cont.setAlpha(0.5); card.cont.list.forEach(function (o) { if (o.setTint) o.setTint(0x777777); });
+        this.add.text(xs[i], 290 + card.h / 2 + 18, '開發中', { fontFamily: FONT, fontSize: 18, fontStyle: 'bold', color: '#dddddd', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5);
+        card.locked = true; this._cards.push(card); continue;
+      }
       card._zone = this.add.zone(xs[i], 290, card.w, card.h).setInteractive();
       (function (card, i) {
         card._zone.on('pointerover', function () { if (self._popupOpen) return; card.cont.setScale(1.05); card.border.clear(); card.border.lineStyle(3, 0xffcc00, 1); card.border.strokeRoundedRect(-card.w / 2, 0, card.w, card.h, 12); });
