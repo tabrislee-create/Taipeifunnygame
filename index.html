@@ -23,7 +23,6 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 #lava{display:flex;gap:2.2vmin;justify-content:center}
 #lava .av{display:flex;flex-direction:column;align-items:center}
 #lava img{width:11vmin;height:11vmin;max-width:84px;max-height:84px;border-radius:50%;object-fit:cover;background:#fff;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)}
-#lava .lock small{margin-top:3px;font-size:12px;font-weight:700;color:#eee;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
 #lstart{appearance:none;border:2px solid rgba(255,255,255,.9);background:#2d6e3e;color:#fff;font-family:inherit;font-weight:700;border-radius:12px;cursor:pointer;box-shadow:0 4px 0 #17381f,0 6px 12px rgba(0,0,0,.4);touch-action:manipulation}
 #lstart:active{transform:translateY(2px);box-shadow:0 2px 0 #17381f}
 #lload{display:none;width:var(--bw);text-align:center}
@@ -137,7 +136,6 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
   ['geek', 'greenie', 'vendor', 'auntie'].forEach(function (id) {   // the demo plays only vendor and auntie: the other two are greyed out with 開發中
     var locked = demo && (id === 'geek' || id === 'greenie'), w = document.createElement('div'); w.className = 'av' + (locked ? ' lock' : '');
     var im = new Image(); im.src = 'assets/avatar_' + id + '.png'; im.alt = ''; w.appendChild(im);
-    if (locked) { var c = document.createElement('small'); c.textContent = '開發中'; w.appendChild(c); }
     $('lava').appendChild(w);
   });
   if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 v0.1｜AI 輔助製作'; }

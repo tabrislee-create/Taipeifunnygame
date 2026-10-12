@@ -105,7 +105,7 @@ class BootScene extends Phaser.Scene {
     for (var ci = 0; ci < chars.length; ci++) {
       this.load.image('player_' + chars[ci], 'assets/player_' + chars[ci] + '.png');
       this.load.image('avatar_' + chars[ci], 'assets/avatar_' + chars[ci] + '.png');   // select-screen card portrait (falls back to the full-body art if missing)
-      for (var cw = 1; cw <= (D.lockedChars && D.lockedChars[chars[ci]] ? 0 : (PLAYER_WALK_FRAMES[chars[ci]] || 0)); cw++) this.load.image('player_' + chars[ci] + '_w' + cw, 'assets/player_' + chars[ci] + '_w' + cw + '.png');
+      for (var cw = 1; cw <= (PLAYER_WALK_FRAMES[chars[ci]] || 0); cw++) this.load.image('player_' + chars[ci] + '_w' + cw, 'assets/player_' + chars[ci] + '_w' + cw + '.png');
       slots.push({ id: chars[ci], x: W / 2 + (ci - (chars.length - 1) / 2) * 140, sprite: null, frames: PLAYER_WALK_FRAMES[chars[ci]] || 0, locked: !!(D.lockedChars && D.lockedChars[chars[ci]]) });
     }
     this._walkStep = function () {
@@ -119,7 +119,6 @@ class BootScene extends Phaser.Scene {
           sl.sy = sl.sprite.scaleY; sl.phase = i * 1.3;
           if (sl.locked) { self.add.text(sl.x, rowY + 3, '開發中', { fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif', fontSize: '15px', color: '#cccccc', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5, 0); }
         }
-        if (sl.locked) { sl.sprite.y = rowY; continue; }   // locked characters stand still
         var ok = sl.frames > 0, f;
         for (f = 1; ok && f <= sl.frames; f++) ok = self.textures.exists(key + '_w' + f);
         if (ok) {
