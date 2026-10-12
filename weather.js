@@ -71,7 +71,7 @@ var WX = (function () {
   }
 
   // Builds the clouds + beams; ctx.skyObjs are destroyed with the weather, ctx.skyFx(time, dt) is called every frame from start()'s onUpdate.
-  function buildSkyFx(scene, ctx) {
+  function buildSkyFx(scene, ctx, cloudsOnly) {   // cloudsOnly: the title / select / reward screens (user 2026-10-12): drifting clouds, no sun beams
     var objs = ctx.skyObjs = [], beams = [], dots = [], clouds = [];
     var pool = SKY_PIECES.filter(function (p) { return scene.textures.exists('skc_' + p[0]); });
     var LAYERS = [   // far -> near: smaller, lower, slower, fainter, less parallax (the backdrop itself uses 0.03)
@@ -107,9 +107,9 @@ var WX = (function () {
       o.setDisplaySize(width, len); o.rotation = ang;
       objs.push(o); beams.push({ o: o, a0: alpha, ang0: ang, ph: rand(0, 6.28), sp: rand(0.6, 1.4) });
     }
-    skyBeamTex(scene, 'sky_beam', false);
-    for (var i = 0; i < 14; i++) addBeam('sky_beam', rand(0.38, 0.78), rand(40, 240), rand(1250, 1500), rand(0.09, 0.21));
-    if (variant === 'B') {
+    if (!cloudsOnly) skyBeamTex(scene, 'sky_beam', false);
+    if (!cloudsOnly) for (var i = 0; i < 14; i++) addBeam('sky_beam', rand(0.38, 0.78), rand(40, 240), rand(1250, 1500), rand(0.09, 0.21));
+    if (variant === 'B' && !cloudsOnly) {
       skyBeamTex(scene, 'sky_rainbow', true);
       for (var j = 0; j < 4; j++) addBeam('sky_rainbow', rand(0.42, 0.72), rand(40, 90), rand(1200, 1450), rand(0.16, 0.24));
       skyDotTex(scene);
@@ -125,6 +125,7 @@ var WX = (function () {
       var cam = scene.cameras.main, ts = time * 0.001, n;
       for (n = 0; n < clouds.length; n++) {
         var c = clouds[n], L = c.L;
+        if (!c.o || !c.o.active) continue;   // the scene was left and its objects destroyed (title / select screens do not call destroy())
         c.age += dt; c.bx += L.vx * dt;
         var x = c.bx - cam.scrollX * L.pf, span = W + c.w;
         x = ((x + c.w / 2) % span + span) % span - c.w / 2;
@@ -698,6 +699,7 @@ var WX = (function () {
     scene.windX = 0;
     buildTheme(scene, themeId, ctx);
     if (weatherId) buildWeather(scene, weatherId, ctx);
+    if (!ctx.skyFx && themeId === 'title') buildSkyFx(scene, ctx, true);   // title / select / reward screens: the new drifting clouds instead of the old circle clouds
     if (ctx.skyFx) { for (var ci = 0; ci < ctx.clouds.length; ci++) ctx.clouds[ci].o.destroy(); ctx.clouds = []; }   // sunny sky-cut: the new clouds replace the circle clouds
     var auto = !(typeof navigator !== 'undefined' && navigator.webdriver) && !(typeof location !== 'undefined' && /[?&]weather=/.test(location.search));
     if (auto && !weatherId && Math.random() < 0.4) addFalling(scene, ctx, 'petal');          // sunny: sometimes petals
