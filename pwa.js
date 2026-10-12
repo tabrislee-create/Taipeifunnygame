@@ -1,4 +1,4 @@
-// Phone helpers (user 2026-10-12, after looking at how taipei-rush.app does it): a fullscreen button, an in-game "install" button and install instructions for iPhone.
+// Phone helpers: a fullscreen button, an in-game "install" button and install instructions for iPhone.
 // PWA.mkButtons(scene, cx, y) puts the buttons that make sense on this device in a centred row (title screen and pause panel):
 //   全螢幕 / 退出全螢幕  - only where the browser allows an ordinary page to go fullscreen (Android Chrome, desktop; NOT iPhone Safari) and the game is not already running as an installed app
 //   安裝遊戲            - only when the browser offered its install prompt (Android Chrome: beforeinstallprompt); one tap opens the system install dialog
