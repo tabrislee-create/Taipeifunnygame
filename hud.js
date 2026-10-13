@@ -192,6 +192,7 @@ class HUD {
     this._rsArmed = false; this._rsBusy = false;
     this.restartG = s.add.graphics().setScrollFactor(0).setDepth(102);
     this.restartHint = s.add.text(cx - r - 10, cy, '再點一次：重玩本關', { fontFamily: HUD_FONT, fontSize: '16px', fontStyle: 'bold', color: '#ffffff', stroke: '#0a1224', strokeThickness: 4 }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(102).setVisible(false);
+    this.restartLabel = s.add.text(cx - r - 10, cy, '重玩本關', { fontFamily: HUD_FONT, fontSize: '16px', fontStyle: 'bold', color: '#ffffff', stroke: '#0a1224', strokeThickness: 4 }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(102);   // always shown; the armed hint replaces it
     this.restartZone = s.add.zone(cx - 26, cy - 26, 52, 52).setOrigin(0).setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
     this.restartZone.on('pointerdown', () => this._tapRestart());
     this._drawRestart();
@@ -209,9 +210,9 @@ class HUD {
     const s = this.scene;
     if (this._rsBusy || s.finished || s.deathStarted || (s.player && s.player.dead) || !s.sys.isActive()) return;
     if (!this._rsArmed) {
-      this._rsArmed = true; this.restartHint.setVisible(true); this._drawRestart();
+      this._rsArmed = true; this.restartHint.setVisible(true); this.restartLabel.setVisible(false); this._drawRestart();
       if (this._rsTimer) this._rsTimer.remove(false);
-      this._rsTimer = s.time.delayedCall(2500, () => { this._rsArmed = false; if (this.restartHint && this.restartHint.active) this.restartHint.setVisible(false); if (this.restartG && this.restartG.active) this._drawRestart(); });
+      this._rsTimer = s.time.delayedCall(2500, () => { this._rsArmed = false; if (this.restartHint && this.restartHint.active) { this.restartHint.setVisible(false); this.restartLabel.setVisible(true); } if (this.restartG && this.restartG.active) this._drawRestart(); });
       return;
     }
     this._rsBusy = true;
@@ -404,6 +405,7 @@ class HUD {
     if (this.avatarZone) this.avatarZone.destroy();
     if (this.restartG) this.restartG.destroy();
     if (this.restartHint) this.restartHint.destroy();
+    if (this.restartLabel) this.restartLabel.destroy();
     if (this.restartZone) this.restartZone.destroy();
     if (this._rsTimer) this._rsTimer.remove(false);
     if (this.panel) this.panel.destroy();
