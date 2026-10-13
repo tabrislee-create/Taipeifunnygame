@@ -55,6 +55,7 @@ class LevelScene extends Phaser.Scene {
     const theme = this.theme;
 
     // Weather is drawn first: a flood (WX.isFlood: thunder / typhoon on an outdoor flat level) removes the pits and closes the gaps in the ground, which are built below.
+    RUN._lvlSnap = { level: RUN.level, hp: RUN.hp, coins: RUN.coins || 0, kills: RUN.kills || 0, simUses: RUN.simUses || 0 };   // the HUD's restart button puts these back
     this.cond = WX.pick(RUN.level);   // { time: day | dusk | night, wx: weather id or null }
     this.weatherId = this.cond.wx;
     this.flood = WX.isFlood(this.cond, RUN.level);

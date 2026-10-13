@@ -73,6 +73,7 @@ class HUD {
     s.events.on('resume', this._onResume);
 
     this._buildBuffs();
+    this._buildRestart();
     this._buildIntro(lvl);
   }
 
@@ -184,6 +185,46 @@ class HUD {
     return pointer.x >= 16 && pointer.x <= 100 && pointer.y >= 20 && pointer.y <= 100;
   }
 
+  // Restart-level button (user 2026-10-13): a round button in the top-right corner. The first tap arms it (red, with a hint) for 2.5 s, the second tap restarts the level from the state it started in
+  // (HP / coins / kills / SIM uses are put back from the snapshot Level.create took, so a restart cannot be used to farm coins or heal).
+  _buildRestart() {
+    const s = this.scene, cx = GAME_W - 30, cy = 36, r = 20;
+    this._rsArmed = false; this._rsBusy = false;
+    this.restartG = s.add.graphics().setScrollFactor(0).setDepth(102);
+    this.restartHint = s.add.text(cx - r - 10, cy, '再點一次：重玩本關', { fontFamily: HUD_FONT, fontSize: '16px', fontStyle: 'bold', color: '#ffffff', stroke: '#0a1224', strokeThickness: 4 }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(102).setVisible(false);
+    this.restartZone = s.add.zone(cx - 26, cy - 26, 52, 52).setOrigin(0).setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
+    this.restartZone.on('pointerdown', () => this._tapRestart());
+    this._drawRestart();
+  }
+  _drawRestart() {
+    const g = this.restartG, cx = GAME_W - 30, cy = 36, r = 20, on = this._rsArmed;
+    g.clear();
+    g.fillStyle(on ? 0xc0392b : 0x0a1224, on ? 0.9 : 0.55); g.fillCircle(cx, cy, r);
+    g.lineStyle(2, 0xffffff, on ? 1 : 0.7); g.strokeCircle(cx, cy, r);
+    g.lineStyle(3, 0xffffff, 1); g.beginPath(); g.arc(cx, cy, 9, -0.6, 4.2, false); g.strokePath();   // an open circle arrow
+    const a = 4.2, hx = cx + Math.cos(a) * 9, hy = cy + Math.sin(a) * 9;
+    g.fillStyle(0xffffff, 1); g.fillTriangle(hx + 5, hy - 5, hx - 5, hy - 4, hx + 1, hy + 6);
+  }
+  _tapRestart() {
+    const s = this.scene;
+    if (this._rsBusy || s.finished || s.deathStarted || (s.player && s.player.dead) || !s.sys.isActive()) return;
+    if (!this._rsArmed) {
+      this._rsArmed = true; this.restartHint.setVisible(true); this._drawRestart();
+      if (this._rsTimer) this._rsTimer.remove(false);
+      this._rsTimer = s.time.delayedCall(2500, () => { this._rsArmed = false; if (this.restartHint && this.restartHint.active) this.restartHint.setVisible(false); if (this.restartG && this.restartG.active) this._drawRestart(); });
+      return;
+    }
+    this._rsBusy = true;
+    const sn = RUN._lvlSnap;
+    if (sn && sn.level === RUN.level) { RUN.hp = sn.hp; RUN.coins = sn.coins; RUN.kills = sn.kills; RUN.simUses = sn.simUses; }
+    if (s.touch && s.touch.reset) s.touch.reset();
+    fadeTo(s, 'Level');
+  }
+  // True when the pointer is on the restart button (touch.js ignores such touches).
+  restartHit(pointer) {
+    return pointer.x >= GAME_W - 56 && pointer.y <= 62;
+  }
+
   _buildBuffs() {
     const s = this.scene;
     this.buffTexts = [];
@@ -197,7 +238,7 @@ class HUD {
       const col = this._buffCount % 6;
       const row = Math.floor(this._buffCount / 6);
       const x = GAME_W - 16 - col * 34;
-      const y = 16 + row * 34;
+      const y = 72 + row * 34;   // below the restart button (top-right corner, 2026-10-13)
       if (s.textures.exists('icon_' + id)) {
         const icon = s.add.image(x, y, 'icon_' + id).setScrollFactor(0).setDepth(100).setDisplaySize(24, 24);
         this.buffIcons.push(icon);
@@ -361,6 +402,10 @@ class HUD {
     if (this._onResume) s.events.off('resume', this._onResume);
     if (this.avatarImg) this.avatarImg.destroy();
     if (this.avatarZone) this.avatarZone.destroy();
+    if (this.restartG) this.restartG.destroy();
+    if (this.restartHint) this.restartHint.destroy();
+    if (this.restartZone) this.restartZone.destroy();
+    if (this._rsTimer) this._rsTimer.remove(false);
     if (this.panel) this.panel.destroy();
     if (this.hpText) this.hpText.destroy();
     if (this.levelChipText) this.levelChipText.destroy();

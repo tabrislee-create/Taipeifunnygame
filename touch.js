@@ -91,7 +91,7 @@ var TouchControls = {
     const apply = () => { st.left = dir < 0; st.right = dir > 0; if (hint) { if (dir !== 0) stopHint(); else hint.setVisible(padPointerId === null); } };
     const onDown = (pointer) => {
       if (padPointerId !== null || pointer.x >= GW / 2) return;
-      if (scene.hud && scene.hud.avatarHit && scene.hud.avatarHit(pointer)) return;   // tap on the HUD avatar button: no walk pad
+      if (scene.hud && ((scene.hud.avatarHit && scene.hud.avatarHit(pointer)) || (scene.hud.restartHit && scene.hud.restartHit(pointer)))) return;   // tap on the HUD avatar button: no walk pad
       padPointerId = pointer.id; cx = fingerX = pointer.x; py = pointer.y;
       dir = 0; // visual only until the finger slides
       apply(); g.setVisible(true); draw();
