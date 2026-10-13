@@ -67,6 +67,21 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
 #lmodal.on{display:flex}
 #lbox{background:#0a1224;border:2px solid rgba(255,255,255,.25);border-radius:18px;max-width:560px;max-height:92%;overflow:auto;padding:16px 20px;box-sizing:border-box;text-align:left;font-size:15px;line-height:1.5}
 #lbox h3{margin:8px 0 6px;color:#ffc94a;font-size:18px}#lbox ol{margin:0 0 6px 20px;padding:0}#lbox button{display:block;margin:10px auto 2px;appearance:none;font:700 17px 'Microsoft JhengHei',sans-serif;color:#fff;background:#2f6fc8;border:2px solid #fff;border-radius:99px;padding:6px 36px;cursor:pointer}
+/* play records page (trial build: 遊玩記錄 button; records.js) */
+#lrec{display:none;position:absolute;inset:0;z-index:6;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:3vmin;box-sizing:border-box}
+#lrec.on{display:flex}
+#lrecbox{background:#0a1224;border:2px solid rgba(255,255,255,.25);border-radius:18px;width:640px;max-width:100%;max-height:96%;overflow:auto;padding:12px 18px;box-sizing:border-box;text-align:left;font-size:15px;line-height:1.45}
+#lrecbox h3{margin:4px 0 8px;color:#ffc94a;font-size:19px;text-align:center}
+#lrecbox .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:6px;margin-bottom:8px}
+#lrecbox .grid div{background:rgba(255,255,255,.07);border-radius:10px;padding:5px 8px}
+#lrecbox .grid b{display:block;font-size:18px;color:#fff}#lrecbox .grid span{font-size:12px;color:#b8c4d8}
+#lrecbox h4{margin:8px 0 4px;color:#ffc94a;font-size:15px}
+#lrecbox table{width:100%;border-collapse:collapse;font-size:13px}#lrecbox td,#lrecbox th{padding:3px 4px;border-bottom:1px solid rgba(255,255,255,.12);white-space:nowrap}#lrecbox th{color:#b8c4d8;font-weight:400;text-align:left}
+#lrecbox .note{font-size:12px;color:#b8c4d8;margin-top:6px}
+#lrecbox .btns{display:flex;gap:10px;justify-content:center;margin-top:10px}
+#lrecbox .btns button{appearance:none;font:700 16px 'Microsoft JhengHei',sans-serif;color:#fff;background:#2f6fc8;border:2px solid #fff;border-radius:99px;padding:5px 26px;cursor:pointer}
+#lrecbox .btns button.del{background:#6a2a2a}#lrecbox .btns button.del.arm{background:#c0392b}
+@media (orientation:landscape){#lrecbox{width:94vw;max-width:860px}#lrecbox .grid{grid-template-columns:repeat(6,1fr)}}   /* phones held sideways: the six numbers in one row */
 </style>
 </head><body>
 <div id="game"></div>
@@ -92,6 +107,7 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
     <h3>iPhone / iPad（Safari）</h3><ol><li>一定要用 Safari 開啟遊戲網址（其他瀏覽器沒有這個選項）。</li><li>點網址列旁或下方的「分享」鈕（方框加向上箭頭）。</li><li>往下滑，選「加入主畫面」。</li><li>點右上角「新增」，桌面就會出現遊戲圖示。</li></ol>
     <button type="button" id="lmodalok">OK</button>
   </div></div>
+  <div id="lrec"><div id="lrecbox"></div></div>
 </div>
 
 <script>window.DEMO_BUILD = true;   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
@@ -99,12 +115,13 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
 <script src="viewport.js?v=20261009a"></script>
 <script src="titlecopy.js?v=20261012a"></script>
 <script src="pwa.js?v=20261012b"></script>
+<script src="records.js?v=20261013a"></script>
 <script>
 // Landing page + loader (user 2026-10-12): the page opens on this start screen at once (no game script loaded yet).  "開始遊戲" asks for fullscreen + landscape (touch devices), then loads the game scripts,
 // starts Phaser (its loading screen takes over) and the first scene is the character select.  ?go=1, or an automated browser (navigator.webdriver; ?landing=1 forces the landing page), skip it and start straight away.
 (function () {
-  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261009a', 'state.js?v=20261010c', 'effects.js?v=20261011g', 'weather.js?v=20261013c', 'hooks.js?v=20261012a', 'hud.js?v=20261013b', 'player.js?v=20261013a',
-    'enemy.js?v=20261011c', 'boss.js?v=20261013a', 'extras.js?v=20261012a', 'touch.js?v=20261013a', 'level.js?v=20261013d', 'ui.js?v=20261013c', 'choice.js?v=20261012b', 'charpanel.js?v=20261012d', 'main.js?v=20261013b'];
+  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261009a', 'state.js?v=20261010c', 'effects.js?v=20261011g', 'weather.js?v=20261013d', 'hooks.js?v=20261012a', 'hud.js?v=20261013b', 'player.js?v=20261013a',
+    'enemy.js?v=20261011c', 'boss.js?v=20261013b', 'extras.js?v=20261012a', 'touch.js?v=20261013a', 'level.js?v=20261013f', 'ui.js?v=20261013d', 'choice.js?v=20261012b', 'charpanel.js?v=20261012d', 'main.js?v=20261013b'];
   var demo = !!window.DEMO_BUILD || /[?&]demo=1/.test(location.search);
   var bypass = /[?&]go=1/.test(location.search) || (navigator.webdriver && !/[?&]landing=1/.test(location.search));
   var $ = function (id) { return document.getElementById(id); };
@@ -164,6 +181,37 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
     var hb = document.createElement('button'); hb.type = 'button'; hb.textContent = '困難模式：關';
     hb.addEventListener('click', function () { window.__landingHard = !window.__landingHard; hb.textContent = '困難模式：' + (window.__landingHard ? '開' : '關'); hb.classList.toggle('on', !!window.__landingHard); });
     $('lopts').appendChild(hb);
+  }
+  // 遊玩記錄: trial build only (user 2026-10-13); the records stay in this browser (records.js)
+  if (demo) { var rb = document.createElement('button'); rb.type = 'button'; rb.textContent = '遊玩記錄'; rb.addEventListener('click', showRecords); $('lopts').appendChild(rb); }
+  function showRecords() {
+    var s = REC.summary(), box = $('lrecbox');
+    function esc(t) { return String(t).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+    function mmss(sec) { sec = Math.round(sec || 0); return Math.floor(sec / 60) + ':' + ('0' + sec % 60).slice(-2); }
+    function hm(sec) { var m = Math.floor((sec || 0) / 60); return m >= 60 ? Math.floor(m / 60) + ' 小時 ' + (m % 60) + ' 分' : m + ' 分'; }
+    function cell(v, label) { return '<div><b>' + v + '</b><span>' + label + '</span></div>'; }
+    var h = '<h3>遊玩記錄</h3>';
+    if (!s.kept) h += '<p style="text-align:center">還沒有記錄，玩一局之後再來看。</p>';
+    else {
+      h += '<div class="grid">' + cell(s.total + ' 次', '挑戰次數') + cell(s.clears + ' 次', '通關（困難 ' + s.hardClears + ' 次）') + cell('第 ' + s.best + ' 關', '最遠抵達') +
+        cell(s.fastest ? mmss(s.fastest) : '—', '最快通關') + cell(hm(s.sec), '總遊玩時間') + cell(s.worst ? '第 ' + s.worst.lv + ' 關' : '—', s.worst ? '最常倒下（' + s.worst.n + ' 次）' : '最常倒下') + '</div>';
+      h += '<h4>角色</h4><table>';
+      for (var k in s.byChar) { var c = s.byChar[k]; h += '<tr><td>' + esc(c.name) + '</td><td>' + c.runs + ' 局</td><td>通關 ' + c.clears + ' 次</td></tr>'; }
+      h += '</table><h4>最近 ' + Math.min(10, s.runs.length) + ' 局</h4><table><tr><th>日期</th><th>角色</th><th>難度</th><th>結果</th><th>時間</th><th>擊敗</th></tr>';
+      s.runs.slice(0, 10).forEach(function (r) {
+        var dt = new Date(r.id), d2 = function (n) { return ('0' + n).slice(-2); };
+        h += '<tr><td>' + (dt.getMonth() + 1) + '/' + dt.getDate() + ' ' + d2(dt.getHours()) + ':' + d2(dt.getMinutes()) + '</td><td>' + esc(r.chName) + '</td><td>' + (r.hard ? '困難' : '一般') + '</td><td>' + REC.resultText(r) + '</td><td>' + mmss(r.sec) + '</td><td>' + (r.kills || 0) + '</td></tr>';
+      });
+      h += '</table><div class="note">記錄只存在這台裝置的瀏覽器裡，不會上傳。只保留最近 100 局，統計以這 100 局計算。</div>';
+    }
+    h += '<div class="btns">' + (s.kept ? '<button type="button" class="del" id="lrecdel">清除記錄</button>' : '') + '<button type="button" id="lrecok">關閉</button></div>';
+    box.innerHTML = h; $('lrec').classList.add('on');
+    $('lrecok').addEventListener('click', function () { $('lrec').classList.remove('on'); });
+    var del = $('lrecdel'), armT = 0;
+    if (del) del.addEventListener('click', function () {   // two taps, like the in-game restart button
+      if (!del.classList.contains('arm')) { del.classList.add('arm'); del.textContent = '再點一次：清除'; armT = setTimeout(function () { del.classList.remove('arm'); del.textContent = '清除記錄'; }, 2500); return; }
+      clearTimeout(armT); REC.clear(); showRecords();
+    });
   }
   if (!demo) {
     if (window.DEV_MENU !== false) { var db = document.createElement('button'); db.type = 'button'; db.textContent = '開發者選項'; db.addEventListener('click', function () { start('dev'); }); $('lopts').appendChild(db); }

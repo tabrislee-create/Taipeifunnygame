@@ -280,6 +280,7 @@ class CharSelectScene extends Phaser.Scene {
       self._closePopup();
       self._sel = true;
       newRun(id, HARD_MODE);
+      REC.start(id, ch.name_zh, HARD_MODE);   // play records (records.js, trial build only)
       fadeTo(self, 'Level');
     });
 
@@ -344,6 +345,9 @@ class EndScene extends Phaser.Scene {
   create() {
     this.cameras.main.fadeIn(300);
     var self = this;
+    if (this._result === 'dead') REC.died(RUN.level);   // play records (records.js, trial build only); the result-screen line is read before a victory closes the record
+    var recLine = REC.endLine();
+    if (this._result !== 'dead') REC.finish('clear');
     if (this._result === 'dead') {
       this._bg = this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0x3a0a0a);
       var title = this.add.text(GAME_W / 2, 150, '遊戲結束', { fontFamily: FONT, fontSize: 64, fontStyle: 'bold', color: '#ff3333' }).setOrigin(0.5);
@@ -351,14 +355,16 @@ class EndScene extends Phaser.Scene {
       this._noise = this.add.graphics();
       this.add.text(GAME_W / 2, 260, '抵達第 ' + RUN.level + ' / ' + GAME_DATA.levels.length + ' 關', { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
       this.add.text(GAME_W / 2, 300, '擊敗敵人：' + RUN.kills, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
+      if (recLine) this.add.text(GAME_W / 2, 342, recLine, { fontFamily: FONT, fontSize: 21, color: '#ffd966' }).setOrigin(0.5);
       this._btns.push(mkBtn(this, GAME_W / 2, 400, 220, 50, '重新挑戰本關', 'R', function () { RUN.deaths++; RUN.hp = calcStats().max_hp; fadeTo(self, 'Level'); }));
-      this._btns.push(mkBtn(this, GAME_W / 2, 470, 220, 50, '回主選單', 'M', function () { if (window.showLanding) window.showLanding(); }));
+      this._btns.push(mkBtn(this, GAME_W / 2, 470, 220, 50, '回主選單', 'M', function () { REC.finish('dead'); if (window.showLanding) window.showLanding(); }));
     } else {
       this._bg = this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0x8a6a10);
       var vt = this.add.text(GAME_W / 2, 150, '勝利！', { fontFamily: FONT, fontSize: 72, fontStyle: 'bold', color: '#ffd700' }).setOrigin(0.5);
       vt.setScale(0);
       this.tweens.add({ targets: vt, scaleX: 1.5, scaleY: 1.5, duration: 400, ease: 'Sine.Out', onComplete: function () { self.tweens.add({ targets: vt, scaleX: 1, scaleY: 1, duration: 400, ease: 'Bounce.Out' }); } });
       this.add.text(GAME_W / 2, 210, (window.DEMO ? '試玩版到此結束，完整版共 30 關' : '你征服了台北好好玩'), { fontFamily: FONT, fontSize: 24, color: '#ffd700' }).setOrigin(0.5);
+      if (recLine) this.add.text(GAME_W / 2, 244, recLine, { fontFamily: FONT, fontSize: 19, color: '#ffffff' }).setOrigin(0.5);
       var elapsed = Date.now() - RUN.startTime;
       this.add.text(GAME_W / 2, 280, '總時間 ' + fmtTime(elapsed), { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);
       this.add.text(GAME_W / 2, 320, '擊敗敵人：' + RUN.kills, { fontFamily: FONT, fontSize: 21, color: '#ffffff' }).setOrigin(0.5);

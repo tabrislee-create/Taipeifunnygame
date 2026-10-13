@@ -7,7 +7,7 @@ class Boss {
     this.maxHp = def.hp;
     this.hp = def.hp;
     this.dead = false;
-    this._am = RUN.hard ? 1.5 : 1;   // hard mode (user 2026-10-13): every boss attack hits 1.5x
+    this._am = RUN.hard ? 1.1 + Math.random() * 0.1 : 1;   // hard mode (user 2026-10-13): every boss attack hits x1.1-1.2, drawn once each time the boss appears
     this.contactDamage = 15 * this._am;
     this.displayHeight = 200;
     this._phaseIndex = 0;

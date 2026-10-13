@@ -56,6 +56,7 @@ class LevelScene extends Phaser.Scene {
 
     // Weather is drawn first: a flood (WX.isFlood: thunder / typhoon on an outdoor flat level) removes the pits and closes the gaps in the ground, which are built below.
     RUN._lvlSnap = { level: RUN.level, hp: RUN.hp, coins: RUN.coins || 0, kills: RUN.kills || 0, simUses: RUN.simUses || 0 };   // the HUD's restart button puts these back
+    if (window.REC) REC.levelStart(RUN.level);   // play records (records.js, trial build only)
     this.cond = WX.pick(RUN.level);   // { time: day | dusk | night, wx: weather id or null }
     this.weatherId = this.cond.wx;
     this.flood = WX.isFlood(this.cond, RUN.level);
@@ -184,6 +185,14 @@ class LevelScene extends Phaser.Scene {
 
     // Spawns
     const hasMinions = lvl.spawns.some((x) => !GAME_DATA.bosses[x.type]);
+    // Hard mode (user 2026-10-13): minions x1.5-2, drawn once each time the level starts; that many extra copies go to randomly chosen minion spawn points (one extra per point at most)
+    const minionSps = lvl.spawns.filter((x) => !GAME_DATA.bosses[x.type] && GAME_DATA.enemies[x.type]), doubled = new Set();
+    this._hardMinionMult = RUN.hard ? 1.5 + Math.random() * 0.5 : 1;
+    if (RUN.hard) {
+      const idx = minionSps.map((x, i) => i), extra = Math.min(minionSps.length, Math.round(minionSps.length * (this._hardMinionMult - 1)));
+      for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
+      idx.slice(0, extra).forEach((i) => doubled.add(minionSps[i]));
+    }
     for (const sp of lvl.spawns) {
       if (GAME_DATA.bosses[sp.type] && hasMinions) {
         this._pendingBoss = sp; // level 5: the boss only appears after every minion is dead (_startBossEntrance)
@@ -196,7 +205,7 @@ class LevelScene extends Phaser.Scene {
         const def = GAME_DATA.enemies[sp.type];
         if (def) {
           this.addEnemy(def, sp.x, sp.y_hint);
-          if (RUN.hard) this.addEnemy(def, Math.min(this.lvl.width - 80, sp.x + 56), sp.y_hint);   // hard mode (user 2026-10-13): twice as many minions per level
+          if (doubled.has(sp)) this.addEnemy(def, Math.min(this.lvl.width - 80, sp.x + 56), sp.y_hint);   // hard mode extra copy (see above)
         }
       }
     }

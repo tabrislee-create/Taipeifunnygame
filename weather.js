@@ -1387,7 +1387,11 @@ var WX = (function () {
       if (level === 4 || level === 5) pool.push('fog', 'fog3');
       else if (MOUNTAIN.indexOf(level) >= 0) pool.push('fog');
       var r = Math.random();
-      if (r < 0.35) wx = null;
+      if (window.DEMO && level >= 1 && level <= 5 && typeof RUN !== 'undefined' && RUN.hard) {   // trial build, hard mode (user 2026-10-13, option B): clear 20% / typhoon 20% / thunder 20%, the other 40% shared by the rest of the pool
+        var rest = pool.filter(function (w) { return w !== 'thunder'; });   // levels 1-3 flood on typhoon / thunder (40%); level 4 (indoors) and 5 (mountain) never flood
+        wx = r < 0.2 ? null : r < 0.4 ? 'typhoon' : r < 0.6 ? 'thunder' : rest[Math.min(rest.length - 1, ((r - 0.6) / 0.4 * rest.length) | 0)];
+      }
+      else if (r < 0.35) wx = null;
       else if (out) { if (r < 0.45) wx = 'typhoon'; else { r = (r - 0.45) / 0.55; wx = pool[Math.min(pool.length - 1, (r * pool.length) | 0)]; } }
       else { r = (r - 0.35) / 0.65; wx = pool[Math.min(pool.length - 1, (r * pool.length) | 0)]; }
     }
