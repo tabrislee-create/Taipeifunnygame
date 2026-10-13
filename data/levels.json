@@ -441,6 +441,11 @@
     "y_hint": 380
    },
    {
+    "type": "slime_black",
+    "x": 1800,
+    "y_hint": 380
+   },
+   {
     "type": "boss_slime_king",
     "x": 1600,
     "y_hint": 380

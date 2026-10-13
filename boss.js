@@ -57,6 +57,7 @@ class Boss {
     this._telegraphed = false;
     this._telegraphObjs = [];
     this._projectiles = [];
+    this._swings = [];
     this._waveObj = null;
     this._rain = null; this._rainStripes = []; this._rainPuddles = []; this._rainGlow = []; this._rainG = null;   // rainbow_sky_rain state
     this._glints = []; this._pools = []; this._glintAcc = 0;       // code-drawn light effects (no flares baked into the art)
@@ -194,6 +195,7 @@ class Boss {
       this._clearWave();
       this._clearLaser();
       this._rainGlowOff();
+      this._useCount = new Map();   // pattern max_uses is counted per phase (user 2026-10-13: the minion summon, twice in phase 1 and in phase 2)
       this._initSeq();
       const first = this._seq && this._seq[0];
       if (first && first.immediate) { const pat = this._nextPattern(); if (pat) this._startTelegraph(pat); }   // pattern flag immediate: that opening skill starts the moment the phase begins, no idle wait
@@ -239,7 +241,7 @@ class Boss {
   }
 
   // Skill selection (user 2026-10-13). A pattern may carry: id (cooldown key, shared between phases), cd_ms (from the moment it starts), seq (opening sequence of the phase, in order, ignores cooldowns),
-  // immediate (the first seq skill starts at once when the phase begins), once (only ever used inside the seq), trigger 'on_hit' (not in the rotation: starts when the player's normal attack hits, see _onNormalHit).
+  // max_uses (this skill at most N times per phase, the opening seq use counts), immediate (the first seq skill starts at once when the phase begins), once (only ever used inside the seq), trigger 'on_hit' (not in the rotation: starts when the player's normal attack hits, see _onNormalHit).
   // Free choice = a random skill whose cooldown is over. A boss whose data has none of these fields keeps the old fixed rotation (_nextPatternRotate).
   _initSeq() {
     const pats = this._activePatterns();
@@ -252,16 +254,16 @@ class Boss {
     if (!pats.some((p) => p.cd_ms || p.trigger || p.seq)) return this._nextPatternRotate(pats);
     const now = this.scene.time.now;
     if (!this._skillCd) this._skillCd = new Map();
-    const stamp = (p) => { this._skillCd.set(p.id || p.primitive, now + (p.cd_ms || 0)); return p; };
+    if (!this._useCount) this._useCount = new Map();
+    const stamp = (p) => { this._skillCd.set(p.id || p.primitive, now + (p.cd_ms || 0)); if (p.max_uses) this._useCount.set(p, (this._useCount.get(p) || 0) + 1); return p; };
     if (this._seq && this._seq.length) return stamp(this._seq.shift());
     if (now < this._freezeUntil) return null;
-    const ready = pats.filter((p) => !p.trigger && !p.once && now >= (this._skillCd.get(p.id || p.primitive) || 0));
+    const ready = pats.filter((p) => !p.trigger && !p.once && now >= (this._skillCd.get(p.id || p.primitive) || 0) && !(p.max_uses && (this._useCount.get(p) || 0) >= p.max_uses));
     return ready.length ? stamp(ready[Math.floor(Math.random() * ready.length)]) : null;
   }
 
-  // 藍色衝撞 (phase 1): started by the player's normal attack (not skills / procs / burn) hitting the boss, only while the boss is not busy with another skill or frozen after a landing; own cooldown.
-  _onNormalHit(info) {
-    if (info && info.proc) return;
+  // 藍色衝撞 (phase 1): started by any player hit (normal attack or skill, not burn) on the boss, only while the boss is not busy with another skill or frozen after a landing; own cooldown.
+  _onNormalHit(info) {   // any player hit counts, normal attack or skill (user 2026-10-13); burn damage does not go through takeHit
     if (this._seq && this._seq.length) return;   // the opening skill (summon) comes first
     if (this._state !== 'idle' && this._state !== 'cooldown') return;
     const now = this.scene.time.now;
@@ -270,7 +272,7 @@ class Boss {
     if (!pat) return;
     if (!this._skillCd) this._skillCd = new Map();
     // a skill that is due (opening sequence pending, or a free-choice skill whose cooldown is over) goes first: otherwise hitting the boss non-stop would starve the summon
-    if ((this._seq && this._seq.length) || pats.some((p) => !p.trigger && !p.once && now >= (this._skillCd.get(p.id || p.primitive) || 0))) return;
+    if ((this._seq && this._seq.length) || pats.some((p) => !p.trigger && !p.once && now >= (this._skillCd.get(p.id || p.primitive) || 0) && !(p.max_uses && ((this._useCount && this._useCount.get(p)) || 0) >= p.max_uses))) return;   // a skill already at max_uses is no longer "due" (else the crescent stayed blocked for good)
     const key = pat.id || pat.primitive;
     if (now < (this._skillCd.get(key) || 0)) return;
     this._skillCd.set(key, now + (pat.cd_ms || 0));
@@ -308,7 +310,9 @@ class Boss {
     const pr = pattern.primitive;
     const p = pattern.params || {};
     const tm = this._telegraphMs;
-    if (pr === 'dash') {
+    if (pr === 'dash' && p.fx === 'shockwave') {
+      // no warning
+    } else if (pr === 'dash') {
       const dir = (this._dashDir >= 0) ? 1 : -1;
       const dist = p.distance || 200;
       const x0 = s.x;
@@ -339,7 +343,8 @@ class Boss {
       this._rainGlowOn();   // the colour outline starts with the charge (invulnerable from here on)
       if (scene.textures.exists('bossskill_rain')) { this._rainTextImg = scene.add.image(s.x, s.y, 'bossskill_rain').setDepth(97).setAlpha(0); this._rainTextImg.setDisplaySize(260, 260 * this._rainTextImg.height / this._rainTextImg.width); this._telegraphObjs.push(this._rainTextImg); }   // brush-calligraphy skill name over the head for the whole charge
     } else if (pr === 'summon_adds') {
-      for (const sl of this._summonSlots(p)) this._telegraphObjs.push(FX.telegraphCircle(scene, sl.x, gy - 20, 30, tm));
+      this._slotCache = this._summonSlots(p);   // the minions appear exactly where the warning circles are
+      for (const sl of this._slotCache) this._telegraphObjs.push(FX.telegraphCircle(scene, sl.x, gy - 20, 30, tm));
     } else if (pr === 'laser_sweep') {
       const dir = (this._dashDir >= 0) ? 1 : -1;
       const x0 = s.x;
@@ -358,7 +363,11 @@ class Boss {
     const pr = pattern.primitive;
     const p = pattern.params || {};
     const dir = (this._dashDir >= 0) ? 1 : -1;
-    if (pr === 'dash') {
+    if (pr === 'dash' && p.fx === 'shockwave') {   // 藍色衝撞 (user 2026-10-13): no body dash, no warning; a blue shockwave travels along the floor toward the player and hits like the green puddle (normal hit + knock-back)
+      this._spawnSwing(p, dir);
+      this._state = 'cooldown';
+      this._stateTimer = 0;
+    } else if (pr === 'dash') {
       this._state = 'dash';
       this._dashDir = dir;
       this._dashRemaining = p.distance || 200;
@@ -569,18 +578,19 @@ class Boss {
   // Where the minions appear: one slot per minion, alternating right / left of the boss, clamped to the arena. params.sequence = list of enemy types in the order they appear (blue x2, green x2, red x2 for the level-5 boss),
   // otherwise params.count copies of params.enemy_type.
   _summonSlots(p) {
-    const s = this.sprite, b = this._worldBounds(), types = (p.sequence && p.sequence.length) ? p.sequence : Array.from({ length: p.count || 1 }, () => p.enemy_type), out = [];
-    for (let i = 0; i < types.length; i++) {
-      const off = (i % 2 === 0 ? 1 : -1) * (100 + (i * 40) % 200);
-      out.push({ type: types[i], x: Math.max(this._minX() + 20, Math.min(b.right - 40, s.x + off)) });
-    }
+    const b = this._worldBounds(), types = (p.sequence && p.sequence.length) ? p.sequence : Array.from({ length: p.count || 1 }, () => p.enemy_type), out = [];
+    // random x inside the current camera view (user 2026-10-13), kept inside the arena
+    const v = this.scene.cameras.main.worldView, lo = Math.max(this._minX() + 20, v.left + 40), hi = Math.max(lo, Math.min(b.right - 40, v.right - 40));
+    for (let i = 0; i < types.length; i++) out.push({ type: types[i], x: lo + Math.random() * (hi - lo) });
     return out;
   }
 
   // The minions come out one after another (params.interval_ms apart, default 350), each with a small spark.
   _summon(p) {
     const scene = this.scene, gy = this._groundY(), gap = p.interval_ms || 350, self = this;
-    this._summonSlots(p).forEach(function (sl, i) {
+    const slots = this._slotCache || this._summonSlots(p);
+    this._slotCache = null;
+    slots.forEach(function (sl, i) {
       const def = (GAME_DATA && GAME_DATA.enemies) ? GAME_DATA.enemies[sl.type] : null;
       if (!def) return;
       scene.time.delayedCall(i * gap, function () {
@@ -754,6 +764,81 @@ class Boss {
     if (this._rainG) { this._rainG.destroy(); this._rainG = null; }
   }
 
+  // 藍色衝撞 (user 2026-10-13): a big dark-blue crescent with a pale-blue halo starts straight above the boss's head (90 degrees) and swings down toward the player like a chop; no warning, the swing itself is the cue.
+  // Hit once if its arc touches the player (normal hit + knock-back, like the green puddle). Backing off during the swing avoids it.
+  _spawnSwing(p, dir) {
+    // Shape (user's red-line sketch, 2026-10-13): a slim sickle riding the swing path, convex edge leading along the direction of travel, both tips trailing back, sharp points.
+    // Gradient: layers share the outer arc and the tips and get thinner and lighter, so it runs from deep navy on the concave side to a near-white razor edge on the convex side.
+    const scene = this.scene, s = this.sprite, A0 = 75, SZ = 0.7, R = this._dispH * SZ / (2 * Math.sin(A0 * Math.PI / 180)), key = 'bluecrescent5_' + Math.round(this._dispH);   // tip-to-tip height = 0.7 x the boss's height (user 2026-10-13, was 0.85)
+    const tw = Math.ceil(R * 2.6), th = Math.ceil(this._dispH * 1.5), ox = R * 1.2;
+    if (!scene.textures.exists(key)) {
+      const g = scene.add.graphics(), cy = th / 2;
+      this._crescent(g, ox, cy, R * 1.1, 1, A0, 1.5, 0xa8dcff, 0.18);
+      this._crescent(g, ox, cy, R * 1.05, 1, A0, 1.5, 0x7cc4ff, 0.3);
+      const L = [[1.5, 0x061a66], [1.4, 0x0b2a8c], [1.3, 0x1647c4], [1.2, 0x2f78e6], [1.13, 0x6fb8ff], [1.07, 0xd8f2ff]];
+      for (const l of L) this._crescent(g, ox, cy, R, 1, A0, l[0], l[1], 1);
+      // white cross glints on the blade (convex edge): one big near the middle, one small toward the upper tip
+      const glint = (ang, len, wd) => {
+        const gx = ox + R * Math.cos(ang * Math.PI / 180), gy = cy + R * Math.sin(ang * Math.PI / 180);
+        g.fillStyle(0xffffff, 0.25); g.fillCircle(gx, gy, wd * 2.6);
+        g.fillStyle(0xffffff, 1);
+        g.fillPoints([{ x: gx - len, y: gy }, { x: gx, y: gy - wd }, { x: gx + len, y: gy }, { x: gx, y: gy + wd }], true);
+        g.fillPoints([{ x: gx, y: gy - len }, { x: gx + wd, y: gy }, { x: gx, y: gy + len }, { x: gx - wd, y: gy }], true);
+        g.fillCircle(gx, gy, wd * 1.2);
+      };
+      glint(-18, R * 0.34, R * 0.045);
+      glint(-55, R * 0.2, R * 0.03);
+      g.generateTexture(key, tw, th); g.destroy();
+    }
+    const img = scene.add.image(0, 0, key).setOrigin(ox / tw, 0.5).setDepth(6);
+    this._swings.push({ img: img, dir: dir, t0: scene.time.now, px: s.x, py: s.y - this._dispH * 0.42, D: this._dispH * 1.25, R: R, ms: p.swing_ms || 1750, hit: false, dmg: this.contactDamage * 0.75 });   // halved from x1.5 (user 2026-10-13)
+  }
+
+  _updateSwings() {
+    const scene = this.scene, player = scene.player, now = scene.time.now;
+    for (let i = this._swings.length - 1; i >= 0; i--) {
+      const w = this._swings[i], k = Math.min(1, (now - w.t0) / w.ms), e = k * k * (3 - 2 * k) * 0.35 + k * 0.65;   // slow start at the top, speeds up into the chop
+      const th = (-90 + 110 * e) * Math.PI / 180, phi = w.dir > 0 ? th : Math.PI - th;
+      const al = w.dir > 0 ? Math.atan2(Math.cos(phi), -Math.sin(phi)) : Math.atan2(-Math.cos(phi), Math.sin(phi));   // direction of travel along the path = where the convex edge points
+      const bx = w.px + Math.cos(phi) * w.D, by = w.py + Math.sin(phi) * w.D;
+      const cx = bx - Math.cos(al) * w.R * 0.62, cy = by - Math.sin(al) * w.R * 0.62;   // arc centre of the sickle (body centre sits on the path)
+      w.img.setPosition(cx, cy).setRotation(al).setAlpha(now - w.t0 > w.ms ? Math.max(0, 1 - (now - w.t0 - w.ms) / 150) : 1);
+      if (!w.last || now - w.last >= 45) {   // afterimage: a fading copy of the sickle left behind every 45 ms along the path
+        w.last = now;
+        const gh = scene.add.image(cx, cy, w.img.texture.key).setOrigin(w.img.originX, w.img.originY).setRotation(al).setDepth(5.9).setAlpha(0.4).setTint(0x7cc4ff);
+        scene.tweens.add({ targets: gh, alpha: 0, duration: 320, onComplete: () => gh.destroy() });
+      }
+      if (!w.hit && k >= 0.05 && now - w.t0 <= w.ms + 60 && player && !player.dead) {
+        const rc = bodyRect(player.sprite);
+        for (let a = -75; a <= 75; a += 15) for (const rr of [0.75, 0.95]) {
+          const ang = al + a * Math.PI / 180;
+          if (Phaser.Geom.Rectangle.Contains(rc, cx + Math.cos(ang) * w.R * rr, cy + Math.sin(ang) * w.R * rr)) { w.hit = true; break; }
+        }
+        if (w.hit && player.takeDamage(w.dmg, w.px)) {
+          // Cut away along the blade's normal at the contact point (arc centre -> player): in the air the player flies off along that normal, on the ground the force is taken as purely horizontal (user 2026-10-13)
+          const pb = player.sprite.body, ex = pb.center.x - cx, ey = pb.center.y - cy, len = Math.hypot(ex, ey) || 1;
+          let nx = ex / len, ny = ey / len;
+          const SP = 550, grounded = pb.blocked.down || pb.touching.down;
+          if (grounded) { const sx = Math.sign(nx) || Math.sign(Math.cos(al)) || 1; pb.setVelocity(sx * SP, 0); }
+          else pb.setVelocity(nx * SP, ny * SP);
+          player._knockUntil = now + 350;
+          this._pushGuard = { until: now + 450, side: Math.sign(pb.center.x - this.sprite.x) || 1 };   // the knock-back must not carry the player through the boss
+        }
+      }
+      if (now - w.t0 > w.ms + 150) { w.img.destroy(); this._swings.splice(i, 1); }
+    }
+  }
+
+  // After a crescent hit the player is pushed along, but stops at the boss's body instead of passing through it.
+  _applyPushGuard() {
+    const g = this._pushGuard, pl = this.scene.player;
+    if (!g || !pl || pl.dead) return;
+    if (this.scene.time.now > g.until) { this._pushGuard = null; return; }
+    const pb = pl.sprite.body, bb = this.sprite.body;
+    if (g.side > 0) { if (pb.left < bb.right) { pl.sprite.x += bb.right - pb.left; if (pb.velocity.x < 0) pb.setVelocityX(0); } }
+    else if (pb.right > bb.left) { pl.sprite.x -= pb.right - bb.left; if (pb.velocity.x > 0) pb.setVelocityX(0); }
+  }
+
   _updateProjectiles(dt) {
     const scene = this.scene;
     const player = scene.player;
@@ -920,6 +1005,8 @@ class Boss {
     this._clearRain();
     for (const proj of this._projectiles) proj.destroy();
     this._projectiles = [];
+    for (const w of this._swings) w.img.destroy();
+    this._swings = [];
     this._clearGlints();
     if (this._fxG) { this._fxG.destroy(); this._fxG = null; }
     for (const pl of this._pools) if (pl && pl.destroy) pl.destroy();
@@ -975,6 +1062,8 @@ class Boss {
       this._dashDir = (player.sprite.x >= this.sprite.x) ? 1 : -1;
     }
     this._updateProjectiles(dt);
+    this._updateSwings();
+    this._applyPushGuard();
     this._updateRain(dt, this.scene.time.now);
     if (this._state === 'idle') {
       this._stateTimer += delta;

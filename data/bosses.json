@@ -4,7 +4,7 @@
   "name_en": "Rainbow Slime King",
   "name_zh": "幻彩史萊姆王",
   "level": 5,
-  "hp": 300,
+  "hp": 250,
   "size": "large",
   "hitbox": {
    "w": 0.8,
@@ -34,20 +34,20 @@
       "zh_name": "召喚小跟班",
       "zh_desc": "依序召喚藍、藍、綠、綠、紅、紅共六隻小跟班。",
       "id": "summon",
+      "max_uses": 2,
       "seq": 1,
       "cd_ms": 10000
      },
      {
       "primitive": "dash",
       "params": {
-       "speed": 250,
-       "distance": 300,
-       "fx": "crescent"
+       "swing_ms": 1750,
+       "fx": "shockwave"
       },
-      "telegraph_ms": 1000,
+      "telegraph_ms": 1,
       "cooldown_ms": 0,
       "zh_name": "藍色衝撞",
-      "zh_desc": "身體變藍並閃爍，朝玩家方向快速水平衝刺。",
+      "zh_desc": "不預警，頭上方的深藍大月牙由90度向玩家方向劈下，命中把玩家彈飛，後退可閃。",
       "id": "dash_blue",
       "trigger": "on_hit",
       "cd_ms": 2000
@@ -55,78 +55,7 @@
     ]
    },
    {
-    "hp_below_pct": 66,
-    "patterns": [
-     {
-      "primitive": "summon_adds",
-      "params": {
-       "count": 6,
-       "enemy_type": "slime_blue",
-       "sequence": [
-        "slime_blue",
-        "slime_blue",
-        "slime_green",
-        "slime_green",
-        "slime_red",
-        "slime_red"
-       ],
-       "interval_ms": 350
-      },
-      "telegraph_ms": 1000,
-      "cooldown_ms": 0,
-      "zh_name": "召喚小跟班",
-      "zh_desc": "依序召喚藍、藍、綠、綠、紅、紅共六隻小跟班。",
-      "id": "summon",
-      "cd_ms": 10000
-     },
-     {
-      "primitive": "projectile_fan",
-      "params": {
-       "count": 3,
-       "spread": 40,
-       "speed": 250,
-       "damage": 15
-      },
-      "telegraph_ms": 1200,
-      "cooldown_ms": 0,
-      "zh_name": "紅色液球噴射",
-      "zh_desc": "從胸口向前方扇形噴射三顆紅色液球。",
-      "id": "fan",
-      "cd_ms": 8000
-     },
-     {
-      "primitive": "jump_slam",
-      "params": {
-       "jump_height": 104,
-       "shockwave_radius": 120,
-       "damage": 18
-      },
-      "telegraph_ms": 1200,
-      "cooldown_ms": 0,
-      "zh_name": "黃色跳壓",
-      "zh_desc": "跳起並在玩家腳下落地，產生黃色衝擊波。",
-      "id": "jump",
-      "cd_ms": 10000
-     },
-     {
-      "primitive": "green_terrain_aoe",
-      "params": {
-       "radius": 150,
-       "duration": 3000,
-       "damage_per_tick": 5,
-       "tick_interval": 500
-      },
-      "telegraph_ms": 1000,
-      "cooldown_ms": 0,
-      "zh_name": "綠色毒潭",
-      "zh_desc": "在玩家位置噴出一大灘綠色液體，停留期間持續傷害。",
-      "id": "poison",
-      "cd_ms": 10000
-     }
-    ]
-   },
-   {
-    "hp_below_pct": 33,
+    "hp_below_pct": 30,
     "patterns": [
      {
       "primitive": "rainbow_sky_rain",
@@ -167,22 +96,6 @@
       "id": "summon",
       "seq": 2,
       "once": true
-     },
-     {
-      "primitive": "rainbow_homing_projectile",
-      "params": {
-       "count": 4,
-       "speed": 216,
-       "damage": 15,
-       "lifetime": 3000
-      },
-      "telegraph_ms": 1200,
-      "cooldown_ms": 0,
-      "zh_name": "幻彩追蹤彈",
-      "zh_desc": "噴射四顆不同顏色的液球，會緩慢追蹤玩家。",
-      "id": "homing",
-      "seq": 3,
-      "cd_ms": 5000
      }
     ]
    }

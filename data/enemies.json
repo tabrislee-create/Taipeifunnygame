@@ -65,16 +65,34 @@
   "params": {
    "patrol_range": 200,
    "spit": {
-    "range": 420,
-    "speed": 260,
-    "damage": 10,
+    "range": 250,
+    "speed": 104,
+    "damage": 5,
     "min_ms": 2500,
     "max_ms": 5000
    }
   },
   "first_level": 4,
   "art_prompt": "chibi cute red slime with a slightly angry expression, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
-  "notes": "Randomly spits a red liquid blob at mid range (about 420 px) after a short flash."
+  "notes": "Randomly spits a red liquid blob at short range (about 250 px) after a short flash."
+ },
+ {
+  "id": "slime_black",
+  "name_en": "Black Slime",
+  "name_zh": "黑色史萊姆",
+  "behavior": "Patrol",
+  "size": "small_x15",
+  "hp": 45,
+  "damage": 10,
+  "speed": 167,
+  "params": {
+   "patrol_range": 400,
+   "hop_height_px": 100,
+   "hop_rest_mul": 0.1
+  },
+  "first_level": 5,
+  "art_prompt": "hue-shifted blue slime sheet, black body",
+  "notes": "Bludger-like special slime: 1.5x size, bounces fast and constantly (almost no rest). Level 5, last spawn before the boss."
  },
  {
   "id": "bat_brown",

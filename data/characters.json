@@ -128,11 +128,11 @@
   "skill": {
    "id": "take_profit",
    "name_zh": "獲利了結",
-   "desc_zh": "5 根紅 K 棒各 0.5 倍傷害，小怪擊飛暈眩 1 秒（Boss 除外），施放期間無敵。每關首次：棒頂金幣也 0.5 倍傷害並 +2 金幣；擊中每隻敵人 +1 金幣。",
+   "desc_zh": "6 根紅 K 棒各 0.5 倍傷害，小怪擊飛暈眩 1 秒（Boss 除外），施放期間無敵。每關首次：棒頂金幣也 0.5 倍傷害並 +2 金幣；擊中每隻敵人 +1 金幣。",
    "flavor_zh": "落袋為安！",
    "cooldown": 6,
    "params": {
-    "bar_count": 5,
+    "bar_count": 6,
     "hit_multiplier": 0.5,
     "launch_height": 110,
     "stun_seconds": 1,

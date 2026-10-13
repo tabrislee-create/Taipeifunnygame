@@ -148,7 +148,7 @@ class BootScene extends Phaser.Scene {
       this.load.image('enemy_' + en[j], 'assets/enemy_' + en[j] + '.png');
     }
     // hopping slimes (blue/green/yellow/red = hue shifts of one sheet, tools/recolor_slime.py): 8-cell spritesheet (288x220 per cell)
-    ['blue', 'green', 'yellow', 'red'].forEach(function (c) { this.load.spritesheet('enemy_slime_' + c + '_hop', 'assets/enemy_slime_' + c + '_hop.png', { frameWidth: 288, frameHeight: 220 }); }, this);
+    ['blue', 'green', 'yellow', 'red', 'black'].forEach(function (c) { this.load.spritesheet('enemy_slime_' + c + '_hop', 'assets/enemy_slime_' + c + '_hop.png', { frameWidth: 288, frameHeight: 220 }); }, this);
     var bo = Object.keys(D.bosses);
     for (var k = 0; k < bo.length; k++) {
       this.load.image(bo[k], 'assets/' + bo[k] + '.png');

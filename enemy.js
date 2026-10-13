@@ -203,7 +203,7 @@ class Enemy {
 
         if (this._launchState && this._updateLaunch(time)) return;   // launched / stunned: no AI, no contact damage
 
-        switch (this.behavior) {
+        if (time >= (this._popUntil || 0)) switch (this.behavior) {
             case 'Patrol': if (this.hop) this.updateHop(time); else this.updatePatrol(time, dt); break;
             case 'Chase': this.updateChase(time, dt, px); break;
             case 'Charge': this.updateCharge(time, dt, px); break;
@@ -267,7 +267,7 @@ class Enemy {
         const s = this.sprite, scene = this.scene;
         this._hopPhase = 'rest';
         this._hopT = scene.time.now + rand(100, 2000);   // wide random start so a group of slimes does not hop in step
-        this._restMul = rand(0.7, 1.6);                  // per-slime pace: some linger, some hop often
+        this._restMul = this.params.hop_rest_mul || rand(0.7, 1.6);                  // per-slime pace: some linger, some hop often
         // hop_height_px = apex height in px (vy^2 / 2g, g = 1000; + g*dt/2 for Arcade's 60 fps integration, which otherwise lands ~4 px short); otherwise hop_height_mult scales the 18 px base hop
         this._hopVy = this.params.hop_height_px ? Math.sqrt(2 * 1000 * this.params.hop_height_px) + 1000 / 120 : 190 * Math.sqrt(this.params.hop_height_mult || 1); // hop distance stays the same (vx is derived at launch)
         const sp = this.params.spit;
@@ -289,11 +289,11 @@ class Enemy {
                 if (grounded && time >= this._hopT && !this._spitWindupEnd) {
                     const lo = this.spawnX - this._range;
                     const hi = this.spawnX + this._range;
-                    if (Math.random() < 0.12) { this._hopT = time + rand(600, 1800); break; }   // idle for a while instead of hopping
+                    if (!this.params.hop_rest_mul && Math.random() < 0.12) { this._hopT = time + rand(600, 1800); break; }   // idle for a while instead of hopping
                     if (Math.random() < 0.3) this.dir *= -1;                                     // turn around at random, not only at the patrol ends
                     if (s.x <= lo) this.dir = 1;
                     else if (s.x >= hi) this.dir = -1;
-                    this._curHopDist = this._hopDist * rand(0.5, 1.3);
+                    this._curHopDist = this._hopDist * (this.params.hop_rest_mul ? 1 : rand(0.5, 1.3));   // hop_rest_mul (black slime): fixed distance
                     if (!this.scene.hasGroundAt(s.x + this.dir * (this._curHopDist + 15))) { this.dir *= -1; this._hopT = time + 300; break; }
                     this._hopPhase = 'squash'; this._hopT = time + 100; s.setFrame(1);
                 }
@@ -583,16 +583,27 @@ class Enemy {
         if (!this.isFlyer() && this.behavior !== 'Exploder' && !(info && info.noKnockback)) {   // mid-range shots never knock back
             this._knockUntil = this.scene.time.now + 400;
             const dir = Math.sign(this.sprite.x - srcX) || 1;
-            this.sprite.body.setVelocityX(dir * 140);
+            this.sprite.body.setVelocityX(dir * (isCrit ? 360 : 260));   // was 140 (user 2026-10-13: stronger knock-back, to test)
             const s = this.sprite, self = this;
             this.scene.time.delayedCall(150, function () {
-                if (!s.active) return;
+                if (!s.active || self._popUntil > self.scene.time.now) return;
                 // a hopping slime hit mid-air keeps flying forward; zeroing here froze the hop in the air
                 if (self.hop && self._hopPhase === 'air') s.body.setVelocityX(self.dir * self._hopVxFor(self._curHopDist || self._hopDist));
                 else s.body.setVelocityX(0);
             });
         }
         if (this.hp <= 0) this.die();
+    }
+
+    // Auntie's basic attack: small pop along (vx, vy) = the normal of her swing loop at the hit point.  Ground enemies only (flyers / exploders / bosses have no nudge);
+    // sets the same _knockUntil window as takeHit so the AI does not overwrite the velocity, and lets gravity bring it down.
+    nudge(vx, vy) {
+        if (this.dead || this._launchState || this.isFlyer() || this.behavior === 'Exploder') return;
+        const s = this.sprite;
+        if (!s.active || !s.body) return;
+        this._knockUntil = this.scene.time.now + 400;
+        this._popUntil = this.scene.time.now + 700;   // AI movement is paused meanwhile (Patrol etc. rewrite velocity.x every frame and would cancel the pop)
+        s.body.setVelocity(vx, vy);
     }
 
     // Auntie's skill (take profit): knocked up and away from `srcX` on a 45 degree path (apex `heightPx`, so it lands 4 x heightPx away), and once it lands it is stunned for `stunMs`.  Bosses have no launch().  Not re-launched
@@ -796,4 +807,4 @@ Enemy.IGNITE = { durationMs: 1000, ticksMs: [500, 1000], damage: 5 };   // vendo
 
 function rand(a, b) { return a + Math.random() * (b - a); }
 
-const ENEMY_SIZE_H = { small: 48, medium: 72, large: 120 };
+const ENEMY_SIZE_H = { small: 48, small_x15: 72, medium: 72, large: 120 };

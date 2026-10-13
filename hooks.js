@@ -241,12 +241,12 @@ var Hooks = {
 // further out the area moves up.  Everything but a Boss that is hit is launched and stunned after landing (params launch_height / stun_seconds).
 // Heights are measured up from her feet; bar i spans [barBottom[i], barTop[i]].  Read off the blue sketch (screenshot scaled so she is 105 px tall); the sketch is rough.
 var TAKE_PROFIT = {
-  barCount: 5,
+  barCount: 6,
   barW: 26,
   barGap: 1,                       // empty px between neighbouring bars
   firstGap: 4,                     // from her front edge to the first bar's left edge
-  barBottom: [0, 0, 39, 70, 77],
-  barTop: [55, 74, 116, 135, 165],
+  barBottom: [0, 0, 0, 0, 0, 0],
+  barTop: [55, 74, 116, 135, 165, 190],
   stepMs: 180,                     // delay between bars
   barLifeMs: 700,                  // bar visible / hit box live
   coinDelayMs: 120,                // coin pops this long after its bar appears

@@ -1,5 +1,5 @@
 var RUN = {char:'geek', hard:false, level:1, hp:100, levelStats:{hits:0,kills:0,startMs:0}, inv:{weapon:null, armor:null, boots:null, charms:[null,null]}, charmSeq:0, charmAge:[0,0], buffs:{}, shop:{}, kills:0, deaths:0, startTime:0};
-var BASE = {max_hp:100, move_speed:220, jump_velocity:-600, attack_damage:10, attack_cooldown:0.4, attack_range:60, crit_chance:0.05, crit_multiplier:1.5, defense:0, lifesteal:0, attack_speed:0};
+var BASE = {max_hp:150, move_speed:220, jump_velocity:-600, attack_damage:10, attack_cooldown:0.4, attack_range:60, crit_chance:0.05, crit_multiplier:1.5, defense:0, lifesteal:0, attack_speed:0};
 var STAT_KEYS = ['max_hp','move_speed','jump_velocity','attack_damage','attack_range','crit_chance','crit_multiplier','defense','lifesteal','attack_speed'];
 var RARITY_RANK = {common:0, rare:1, epic:2};
 var RARITY_WEIGHTS = [[{common:70,rare:25,epic:5},{common:50,rare:40,epic:10},{common:30,rare:50,epic:20},{common:10,rare:60,epic:30}]];

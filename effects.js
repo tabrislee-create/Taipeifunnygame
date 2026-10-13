@@ -1550,13 +1550,73 @@ var FX = (function () {
     scene.tweens.add({ targets: sprite, scaleX: bx, scaleY: by, duration: ms, yoyo: true, onComplete: function () { if (alive(sprite)) sprite.setScale(bx, by); } });
   }
 
+  // Shake the struck sprite sideways (user 2026-10-13): a damped zig-zag, drawn as a display-only offset: added after the physics write-back (postupdate) and taken off again before the
+  // next physics step (preupdate), so the body never sees it.  Runs on real time, so it also moves during hit-stop.
+  function shakeSprite(scene, sprite, ms, amp) {
+    if (!alive(sprite) || !scene || !scene.events) return;
+    if (sprite._shk) { sprite._shk.t0 = performance.now(); sprite._shk.ms = ms; sprite._shk.amp = Math.max(sprite._shk.amp, amp); return; }
+    var s = sprite._shk = { t0: performance.now(), ms: ms, amp: amp, off: 0, n: 0 };
+    var pre = function () { if (alive(sprite)) sprite.x -= s.off; s.off = 0; };
+    var post = function () {
+      if (!alive(sprite)) { stop(); return; }
+      var k = (performance.now() - s.t0) / s.ms;
+      if (k >= 1) { stop(); return; }
+      s.n++; s.off = (s.n % 2 ? 1 : -1) * s.amp * (1 - k); sprite.x += s.off;
+    };
+    var stop = function () { scene.events.off('preupdate', pre); scene.events.off('postupdate', post); pre(); sprite._shk = null; };
+    scene.events.on('preupdate', pre); scene.events.on('postupdate', post);
+  }
+
+  // Impact burst at the hit point (user 2026-10-13): a spiky 💥-style star drawn in code (an emoji glyph can't be recoloured), semi-transparent, pops up and fades.
+  // Enemy hit = white tones, player hit = red tones.  size = outer diameter in px.
+  function hitBurst(scene, x, y, size, red) {
+    var g = scene.add.graphics().setDepth(DEPTH + 1).setPosition(x, y).setRotation(Math.random() * Math.PI);
+    size *= 1.4;   // x1.2, then x1.4 (user 2026-10-13)
+    var spikes = 9, R = size / 2, lens = [];
+    for (var i = 0; i < spikes; i++) lens.push(0.78 + 0.22 * (((i * 5 + 3) % 7) / 6));   // uneven spike lengths
+    // star(k, inner, rot): the same jagged outline scaled by k, dents at `inner` of the spike length
+    var star = function (k, inner, rot) {
+      var pts = [];
+      for (var j = 0; j < spikes * 2; j++) {
+        var a = j * Math.PI / spikes + (rot || 0), r = (j % 2 === 0 ? lens[j / 2] : inner) * R * k;
+        pts.push({ x: Math.cos(a) * r, y: Math.sin(a) * r });
+      }
+      return pts;
+    };
+    // palette from the rim to the core: dark outline, shaded body, bright inner star, hot core
+    var P = red ? { line: 0x6e0808, body: 0xe02222, mid: 0xff5a38, hi: 0xff9a60, core: 0xffe6c8, ray: 0x8a0e0e }
+                : { line: 0x6f87ad, body: 0xcfdcee, mid: 0xf2f7ff, hi: 0xfff3c4, core: 0xffffff, ray: 0x93a8c8 };
+    g.fillStyle(P.line, 1); g.fillPoints(star(1.1, 0.5, 0), true);          // outline
+    g.fillStyle(P.body, 1); g.fillPoints(star(1.0, 0.46, 0), true);         // body
+    g.fillStyle(P.mid, 1); g.fillPoints(star(0.8, 0.5, Math.PI / spikes * 0.35), true);
+    g.fillStyle(P.hi, 1); g.fillPoints(star(0.55, 0.55, Math.PI / spikes * 0.7), true);
+    g.lineStyle(Math.max(1.5, R * 0.035), P.ray, 0.7);                       // thin streaks from the middle toward the spike tips
+    for (var s2 = 0; s2 < spikes; s2++) { var an = s2 * 2 * Math.PI / spikes; g.lineBetween(Math.cos(an) * R * 0.3, Math.sin(an) * R * 0.3, Math.cos(an) * R * lens[s2] * 0.82, Math.sin(an) * R * lens[s2] * 0.82); }
+    g.fillStyle(P.core, 1); g.fillCircle(0, 0, R * 0.2);
+    g.fillStyle(0xffffff, 1); g.fillCircle(-R * 0.05, -R * 0.05, R * 0.09);   // glossy highlight
+    g.setScale(0.4);   // opaque; pops in 90 ms, holds 150 ms, fades out over 200 ms (user 2026-10-13)
+    scene.tweens.add({ targets: g, scale: 1.1, duration: 90, ease: 'Quad.easeOut', onComplete: function () {
+      scene.tweens.add({ targets: g, scale: 1.2, duration: 150, onComplete: function () {
+        scene.tweens.add({ targets: g, alpha: 0, scale: 1.3, duration: 200, onComplete: function () { kill(g); } });
+      } });
+    } });
+  }
+
   function hitEnemy(scene, sprite, isCrit, x, y) {
+    var bsz = Math.max(40, Math.min(84, (sprite && sprite.displayHeight ? sprite.displayHeight : 60) * 0.55));
+    // hit-stop stacking (user 2026-10-13): hits landing within 450 ms of the previous one build a combo, each step adds 25 ms to the stop (up to +125 ms)
+    var tnow = performance.now();
+    scene._hitCombo = (tnow - (scene._hitComboT || 0) < 450) ? Math.min(5, (scene._hitCombo || 0) + 1) : 0;
+    scene._hitComboT = tnow;
+    var extra = 25 * scene._hitCombo;
     if (isCrit) {
-      hitStop(scene, 120); screenShake(scene, 4, 150); flashSprite(scene, sprite, 0xffaa00, 150); squash(scene, sprite, 0.7, 1.3, 150);
+      shakeSprite(scene, sprite, 260, 6); hitStop(scene, 120 + extra); screenShake(scene, 4, 150); flashSprite(scene, sprite, 0xffaa00, 150); squash(scene, sprite, 0.7, 1.3, 150);
       sparks(scene, x, y, 0xffaa00, 6, 150, 300);
+      hitBurst(scene, x + (Math.random() - 0.5) * 12, y + (Math.random() - 0.5) * 12, bsz * 1.35, false);
     } else {
-      hitStop(scene, 60); screenShake(scene, 2, 100); flashSprite(scene, sprite, 0xffffff, 100); squash(scene, sprite, 0.8, 1.2, 150);
+      shakeSprite(scene, sprite, 200, 4); hitStop(scene, 60 + extra); screenShake(scene, 2, 100); flashSprite(scene, sprite, 0xffffff, 100); squash(scene, sprite, 0.8, 1.2, 150);
       sparks(scene, x, y, 0xffff00, 3, 100, 200);
+      hitBurst(scene, x + (Math.random() - 0.5) * 12, y + (Math.random() - 0.5) * 12, bsz, false);
     }
   }
 
@@ -1567,11 +1627,13 @@ var FX = (function () {
   }
 
   function hurtPlayer(scene, sprite) {
+    shakeSprite(scene, sprite, 260, 5);
     hitStop(scene, 150); screenShake(scene, 6, 200); flashSprite(scene, sprite, 0xff4040, 200);
     fullFlash(scene, 0xff0000, 0.35, 0, 250, 90);
     var x = alive(sprite) ? sprite.x : scene.cameras.main.midPoint.x;
     var y = alive(sprite) ? sprite.y : scene.cameras.main.midPoint.y;
     sparks(scene, x, y, 0xff0000, 5, 120, 300);
+    hitBurst(scene, x + (Math.random() - 0.5) * 12, y - 6 + (Math.random() - 0.5) * 12, 62, true);
   }
 
   function healPlayer(scene, sprite) {
@@ -1971,7 +2033,7 @@ var FX = (function () {
     explosionRing: explosionRing, healGlow: healGlow, dashTrail: dashTrail, telegraphCircle: telegraphCircle,
     telegraphRect: telegraphRect, simLayout: simLayout, simSignal: simSignal, screenShake: screenShake, levelClearFlash: levelClearFlash, shieldRing: shieldRing,
     burnFlame: burnFlame, hitStop: hitStop, slowMo: slowMo, flashSprite: flashSprite, squash: squash,
-    hitEnemy: hitEnemy, killEnemy: killEnemy, hurtPlayer: hurtPlayer, healPlayer: healPlayer,
+    hitEnemy: hitEnemy, hitBurst: hitBurst, shakeSprite: shakeSprite, killEnemy: killEnemy, hurtPlayer: hurtPlayer, healPlayer: healPlayer,
     shieldHit: shieldHit, bossPhase: bossPhase, lowHpBorder: lowHpBorder, deathSequence: deathSequence,
     stirFry: stirFry,
     takeProfit: takeProfit, skillCastText: skillCastText,

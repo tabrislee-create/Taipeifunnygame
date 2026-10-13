@@ -1,3 +1,4 @@
+const AUNTIE_POP_SPEED = 250, AUNTIE_POP_MIN_UP = 350;  // auntie basic attack: pop speed along the loop normal (px/s), minimum upward speed so it always lifts a little (user 2026-10-13)
 const MELEE_RANGE_MULT = 1.3;  // melee reach = attack_range +30% (user 2026-10-09)
 const MID_RANGE_MULT = 2.5;    // mid-range (projectile) weapons reach 2.5x the melee reach
 const SPAWN_HEIGHT = 70;       // level start / pit respawn: the body's bottom edge starts this many px above the ground line (user 2026-10-09)
@@ -397,6 +398,12 @@ class Player {
         if (es.ref && !es.ref.dead && Phaser.Geom.Intersects.RectangleToRectangle(rect, bodyRect(es))) {
           const er = bodyRect(es);   // taken before the hit: a killing blow can destroy the sprite at once (es.body undefined -> TypeError stopped the game loop, vendor L5 boss 10-11)
           this.hitEnemy(es.ref);
+          if (RUN.char === 'auntie' && !es.ref.dead && es.ref.nudge) {   // small pop along the normal of her swing loop (centre of the loop -> enemy), ground enemies only
+            const A = FX.AUNTIE_ATK, sc = Math.min(A.scMax, range / A.baseRange);
+            const lx = s.x + this.facing * A.ellCx * sc, ly = s.y + A.ellCy * sc;
+            let nx = er.centerX - lx, ny = er.centerY - ly; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
+            es.ref.nudge(nx * AUNTIE_POP_SPEED, Math.min(ny * AUNTIE_POP_SPEED, -AUNTIE_POP_MIN_UP));
+          }
           if (vend && es.ref.ignite) es.ref.ignite(now);   // vendor: set on fire (red 1 s, 2 ticks of 5 HP, no stacking)
           if (fx && fx.markHit) fx.markHit(er);
         }
