@@ -23,7 +23,8 @@ const PERSP = {
   3: { bottom: 1215, band: 70, vpy: 1040, vpx: 0.5, base: [108, 91, 96], pave: [81, 70, 80], frontMax: 528 },
   4: { bottom: 1250, band: 60, vpy: 1100, vpx: 0.5781, base: [42, 57, 133], pave: [32, 42, 121], glass: true },   // glass: the rim of a hole is the bright teal glass edge (like the cross-section's top rows), with red warning lamps
   5: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [157, 137, 126], pave: [145, 128, 120] },   // level 5 (user 2026-10-12): perspective floor like levels 1-4; no pits on this level, so only the band / cross-section are used
-  6: { bottom: 1135, band: 76, vpy: 980, vpx: 0.5, base: [198, 135, 77], pave: [153, 103, 67], frontMax: 528 }   // level 6 (user 2026-10-12, night market): picture cut at the street band in front of the shops; same frontMax as level 3 (same y_ground)
+  6: { bottom: 1135, band: 76, vpy: 980, vpx: 0.5, base: [198, 135, 77], pave: [153, 103, 67], frontMax: 528 },   // level 6 (user 2026-10-12, night market): picture cut at the street band in front of the shops; same frontMax as level 3 (same y_ground)
+  18: { bottom: 1312, band: 76, vpy: 990, vpx: 0.5, base: [125, 114, 113], pave: [112, 103, 106], frontMax: 528 }   // level 18 (user 2026-10-13, Ximending wide panorama pano45_s2101): numbers from art_eval/lv_shinkai/v3/out/L18v3_pano45p_s2105_persp.json (2026-10-13: 2105p + TAIPEI painted by add_taipei_text.py, no grey band; replaced 2101p, backup art_eval/persp/prev2101p_*) (vpy 899 measured from the crossing stripe edges 2026-10-13, was the pipeline default 1157)
 };
 // Pebble pit (level data pit_kind: 'pebble', user 2026-10-12: Taiwan's pebble health-walk path at the bottom of a pit): the player on the pebbles walks slower and every step hurts a little. Values are first guesses.
 const PEBBLE_SLOW = 0.6, PEBBLE_DMG = 3, PEBBLE_TICK_MS = 600;
@@ -81,7 +82,7 @@ class LevelScene extends Phaser.Scene {
     // level 1 is a far view: the picture ends at the foot of the building, so sit its bottom edge on the ground line (the plaza tile is drawn by the program)
     this._persp = isCustomArt ? PERSP[RUN.level] : null;   // levels 1-4: perspective ground (the picture's bottom strip is the walkable band, see _drawPitsPersp)
     this._lvKey = lvKey;
-    if ((RUN.level === 1 || RUN.level === 2 || RUN.level === 3 || RUN.level === 4 || RUN.level === 5 || RUN.level === 6) && isCustomArt) { bd.setOrigin(0.5, 1); bd.y = lvl.y_ground + (this._persp ? PERSP_FACE_DY : 8); }
+    if ((RUN.level <= 6 || RUN.level === 18) && isCustomArt) { bd.setOrigin(0.5, 1); bd.y = lvl.y_ground + (this._persp ? PERSP_FACE_DY : 8); }
 
     this.backdrop = bd;
 

@@ -47,9 +47,9 @@ var WX = (function () {
   }
 
   // Sunny colour of the sky-cut backdrop (building + trees only; the sky is separate). Colour 1 = the original look, 2 = softer, 3 = softest.
-  // Per level (user 2026-10-12): level 1 = colour 3, level 2 = colour 1, level 4 = colour 1, level 5 = colour 1; a level not listed uses colour 3.
+  // Per level (user 2026-10-12): level 1 = colour 3, level 2 = colour 1, level 4 = colour 1, level 5 = colour 1, level 18 = colour 1 (user 2026-10-13: the Ximending rainbow crossing should show many colours); a level not listed uses colour 3.
   var SKY_COLOR = { 1: { sat: 0.1, bri: 1.05 }, 2: { sat: -0.25, bri: 0.92 }, 3: { sat: -0.45, bri: 0.88 } };
-  var SKY_COLOR_OF_LEVEL = { 1: 3, 2: 1, 4: 1, 5: 1 };
+  var SKY_COLOR_OF_LEVEL = { 1: 3, 2: 1, 4: 1, 5: 1, 18: 1 };
 
   function getSkyLook(cond) {
     cond = normCond(cond);
@@ -216,7 +216,7 @@ var WX = (function () {
   var INDOOR_WINDOW = { 4: [ [178, 58, 419, 108], [435, 58, 801, 108], [818, 58, 960, 108], [178, 125, 419, 432], [435, 125, 801, 432], [818, 125, 960, 432] ] };
   // Wet street (user 2026-10-12): a sheen layer on the paving band that fades in while it rains, plus slippery footing (Player.update reads scene.wetGrip: 1 = dry, lower = longer slide).
   // WET_MAX = how wet the street gets per weather (sheen strength); WET_GRIP = the footing factor at full wetness (first guesses, to be tuned by the user); WET_SECONDS = time to get fully wet.
-  var WET_MAX = { drizzle: 0.55, rain: 0.85, thunder: 1, typhoon: 1 }, WET_GRIP = { drizzle: 0.3, rain: 0.15, thunder: 0.1, typhoon: 0.08 }, WET_SECONDS = 8;
+  var WET_MAX = { drizzle: 0.55, rain: 0.85, thunder: 1, typhoon: 1 }, WET_GRIP = { drizzle: 1, rain: 0.15, thunder: 0.1, typhoon: 0.05 }, WET_SECONDS = 8;
   // Levels whose wet street shows a mirror image of the backdrop's lower strip instead of the random sheen / light streaks (user 2026-10-12: do 1 and 6 first, then the others).
   var WET_REFLECT_LEVELS = { 1: true, 2: true, 3: true, 5: true, 6: true };
   var WET_STREAK_COLORS = { day: [0xffffff, 0xdbe9ff], dusk: [0xffc08a, 0xff9a6a, 0xffe0c0], night: [0xffb070, 0xff6a8a, 0x7ab0ff, 0xffe6a0] };
