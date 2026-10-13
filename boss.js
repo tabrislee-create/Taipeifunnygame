@@ -296,6 +296,7 @@ class Boss {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 0.6, 40, tm));
     } else if (pr === 'rainbow_sky_rain') {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 1.0 - 20, 70, tm));
+      this._rainGlowOn();   // the colour outline starts with the charge (invulnerable from here on)
     } else if (pr === 'summon_adds') {
       for (const sl of this._summonSlots(p)) this._telegraphObjs.push(FX.telegraphCircle(scene, sl.x, gy - 20, 30, tm));
     } else if (pr === 'laser_sweep') {
@@ -480,7 +481,7 @@ class Boss {
     if (st === 'telegraph') { const k = 0.5 + 0.5 * Math.sin(now / 70); fx = 1.06 + 0.04 * k; fy = 0.9 - 0.03 * k; }
     else if (st === 'jump') { const t = this._jumpDuration ? this._jumpElapsed / this._jumpDuration : 0; fx = t < 0.5 ? 0.9 : 0.93; fy = t < 0.5 ? 1.16 : 1.1; }
     else if (st === 'dash') { fx = 1.18 + 0.03 * Math.sin(now / 40); fy = 0.86; }
-    else if (st === 'rain') { fx = 1.1 + 0.03 * Math.sin(now / 60); fy = 0.94; }
+    else if (st === 'rain' || this._rainCharge()) { fx = 1.1 + 0.03 * Math.sin(now / 60); fy = 0.94; }
     else if (st === 'wave' || st === 'laser') { fx = 1.05; fy = 0.93; }
     else if (this._moving) { const k = Math.sin(now / 110); fx = 1.06 + 0.06 * k; fy = 0.95 - 0.06 * k; }   // slithering wobble
     const land = (now - this._landSquashT) / 320;
@@ -491,7 +492,7 @@ class Boss {
     const rageP = this._activePattern && this._activePattern.params && this._activePattern.params.fx === 'rage' && (st === 'telegraph' || st === 'dash');
     if (this._scorchEnd > 0) {   // scorched: solid red instead of the hue drift
       s.setTint(0xff3030);
-    } else if (st === 'rain') {   // rainbow_sky_rain: fast hue cycle
+    } else if (st === 'rain' || this._rainCharge()) {   // rainbow_sky_rain (charge + fire): fast hue cycle
       const c = Phaser.Display.Color.HSVToRGB((now / 260) % 1, 0.4, 1);
       s.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
     } else if (rageP) {   // 狂暴連衝: flickers orange
@@ -590,10 +591,15 @@ class Boss {
   // Rainbow sky (pattern rainbow_sky_rain, user 2026-10-13): after the 2 s charge the boss stands still and INVULNERABLE for params.duration_ms, lobbing params.count coloured strips from its head,
   // alternating left / right, landing 100-620 px away (8 shuffled distance bins per side; strips 3 and 7 of each side are aimed at the player when they stand on that side).
   // A strip hurts once (params.damage) if it touches the player in flight or splashes within 45 px of where it lands; the puddle it leaves is visual only.
+  // Rainbow sky: invulnerable for the whole skill, the 2 s charge included (user 2026-10-13).
+  _rainCharge() { return this._state === 'telegraph' && !!this._activePattern && this._activePattern.primitive === 'rainbow_sky_rain'; }
+  _rainInv() { return this._state === 'rain' || this._rainCharge(); }
+
   _startRain(p) {
     this._state = 'rain';
     this._stateTimer = 0;
     this._rain = { t: 0, n: 0, total: p.count || 20, gap: p.interval_ms || 200, dur: p.duration_ms || 4000, dmg: (p.damage || 10) * this._am, bins: { '-1': this._rainBins(), '1': this._rainBins() }, k: { '-1': 0, '1': 0 } };
+    this._rainDmg = this._rain.dmg;
     this._rainGlowOn();
     FX.screenShake(this.scene, 0.006, 200);
   }
@@ -680,8 +686,7 @@ class Boss {
   }
 
   _rainGlowOn() {
-    this._rainDmg = this._rain.dmg;
-    this._rainGlowOff();
+    if (this._rainGlow.length) return;   // already glowing since the charge began
     for (let i = 0; i < 8; i++) this._rainGlow.push(this.scene.add.image(this.sprite.x, this.sprite.y, this.id).setOrigin(0.5, 1).setDepth(4.9));
   }
 
@@ -815,7 +820,7 @@ class Boss {
 
   // Vendor's skill (stir fry): cfg = { durationMs, intervalMs, damage }. Ignores boss invulnerability frames; already scorched -> ignored.
   scorch(now, cfg) {
-    if (this.dead || this._entering || this._scorchEnd > 0 || this._state === 'rain') return;
+    if (this.dead || this._entering || this._scorchEnd > 0 || this._rainInv()) return;
     this._scorchCfg = { durationMs: cfg.durationMs, intervalMs: cfg.intervalMs, damage: cfg.damage, ticks: Math.floor(cfg.durationMs / cfg.intervalMs + 1e-6) };
     this._scorchEnd = now + cfg.durationMs;
     this._scorchStep = 0;
@@ -826,7 +831,7 @@ class Boss {
     const sc = this._scorchCfg, t0 = this._scorchEnd - sc.durationMs;
     while (this._scorchStep < sc.ticks && now >= t0 + (this._scorchStep + 1) * sc.intervalMs) {
       this._scorchStep++;
-      if (this._state === 'rain') continue;   // invulnerable: that tick is lost, not postponed
+      if (this._rainInv()) continue;   // invulnerable: that tick is lost, not postponed
       this.hp -= sc.damage;
       FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, sc.damage, false, false);
       FX.burnFlame(this.scene, this.sprite.x, this.sprite.y - this._dispH * 0.5);
@@ -836,7 +841,7 @@ class Boss {
   }
 
   _updateBurn(dt) {
-    if (this._state === 'rain') return;
+    if (this._rainInv()) return;
     if (this._burnDps > 0 && this._burnTimer > 0) {
       this._burnTimer -= dt;
       this._burnAcc += this._burnDps * dt;
@@ -882,7 +887,7 @@ class Boss {
 
   takeHit(damage, srcX, isCrit, info) {
     if (this.dead || this._entering) return;
-    if (this._invuln > 0 || this._state === 'rain') return;   // rainbow_sky_rain: invulnerable
+    if (this._invuln > 0 || this._rainInv()) return;   // rainbow_sky_rain: invulnerable
     this.hp -= damage;
     FX.hitEnemy(this.scene, this.sprite, isCrit, this.sprite.x, this.sprite.y - this._dispH * 0.5);
     FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, damage, isCrit, false);
@@ -893,7 +898,7 @@ class Boss {
   }
 
   applyBurn(dps, duration) {
-    if (this.dead || this._state === 'rain') return;
+    if (this.dead || this._rainInv()) return;
     this._burnDps = Math.max(this._burnDps, dps);
     this._burnTimer = Math.max(this._burnTimer, duration);
   }
