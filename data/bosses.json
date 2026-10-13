@@ -96,10 +96,25 @@
     "hp_below_pct": 33,
     "patterns": [
      {
+      "primitive": "rainbow_sky_rain",
+      "params": {
+       "count": 20,
+       "interval_ms": 200,
+       "duration_ms": 4000,
+       "damage": 10
+      },
+      "telegraph_ms": 2000,
+      "cooldown_ms": 3000,
+      "zh_name": "漫天幻彩",
+      "zh_desc": "停住集氣2秒，從頭上朝左右兩側拋射多彩長條液體4秒，發射期間無敵，全身邊緣彩光輪替。",
+      "skill_cd_ms": 25000,
+      "on_enter": true
+     },
+     {
       "primitive": "rainbow_homing_projectile",
       "params": {
        "count": 4,
-       "speed": 180,
+       "speed": 216,
        "damage": 15,
        "lifetime": 3000
       },
@@ -119,20 +134,6 @@
       "cooldown_ms": 2500,
       "zh_name": "狂暴連衝",
       "zh_desc": "極速水平衝刺，速度快但距離短，預警時間短。"
-     },
-     {
-      "primitive": "rainbow_sky_rain",
-      "params": {
-       "count": 20,
-       "interval_ms": 200,
-       "duration_ms": 4000,
-       "damage": 10
-      },
-      "telegraph_ms": 2000,
-      "cooldown_ms": 3000,
-      "zh_name": "漫天幻彩",
-      "zh_desc": "停住集氣2秒，從頭上朝左右兩側拋射多彩長條液體4秒，發射期間無敵，全身邊緣彩光輪替。",
-      "skill_cd_ms": 25000
      }
     ]
    }

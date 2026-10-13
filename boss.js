@@ -193,6 +193,8 @@ class Boss {
       this._clearWave();
       this._clearLaser();
       this._rainGlowOff();
+      const first = this._activePatterns()[0];
+      if (first && first.on_enter) { const pat = this._nextPattern(); if (pat) this._startTelegraph(pat); }   // pattern flag on_enter (phase 3 of the level-5 boss, user 2026-10-13): the first skill starts the moment the phase begins, no idle wait
       FX.bossPhase(this.scene, this.sprite, this._phaseLabel(np));
       this._drawPhaseBar();
     }
