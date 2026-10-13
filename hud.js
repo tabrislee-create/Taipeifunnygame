@@ -276,20 +276,40 @@ class HUD {
     const s = this.scene;
     this.warnText = s.add.text(GAME_W / 2, 270, '警告：魔王來襲', { fontFamily: HUD_FONT, fontSize: '44px', color: '#ff3030', stroke: '#000000', strokeThickness: 6 }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
     this.warnText.setAlpha(0);
+    
+    // Sub-text for Level 5 boss entrance
+    this.warnSubText = null;
+    if (RUN.level === 5) {
+      const phrases = [
+        '讓本大王給你點顏色瞧瞧!',
+        '小心~別踩到我的腳~',
+        '凡人~見證魔王的誕生吧!'
+      ];
+      const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+      this.warnSubText = s.add.text(GAME_W / 2, 310, randomPhrase, { fontFamily: HUD_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+      this.warnSubText.setAlpha(0);
+    }
+
     this.warnBorder = s.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0xff0000, 0).setOrigin(0.5).setScrollFactor(0).setDepth(99);
     this.warnBorder.setStrokeStyle(12, 0xff0000, 0);
     let count = 0;
     const flash = () => {
       if (count >= 3) {
         this.warnBorder.setStrokeStyle(12, 0xff0000, 0);
-        s.tweens.add({ targets: this.warnText, alpha: 0, duration: 400, onComplete: () => { if (this.warnText) { this.warnText.destroy(); this.warnText = null; } if (this.warnBorder) { this.warnBorder.destroy(); this.warnBorder = null; } } });
+        s.tweens.add({ targets: this.warnText, alpha: 0, duration: 400, onComplete: () => { 
+          if (this.warnText) { this.warnText.destroy(); this.warnText = null; } 
+          if (this.warnSubText) { this.warnSubText.destroy(); this.warnSubText = null; }
+          if (this.warnBorder) { this.warnBorder.destroy(); this.warnBorder = null; } 
+        } });
         return;
       }
       count++;
       this.warnText.setAlpha(1);
+      if (this.warnSubText) this.warnSubText.setAlpha(1);
       this.warnBorder.setStrokeStyle(12, 0xff0000, 0.8);
       s.time.delayedCall(200, () => {
         this.warnText.setAlpha(0);
+        if (this.warnSubText) this.warnSubText.setAlpha(0);
         this.warnBorder.setStrokeStyle(12, 0xff0000, 0);
         s.time.delayedCall(200, flash);
       });
@@ -421,6 +441,7 @@ class HUD {
     for (let i = 0; i < this.buffTexts.length; i++) { if (this.buffTexts[i]) this.buffTexts[i].destroy(); }
     if (this.introText) this.introText.destroy();
     if (this.warnText) this.warnText.destroy();
+    if (this.warnSubText) this.warnSubText.destroy();
     if (this.warnBorder) this.warnBorder.destroy();
     this._destroyBossBar();
   }

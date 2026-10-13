@@ -907,14 +907,22 @@ class LevelScene extends Phaser.Scene {
   // Player goes back to the level start (blink in + drop, controls locked until landed) and the boss blinks in above its spot and drops.
   _startBossEntrance() {
     const sp = this._pendingBoss; this._pendingBoss = null;
-    const lvl = this.lvl;
-    this.player.beginSpawn(PLAYER_SPAWN_X, lvl.y_ground);
-    const boss = new Boss(this, GAME_DATA.bosses[sp.type], sp.x, lvl.y_ground - 20);
-    boss.beginEntrance(lvl.y_ground);
-    this.enemies.add(boss.sprite);
-    this.boss = boss;
-    this.enemiesRemaining++;
-    if (this.hud && this.hud._showBossWarning) this.hud._showBossWarning();
+    const cam = this.cameras.main;
+    // Fade out to black first, do the teleport + boss spawn while the screen is dark, then fade back in (user 2026-10-13: the straight cut was jarring)
+    cam.fadeOut(450, 0, 0, 0);
+    cam.once('camerafadeoutcomplete', () => {
+      if (this.finished || this.deathStarted) return;
+      const lvl = this.lvl;
+      this.player.beginSpawn(PLAYER_SPAWN_X, lvl.y_ground);
+      cam.centerOn(this.player.sprite.x, this.player.sprite.y);   // jump the camera with the player instead of letting it pan across the level
+      const boss = new Boss(this, GAME_DATA.bosses[sp.type], sp.x, lvl.y_ground - 20);
+      boss.beginEntrance(lvl.y_ground);
+      this.enemies.add(boss.sprite);
+      this.boss = boss;
+      this.enemiesRemaining++;
+      cam.fadeIn(450, 0, 0, 0);
+      if (this.hud && this.hud._showBossWarning) this.hud._showBossWarning();
+    });
   }
 
   addEnemy(def, x, y_hint) {

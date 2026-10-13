@@ -120,8 +120,8 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
 // Landing page + loader (user 2026-10-12): the page opens on this start screen at once (no game script loaded yet).  "開始遊戲" asks for fullscreen + landscape (touch devices), then loads the game scripts,
 // starts Phaser (its loading screen takes over) and the first scene is the character select.  ?go=1, or an automated browser (navigator.webdriver; ?landing=1 forces the landing page), skip it and start straight away.
 (function () {
-  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261009a', 'state.js?v=20261013a', 'effects.js?v=20261013a', 'weather.js?v=20261013e', 'hooks.js?v=20261013a', 'hud.js?v=20261013b', 'player.js?v=20261013a',
-    'enemy.js?v=20261011c', 'boss.js?v=20261013b', 'extras.js?v=20261012a', 'touch.js?v=20261013a', 'level.js?v=20261013g', 'ui.js?v=20261013e', 'choice.js?v=20261012b', 'charpanel.js?v=20261013a', 'main.js?v=20261013c'];
+  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261009a', 'state.js?v=20261013a', 'effects.js?v=20261013a', 'weather.js?v=20261013e', 'hooks.js?v=20261013a', 'hud.js?v=20261013c', 'player.js?v=20261013a',
+    'enemy.js?v=20261011c', 'boss.js?v=20261013b', 'extras.js?v=20261012a', 'touch.js?v=20261013a', 'level.js?v=20261013h', 'ui.js?v=20261013e', 'choice.js?v=20261012b', 'charpanel.js?v=20261013a', 'main.js?v=20261013c'];
   var demo = !!window.DEMO_BUILD || /[?&]demo=1/.test(location.search);
   var bypass = /[?&]go=1/.test(location.search) || (navigator.webdriver && !/[?&]landing=1/.test(location.search));
   var $ = function (id) { return document.getElementById(id); };

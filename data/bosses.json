@@ -124,7 +124,7 @@
    }
   ],
   "art_prompt": "This is an RGBA image with transparency. A large cute boss monster for a 2D platformer game: a giant glossy jelly slime blob with no arms, no legs, no hands and no feet, just a smooth rounded blob body that melts into a puddle at the bottom, big shiny round eyes with a fierce smug expression and a mischievous smile. Its body is a translucent glass-like gel with smooth faceted glass panels, filled with prismatic colors, flowing ribbons of orange, yellow, hot pink, cyan and blue inside the body. Cute chibi proportions, painted look with a thick clean dark outline, three-quarter side view facing left, a single sprite centered. No sparkles, no star glints, no lens flare, no light rays and no glow outside the body outline, nothing but the slime itself. The image has alpha channel and the background is transparent.",
-  "intro_text_zh": "來玩大的啦，阿北！",
+  "intro_text_zh": "",
   "notes": "Level-5 boss, replaces boss_forest_guardian there. Skills drafted by Strata UD-IQ4_XS (plan/slime_boss_skills_a.json); green_terrain_aoe and rainbow_homing_projectile are new primitives implemented in boss.js.",
   "walk_speed": 50,
   "roam_min_x": 1000,
