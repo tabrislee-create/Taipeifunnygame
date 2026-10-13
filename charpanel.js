@@ -119,6 +119,11 @@ class CharPanelScene extends Phaser.Scene {
     section('技能');
     row(this.textures.exists('skill_' + sk.id) ? 'skill_' + sk.id : null, sk.name_zh, '#ffe9a8', '冷卻 ' + sk.cooldown + ' 秒', '', sk.desc_zh + (sk.flavor_zh ? '\n「' + sk.flavor_zh + '」' : ''), 0xffc94a);
 
+    if (ch.level_buff) {
+      section('關卡加成');
+      row(this.textures.exists('lvbuff_' + ch.level_buff.id) ? 'lvbuff_' + ch.level_buff.id : null, ch.level_buff.name_zh, '#ffe9a8', ch.level_buff.when_zh, '', ch.level_buff.desc_zh, 0xffc94a);
+    }
+
     section('裝備');
     const slotList = [['武器', RUN.inv.weapon], ['防具', RUN.inv.armor], ['鞋子', RUN.inv.boots], ['飾品', RUN.inv.charms[0]], ['飾品', RUN.inv.charms[1]]];
     slotList.forEach((s) => {

@@ -213,7 +213,7 @@ class CharSelectScene extends Phaser.Scene {
     var TW = pw - PAD * 2;
     var cx = px;
     // Content is laid out from y = 0 first; the panel is then sized to fit and centred, so long texts never run under the buttons.
-    var y = 0;
+    var y = 0, sm = ch.level_buff ? 4 : 0;   // characters with a level-buff section: body text 4 px smaller so the popup still fits
     var items = [];
     function put(o, dy) { items.push(o); o._ly = y; y += o.height + dy; return o; }
     function T(text, size, color, bold, italic, wrap) {
@@ -228,8 +228,8 @@ class CharSelectScene extends Phaser.Scene {
 
     // Name, bio, quote
     put(T(ch.name_zh, 38, '#ffffff', true), 6);
-    put(T(ch.bio_zh, 24, '#dddddd', false, false, true), 8);
-    put(T('"' + ch.quote_zh + '"', 24, '#ffd966', false, true, true), 6);
+    put(T(ch.bio_zh, 24 - sm, '#dddddd', false, false, true), 8);
+    put(T('"' + ch.quote_zh + '"', 24 - sm, '#ffd966', false, true, true), 6);
     divider();
 
     // Stats: 3-column grid, gains in green and penalties in red
@@ -251,14 +251,21 @@ class CharSelectScene extends Phaser.Scene {
     // Normal-attack effect (only characters whose normal attack has an extra effect)
     if (ch.attack_desc_zh) {
       put(T('普攻特效', 26, '#ffd966', true), 2);
-      put(T(ch.attack_desc_zh, 23, '#e8e8e8', false, false, true), 6);
+      put(T(ch.attack_desc_zh, 23 - sm, '#e8e8e8', false, false, true), 6);
       divider();
     }
 
     // Skill, cooldown on the title line
     var skill = ch.skill;
     put(T('技能: ' + skill.name_zh + '　冷卻 ' + skill.cooldown + ' 秒', 26, '#ffd966', true), 2);
-    put(T(skill.desc_zh, 23, '#e8e8e8', false, false, true), 0);
+    put(T(skill.desc_zh, 23 - sm, '#e8e8e8', false, false, true), 0);
+
+    // Level buff (characters.json level_buff): when it applies and what it gives
+    if (ch.level_buff) {
+      divider();
+      put(T('關卡加成: ' + ch.level_buff.name_zh, 26, '#ffd966', true), 2);
+      put(T(ch.level_buff.when_zh + '：' + ch.level_buff.desc_zh, 23 - sm, '#e8e8e8', false, false, true), 0);
+    }
 
     var contentH = y;
     var ph = Math.min(536, contentH + PAD * 2 + 14 + BTN_H + 12);

@@ -59,6 +59,7 @@ class LevelScene extends Phaser.Scene {
     if (window.REC) REC.levelStart(RUN.level);   // play records (records.js, trial build only)
     this.cond = WX.pick(RUN.level);   // { time: day | dusk | night, wx: weather id or null }
     this.weatherId = this.cond.wx;
+    RUN.levelBuff = levelBuffFor(RUN.char, this.cond);   // this character's weather / night bonus for this level only (characters.json level_buff); cleared on shutdown
     this.flood = WX.isFlood(this.cond, RUN.level);
     let groundSegs = lvl.ground;
     if (this.flood) {   // flood: no pits, so each ground segment is stretched to meet the next one (lvl.ground itself is left alone)
@@ -173,6 +174,18 @@ class LevelScene extends Phaser.Scene {
     // Player
     this.player = new Player(this, PLAYER_SPAWN_X, lvl.y_ground - 100);
     this.player.beginSpawn(PLAYER_SPAWN_X, lvl.y_ground);   // level start: blink in above the ground, controls unlock on landing
+    if (RUN.levelBuff && FX.skillCastText) {   // brush-calligraphy banner rises above the character for 3 s, started once the spawn blink ends (controls unlock)
+      const lb = RUN.levelBuff, introMs = lvl.intro_text_zh ? 4000 : 0;   // the entrance caption (_showIntro) is gone 3.9 s after the level starts
+      let lbT0 = null;
+      const lbWait = () => {
+        if (lbT0 === null) lbT0 = this.time.now;   // scene.time.now is stale inside create(): take the start on the first update
+        if (!this.player || this.player.spawning || this.time.now - lbT0 < introMs) return;
+        this.events.off('update', lbWait);
+        FX.skillCastText(this, this.player, null, { key: 'lvbuff_' + lb.id, style: lb.style, name: lb.name_zh, flavor: lb.banner_zh, life: 3000, rise: 12, flavorFadeIn: true, bigH: lb.banner_h || 32, flavorSize: 19 });
+      };
+      this.events.on('update', lbWait);
+      this.events.once('shutdown', () => this.events.off('update', lbWait));
+    }
 
     if (this._persp) this._insetGroundAtPits();   // perspective levels: the player falls once his centre passes the rim (see _insetGroundAtPits)
 
@@ -264,6 +277,7 @@ class LevelScene extends Phaser.Scene {
 
     // Shutdown cleanup
     this.events.once('shutdown', () => {
+      RUN.levelBuff = null;
       if ((typeof Extras !== 'undefined')) Extras.destroy(this);
       this.events.off('enemy-dead', this.onEnemyDead, this);
       this.events.off('player-dead', this.onPlayerDead, this);
@@ -487,6 +501,7 @@ class LevelScene extends Phaser.Scene {
       if (atExit) {
         this.finished = true;
         RUN.levelStats.time = Date.now() - RUN.levelStats.startMs;
+        if (RUN.levelBuff && RUN.levelBuff.clear_coins && typeof _addCoins === 'function') _addCoins(this.player, RUN.levelBuff.clear_coins);   // level buff (characters.json level_buff): coins for clearing the level
         if (RUN.level === GAME_DATA.levels.length) { // last level (30; the trial build ?demo=1 has 5)
           this.scene.start('End', { result: 'victory' });
         } else {

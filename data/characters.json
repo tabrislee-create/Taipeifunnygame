@@ -60,6 +60,31 @@
     "burn_interval": 0.5,
     "burn_damage": 10
    }
+  },
+  "level_buff": {
+   "id": "night_boss",
+   "name_zh": "夜市霸主",
+   "banner_zh": "能力增加",
+   "when_zh": "夜晚的關卡",
+   "cond": {
+    "time": [
+     "night"
+    ]
+   },
+   "stats": {
+    "attack_damage": {
+     "type": "percent",
+     "value": 0.2
+    },
+    "move_speed": {
+     "type": "percent",
+     "value": 0.1
+    }
+   },
+   "skill_cd": 0.3,
+   "desc_zh": "攻擊力 +20%、移動速度 +10%、技能冷卻 -30%（僅該關）",
+   "style": "stir_fry",
+   "banner_h": 36
   }
  },
  {
@@ -114,6 +139,32 @@
     "coins_per_bar": 2,
     "coins_per_enemy": 1
    }
+  },
+  "level_buff": {
+   "id": "wet_fortune",
+   "name_zh": "遇水則發",
+   "banner_zh": "能力增加",
+   "when_zh": "颱風、雷雨的關卡",
+   "cond": {
+    "wx": [
+     "typhoon",
+     "thunder"
+    ]
+   },
+   "stats": {
+    "crit_chance": {
+     "type": "flat",
+     "value": 0.15
+    },
+    "crit_multiplier": {
+     "type": "flat",
+     "value": 0.3
+    }
+   },
+   "desc_zh": "暴擊率 +15%、暴擊倍率 +0.3、過關時金幣 +5（僅該關）",
+   "style": "take_profit",
+   "clear_coins": 5,
+   "banner_h": 32
   }
  }
 ]

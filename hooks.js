@@ -91,7 +91,8 @@ function _skillGlow(p, color) {
 }
 function _skillCd(p, seconds) { 
   var cd = shopEffect('skill_cd');   // shop "clock shard": fraction off the cooldown (0.3 = -30%)
-  if (cd > 0) seconds *= (1 - cd);
+  if (RUN.levelBuff && RUN.levelBuff.skill_cd) cd += RUN.levelBuff.skill_cd;   // level buff (characters.json level_buff), this level only
+  if (cd > 0) seconds *= (1 - Math.min(cd, 0.9));
   p.skillReadyAt = _now(p) + seconds * 1000; 
 }
 function _skillFx(p) { FX.screenShake(p.scene, 1, 50); FX.hitStop(p.scene, 30); }

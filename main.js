@@ -140,6 +140,7 @@ class BootScene extends Phaser.Scene {
         this.load.image('skill_' + c.skill.id, 'assets/skill_' + c.skill.id + '.png');
         this.load.image('skilltext_' + c.skill.id, 'assets/skilltext_' + c.skill.id + '.png');   // brush-calligraphy skill name for the cast banner (missing files are ignored: the name is drawn as text)
       }
+      if (c && c.level_buff) this.load.image('lvbuff_' + c.level_buff.id, 'assets/lvbuff_' + c.level_buff.id + '.png');   // brush-calligraphy level-buff name (characters.json level_buff)
     }
     var en = Object.keys(D.enemies);
     for (var j = 0; j < en.length; j++) {

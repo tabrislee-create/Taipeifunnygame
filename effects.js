@@ -1424,16 +1424,18 @@ var FX = (function () {
   // Qwen-Image in the title's style) tinted with the colour and doubled by two larger additive copies for the glow; the small flavour line under it has the same colour (and a glow).
   // A skill without such a picture shows its name as bold text instead.
   var CAST_STYLE = { stir_fry: { col: 0xff3a2a, css: '#ff4a3a', glow: 0xff2010, edge: 0x2a0000 }, take_profit: { col: 0xffe27a, css: '#ffe27a', glow: 0xff9a00, edge: 0x4a2800, glowA: 0.16 }, nano_process: { col: 0x6fd8ff, css: '#7fdcff', glow: 0x2ab4ff }, exam_max: { col: 0x7dff9a, css: '#8cffa6', glow: 0x2ee060 } };
-  function skillCastText(scene, p, skill) {
-    if (!scene || !p || !p.sprite || !skill) return;
-    var st = CAST_STYLE[skill.id] || { col: 0xffffff, css: '#ffffff', glow: 0x88ccff }, key = 'skilltext_' + skill.id, pic = scene.textures.exists(key);
-    var cont = scene.add.container(0, 0).setDepth(98), BIG_W = 300, bigH = 0;
-    var flav = scene.add.text(0, 0, skill.flavor_zh || '', { fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: st.css, stroke: '#1a0a0a', strokeThickness: 5 }).setOrigin(0.5, 1);
-    flav.setShadow(0, 0, st.css, 10, false, true); flav.setStroke(st.edge ? '#' + ('000000' + st.edge.toString(16)).slice(-6) : '#1a0a0a', 6);
-    cont.add(flav);
+  function skillCastText(scene, p, skill, opts) {   // opts (level-buff banner): { key: picture texture, style: CAST_STYLE id, name, flavor, life ms, rise px }
+    opts = opts || {};
+    if (!scene || !p || !p.sprite || !(skill || opts.key)) return;
+    skill = skill || {};
+    var st = CAST_STYLE[opts.style || skill.id] || { col: 0xffffff, css: '#ffffff', glow: 0x88ccff }, key = opts.key || 'skilltext_' + skill.id, pic = scene.textures.exists(key);
+    var cont = scene.add.container(0, 0).setDepth(98), BIG_W = opts.bigW || 300, bigH = 0;
+    var flav = scene.add.text(0, 0, opts.flavor != null ? opts.flavor : (skill.flavor_zh || ''), { fontFamily: FONT, fontSize: (opts.flavorSize || 24) + 'px', fontStyle: 'bold', color: st.css, stroke: '#1a0a0a', strokeThickness: 5 }).setOrigin(0.5, 1);
+    flav.setShadow(0, 0, st.css, 10, false, true); flav.setStroke(st.edge ? '#' + ('000000' + st.edge.toString(16)).slice(-6) : '#1a0a0a', opts.noStroke ? 0 : 6);
+    cont.add(flav); if (opts.flavorFadeIn) flav.setAlpha(0);
     var big = [];
     if (pic) {
-      var img = scene.textures.get(key).getSourceImage(), k = BIG_W / img.width; bigH = img.height * k;
+      var img = scene.textures.get(key).getSourceImage(), k = opts.bigH ? opts.bigH / img.height : BIG_W / img.width; bigH = img.height * k;
       var offs = [[-3, 0], [3, 0], [0, -3], [0, 3], [-2.2, -2.2], [2.2, -2.2], [-2.2, 2.2], [2.2, 2.2]];   // dark edge (contrast against any background): eight offset copies tinted dark
       offs.forEach(function (o) { var e = scene.add.image(o[0], -30 + o[1], key).setOrigin(0.5, 1).setScale(k).setTint(st.edge || 0x1a0a0a).setAlpha(0.95); cont.add(e); big.push(e); });
       var ga = st.glowA || 0.2;
@@ -1442,18 +1444,23 @@ var FX = (function () {
       });
       var s1 = scene.add.image(0, -30, key).setOrigin(0.5, 1).setScale(k).setTint(st.col); cont.add(s1); big.push(s1);
     } else {
-      var tx = scene.add.text(0, -26, skill.name_zh || '', { fontFamily: FONT, fontSize: '34px', fontStyle: 'bold', color: st.css, stroke: '#1a0a0a', strokeThickness: 6 }).setOrigin(0.5, 1);
+      var tx = scene.add.text(0, -26, opts.name || skill.name_zh || '', { fontFamily: FONT, fontSize: '34px', fontStyle: 'bold', color: st.css, stroke: '#1a0a0a', strokeThickness: 6 }).setOrigin(0.5, 1);
       tx.setShadow(0, 0, st.css, 14, false, true); cont.add(tx); big.push(tx);
     }
-    var t0 = scene.time.now, LIFE = 1500, FADE = 380, dead = false;
-    var pos = function () { var b = p.sprite.body; cont.setPosition(p.sprite.x, (b ? b.top : p.sprite.y - 50) - 12); };
+    var t0 = scene.time.now, started = false, LIFE = opts.life || 1500, FADE = 380, dead = false, RISE = opts.rise || 0;
+        var pos = function () {
+      var b = p.sprite.body, r = RISE * (1 - Math.pow(1 - Math.min(1, (scene.time.now - t0) / 700), 2));
+      cont.setPosition(p.sprite.x, (b ? b.top : p.sprite.y - 50) - 12 - r);   // the whole banner (brush picture and small line) floats up RISE px (~0.7 s ease-out) while following the character
+    };
     pos(); cont.setScale(0.55); cont.setAlpha(0);
     scene.tweens.add({ targets: cont, scaleX: 1, scaleY: 1, alpha: 1, duration: 170, ease: 'Back.Out' });
     var upd = function () {
       if (dead) return;
+      if (!started) { started = true; t0 = scene.time.now; }   // scene.time.now is stale until the first update when the banner is made in create()
       if (!p.sprite || !p.sprite.active) { done(); return; }
       pos();
       var el = scene.time.now - t0;
+      if (opts.flavorFadeIn) flav.setAlpha(Math.max(0, Math.min(1, (el - 400) / 500)));   // small line: fades in 0.4-0.9 s, fades out with the rest at the end
       if (el > LIFE - FADE) cont.setAlpha(Math.max(0, (LIFE - el) / FADE));
       if (el >= LIFE) done();
     };
