@@ -1,3 +1,6 @@
+const RAIN_COLS = [0x3aa0ff, 0x40d060, 0xffd830, 0xff3a3a, 0xff4fd8, 0xff9a20];   // rainbow_sky_rain strip colours
+const RAIN_G = 900;   // strip gravity (px/s^2)
+
 class Boss {
   constructor(scene, def, x, y) {
     this.scene = scene;
@@ -55,6 +58,7 @@ class Boss {
     this._telegraphObjs = [];
     this._projectiles = [];
     this._waveObj = null;
+    this._rain = null; this._rainStripes = []; this._rainPuddles = []; this._rainGlow = []; this._rainG = null;   // rainbow_sky_rain state
     this._glints = []; this._pools = []; this._glintAcc = 0;       // code-drawn light effects (no flares baked into the art)
     this._afx = 1; this._afy = 1; this._hitSquashUntil = 0; this._flashUntil = 0; this._landSquashT = -1e9;   // procedural squash & stretch
     this._phase = this._computePhase();
@@ -188,6 +192,7 @@ class Boss {
       this._clearTelegraph();
       this._clearWave();
       this._clearLaser();
+      this._rainGlowOff();
       FX.bossPhase(this.scene, this.sprite, this._phaseLabel(np));
       this._drawPhaseBar();
     }
@@ -287,6 +292,8 @@ class Boss {
       this._telegraphObjs.push(FX.telegraphCircle(scene, this._aoeX, gy - 10, p.radius || 150, tm));
     } else if (pr === 'rainbow_homing_projectile') {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 0.6, 40, tm));
+    } else if (pr === 'rainbow_sky_rain') {
+      this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 1.0 - 20, 70, tm));
     } else if (pr === 'summon_adds') {
       for (const sl of this._summonSlots(p)) this._telegraphObjs.push(FX.telegraphCircle(scene, sl.x, gy - 20, 30, tm));
     } else if (pr === 'laser_sweep') {
@@ -350,6 +357,8 @@ class Boss {
       this._state = 'cooldown';
       this._stateTimer = 0;
       this._fireHoming(p);
+    } else if (pr === 'rainbow_sky_rain') {
+      this._startRain(p);
     } else if (pr === 'summon_adds') {
       this._state = 'cooldown';
       this._stateTimer = 0;
@@ -469,6 +478,7 @@ class Boss {
     if (st === 'telegraph') { const k = 0.5 + 0.5 * Math.sin(now / 70); fx = 1.06 + 0.04 * k; fy = 0.9 - 0.03 * k; }
     else if (st === 'jump') { const t = this._jumpDuration ? this._jumpElapsed / this._jumpDuration : 0; fx = t < 0.5 ? 0.9 : 0.93; fy = t < 0.5 ? 1.16 : 1.1; }
     else if (st === 'dash') { fx = 1.18 + 0.03 * Math.sin(now / 40); fy = 0.86; }
+    else if (st === 'rain') { fx = 1.1 + 0.03 * Math.sin(now / 60); fy = 0.94; }
     else if (st === 'wave' || st === 'laser') { fx = 1.05; fy = 0.93; }
     else if (this._moving) { const k = Math.sin(now / 110); fx = 1.06 + 0.06 * k; fy = 0.95 - 0.06 * k; }   // slithering wobble
     const land = (now - this._landSquashT) / 320;
@@ -479,6 +489,9 @@ class Boss {
     const rageP = this._activePattern && this._activePattern.params && this._activePattern.params.fx === 'rage' && (st === 'telegraph' || st === 'dash');
     if (this._scorchEnd > 0) {   // scorched: solid red instead of the hue drift
       s.setTint(0xff3030);
+    } else if (st === 'rain') {   // rainbow_sky_rain: fast hue cycle
+      const c = Phaser.Display.Color.HSVToRGB((now / 260) % 1, 0.4, 1);
+      s.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
     } else if (rageP) {   // 狂暴連衝: flickers orange
       s.setTint(Math.floor(now / 70) % 2 ? 0xff8a1a : 0xffc890);
     } else if (now >= this._flashUntil) {   // slow pastel hue drift = light flowing through the body
@@ -555,6 +568,11 @@ class Boss {
       this._crescent(g, ox, oy, R, dir, 66, 1.6, 0x8fe4ff, 0.6 * k);
       this._crescent(g, ox, oy, R * 0.97, dir, 66, 2.1, 0xf0fdff, 0.9 * k);
     }
+    if (st === 'telegraph' && pr === 'rainbow_sky_rain') {   // colour orb gathering over the head
+      const p = Math.min(1, this._stateTimer / (this._telegraphMs || 1)), hx = s.x, hy = s.y - this._dispH - 20, R = 10 + 46 * p;
+      for (let i = 0; i < 6; i++) { const a = now / 300 + i * Math.PI / 3; g.fillStyle(RAIN_COLS[i], 0.55); g.fillCircle(hx + Math.cos(a) * R * 0.5, hy + Math.sin(a) * R * 0.3, R * 0.55); }
+      g.fillStyle(0xffffff, 0.2 + 0.5 * p); g.fillCircle(hx, hy, R * 0.4);
+    }
     const sinceLand = now - this._landSquashT;
     if ((st === 'telegraph' && pr === 'jump_slam') || st === 'jump' || (sinceLand >= 0 && sinceLand < 380 && pr === 'jump_slam')) {
       const bx = s.x, by = s.body ? s.body.bottom : s.y, W = this._dispW * 1.4, flash = sinceLand >= 0 && sinceLand < 380 ? 1 + 0.7 * (1 - sinceLand / 380) : 1;
@@ -565,6 +583,119 @@ class Boss {
         g.fillEllipse(bx, by - 4 - i * 9, w, h);
       }
     }
+  }
+
+  // Rainbow sky (pattern rainbow_sky_rain, user 2026-10-13): after the 2 s charge the boss stands still and INVULNERABLE for params.duration_ms, lobbing params.count coloured strips from its head,
+  // alternating left / right, landing 100-620 px away (8 shuffled distance bins per side; strips 3 and 7 of each side are aimed at the player when they stand on that side).
+  // A strip hurts once (params.damage) if it touches the player in flight or splashes within 45 px of where it lands; the puddle it leaves is visual only.
+  _startRain(p) {
+    this._state = 'rain';
+    this._stateTimer = 0;
+    this._rain = { t: 0, n: 0, total: p.count || 20, gap: p.interval_ms || 200, dur: p.duration_ms || 4000, dmg: (p.damage || 10) * this._am, bins: { '-1': this._rainBins(), '1': this._rainBins() }, k: { '-1': 0, '1': 0 } };
+    this._rainGlowOn();
+    FX.screenShake(this.scene, 0.006, 200);
+  }
+
+  _rainBins() {
+    const a = [0, 1, 2, 3, 4, 5, 6, 7];
+    for (let i = 7; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); const t = a[i]; a[i] = a[j]; a[j] = t; }
+    return a;
+  }
+
+  _updateRainState(delta) {
+    const r = this._rain; if (!r) return;
+    r.t += delta;
+    while (r.n < r.total && r.t >= r.n * r.gap) { this._lobStripe(r.n % 2 ? 1 : -1); r.n++; }
+    if (r.t >= r.dur) {
+      this._rain = null;
+      this._rainGlowOff();
+      this._state = 'cooldown';
+      this._stateTimer = 0;
+    }
+  }
+
+  _lobStripe(side) {
+    const s = this.sprite, r = this._rain, key = String(side), k = r.k[key]++, gy = this._groundY(), b = this._worldBounds();
+    const x0 = s.x, y0 = s.y - this._dispH * 0.95, pl = this.scene.player;
+    let D = 100 + (r.bins[key][k % 8] + Math.random()) * 65;
+    if ((k === 3 || k === 7) && pl && !pl.dead && (pl.sprite.x - s.x) * side > 0) D = Math.abs(pl.sprite.x - s.x) + (Math.random() - 0.5) * 60;
+    D = Math.max(100, Math.min(620, D));
+    const lx = Math.max(b.left + 20, Math.min(b.right - 20, x0 + side * D));
+    D = Math.abs(lx - x0);
+    const rise = (70 + D * 0.13) * (0.9 + Math.random() * 0.2);   // apex stays ~150 px above the head at most (screen top)
+    const vy = -Math.sqrt(2 * RAIN_G * rise), Hd = (gy - 6) - y0;
+    const tl = (-vy + Math.sqrt(vy * vy + 2 * RAIN_G * Math.max(0, Hd))) / RAIN_G;
+    this._rainStripes.push({ x: x0, y: y0, vx: (lx - x0) / tl, vy: vy, col: RAIN_COLS[Math.floor(Math.random() * RAIN_COLS.length)], trail: [{ x: x0, y: y0 }], hit: false });
+  }
+
+  _updateRain(dt, now) {
+    const sts = this._rainStripes, pud = this._rainPuddles;
+    if (!sts.length && !pud.length && !this._rainGlow.length) return;
+    if (!this._rainG) this._rainG = this.scene.add.graphics().setDepth(6.2);
+    const g = this._rainG; g.clear();
+    const scene = this.scene, pl = scene.player, gy = this._groundY(), dmg = this._rainDmg || 10;
+    const plOk = pl && !pl.dead && pl.sprite.active;
+    for (let i = sts.length - 1; i >= 0; i--) {
+      const st = sts[i];
+      st.vy += RAIN_G * dt; st.x += st.vx * dt; st.y += st.vy * dt;
+      st.trail.unshift({ x: st.x, y: st.y });
+      let len = 0, keep = st.trail.length;
+      for (let j = 1; j < st.trail.length; j++) { len += Math.hypot(st.trail[j].x - st.trail[j - 1].x, st.trail[j].y - st.trail[j - 1].y); if (len > 90) { keep = j + 1; break; } }
+      st.trail.length = keep;
+      const n = st.trail.length;
+      for (let pass = 0; pass < 2; pass++) {   // coloured body, then a thin pale core
+        for (let j = n - 1; j >= 1; j--) {
+          const w = (4 + 12 * (1 - j / n)) * (pass ? 0.4 : 1);
+          g.lineStyle(w, pass ? 0xffffff : st.col, pass ? 0.8 : 0.95);
+          g.beginPath(); g.moveTo(st.trail[j].x, st.trail[j].y); g.lineTo(st.trail[j - 1].x, st.trail[j - 1].y); g.strokePath();
+        }
+      }
+      let done = false;
+      if (plOk && !st.hit && now >= pl.invUntil) {
+        const rc = bodyRect(pl.sprite), pts = [st.trail[0], st.trail[Math.min(3, n - 1)]];
+        for (const q of pts) if (q.x >= rc.x - 10 && q.x <= rc.right + 10 && q.y >= rc.y - 10 && q.y <= rc.bottom + 10) { st.hit = true; pl.takeDamage(this._rainDmg, st.x); FX.hitSpark(scene, q.x, q.y); done = true; break; }
+      }
+      if (!done && st.vy > 0 && st.y >= gy - 6) {
+        if (plOk && !st.hit && now >= pl.invUntil && Math.abs(pl.sprite.x - st.x) <= 45 && pl.sprite.body.bottom >= gy - 70) { st.hit = true; pl.takeDamage(this._rainDmg, st.x); }
+        const pu = scene.add.ellipse(st.x, gy - 8, 78, 16, st.col, 0.85).setDepth(1.95);
+        pud.push({ o: pu, t0: now });
+        FX.hitSpark(scene, st.x, gy - 8);
+        done = true;
+      }
+      if (done) sts.splice(i, 1);
+    }
+    for (let i = pud.length - 1; i >= 0; i--) {
+      const q = pud[i], a = 1 - (now - q.t0) / 800;
+      if (a <= 0) { q.o.destroy(); pud.splice(i, 1); } else q.o.setAlpha(0.85 * a);
+    }
+    const s = this.sprite;
+    if (this._rainGlow.length && s && s.active) {   // iridescent outline: 8 offset tinted silhouettes behind the sprite, hue rotating
+      for (let i = 0; i < this._rainGlow.length; i++) {
+        const im = this._rainGlow[i], a = i * Math.PI / 4, c = Phaser.Display.Color.HSVToRGB(((now / 350) + i / 8) % 1, 1, 1);
+        im.setPosition(s.x + Math.cos(a) * 5, s.y + Math.sin(a) * 5).setScale(s.scaleX, s.scaleY).setFlipX(s.flipX).setTintFill(Phaser.Display.Color.GetColor(c.r, c.g, c.b)).setAlpha(0.75 + 0.25 * Math.sin(now / 90 + i));
+      }
+    }
+  }
+
+  _rainGlowOn() {
+    this._rainDmg = this._rain.dmg;
+    this._rainGlowOff();
+    for (let i = 0; i < 8; i++) this._rainGlow.push(this.scene.add.image(this.sprite.x, this.sprite.y, this.id).setOrigin(0.5, 1).setDepth(4.9));
+  }
+
+  _rainGlowOff() {
+    for (const im of this._rainGlow) im.destroy();
+    this._rainGlow = [];
+  }
+
+  _clearRain() {
+    this._rain = null;
+    this._rainGlowOff();
+    for (const st of this._rainStripes) st.trail = [];
+    this._rainStripes = [];
+    for (const q of this._rainPuddles) q.o.destroy();
+    this._rainPuddles = [];
+    if (this._rainG) { this._rainG.destroy(); this._rainG = null; }
   }
 
   _updateProjectiles(dt) {
@@ -682,7 +813,7 @@ class Boss {
 
   // Vendor's skill (stir fry): cfg = { durationMs, intervalMs, damage }. Ignores boss invulnerability frames; already scorched -> ignored.
   scorch(now, cfg) {
-    if (this.dead || this._entering || this._scorchEnd > 0) return;
+    if (this.dead || this._entering || this._scorchEnd > 0 || this._state === 'rain') return;
     this._scorchCfg = { durationMs: cfg.durationMs, intervalMs: cfg.intervalMs, damage: cfg.damage, ticks: Math.floor(cfg.durationMs / cfg.intervalMs + 1e-6) };
     this._scorchEnd = now + cfg.durationMs;
     this._scorchStep = 0;
@@ -693,6 +824,7 @@ class Boss {
     const sc = this._scorchCfg, t0 = this._scorchEnd - sc.durationMs;
     while (this._scorchStep < sc.ticks && now >= t0 + (this._scorchStep + 1) * sc.intervalMs) {
       this._scorchStep++;
+      if (this._state === 'rain') continue;   // invulnerable: that tick is lost, not postponed
       this.hp -= sc.damage;
       FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, sc.damage, false, false);
       FX.burnFlame(this.scene, this.sprite.x, this.sprite.y - this._dispH * 0.5);
@@ -702,6 +834,7 @@ class Boss {
   }
 
   _updateBurn(dt) {
+    if (this._state === 'rain') return;
     if (this._burnDps > 0 && this._burnTimer > 0) {
       this._burnTimer -= dt;
       this._burnAcc += this._burnDps * dt;
@@ -727,6 +860,7 @@ class Boss {
     this._clearTelegraph();
     this._clearWave();
     this._clearLaser();
+    this._clearRain();
     for (const proj of this._projectiles) proj.destroy();
     this._projectiles = [];
     this._clearGlints();
@@ -746,7 +880,7 @@ class Boss {
 
   takeHit(damage, srcX, isCrit, info) {
     if (this.dead || this._entering) return;
-    if (this._invuln > 0) return;
+    if (this._invuln > 0 || this._state === 'rain') return;   // rainbow_sky_rain: invulnerable
     this.hp -= damage;
     FX.hitEnemy(this.scene, this.sprite, isCrit, this.sprite.x, this.sprite.y - this._dispH * 0.5);
     FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, damage, isCrit, false);
@@ -757,7 +891,7 @@ class Boss {
   }
 
   applyBurn(dps, duration) {
-    if (this.dead) return;
+    if (this.dead || this._state === 'rain') return;
     this._burnDps = Math.max(this._burnDps, dps);
     this._burnTimer = Math.max(this._burnTimer, duration);
   }
@@ -783,6 +917,7 @@ class Boss {
       this._dashDir = (player.sprite.x >= this.sprite.x) ? 1 : -1;
     }
     this._updateProjectiles(dt);
+    this._updateRain(dt, this.scene.time.now);
     if (this._state === 'idle') {
       this._stateTimer += delta;
       if (this._stateTimer >= this._idleDuration) {
@@ -805,6 +940,8 @@ class Boss {
       this._updateWave(dt);
     } else if (this._state === 'laser') {
       this._updateLaser(dt);
+    } else if (this._state === 'rain') {
+      this._updateRainState(delta);
     } else if (this._state === 'cooldown') {
       this._stateTimer += delta;
       const cd = (this._activePattern && this._activePattern.cooldown_ms) || 1000;

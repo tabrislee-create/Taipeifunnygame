@@ -213,8 +213,11 @@ class CharSelectScene extends Phaser.Scene {
     var TW = pw - PAD * 2;
     var cx = px;
     // Content is laid out from y = 0 first; the panel is then sized to fit and centred, so long texts never run under the buttons.
-    var y = 0, sm = ch.level_buff ? 4 : 0;   // characters with a level-buff section: body text 4 px smaller so the popup still fits
-    var items = [];
+    var y = 0, items = [], dividers = [], contentH = 0;
+    // Characters with a level-buff section: body text 4 px smaller. If the content is still too tall for the screen (Vendor's long skill text + level buff, 2026-10-13: the last line sat on the buttons),
+    // the layout is redone with every font 2 px smaller, up to 4 times.
+    function layout(sm, ex) {
+    y = 0; items = []; dividers = [];
     function put(o, dy) { items.push(o); o._ly = y; y += o.height + dy; return o; }
     function T(text, size, color, bold, italic, wrap) {
       var st = { fontFamily: FONT, fontSize: size, color: color };
@@ -223,11 +226,10 @@ class CharSelectScene extends Phaser.Scene {
       if (wrap) { st.wordWrap = { width: TW, useAdvancedWrap: true }; st.align = 'center'; st.lineSpacing = 2; }
       return self.add.text(cx, 0, text, st).setOrigin(0.5, 0);
     }
-    var dividers = [];
     function divider() { y += 2; dividers.push(y); y += 10; }
 
     // Name, bio, quote
-    put(T(ch.name_zh, 38, '#ffffff', true), 6);
+    put(T(ch.name_zh, 38 - ex, '#ffffff', true), 6);
     put(T(ch.bio_zh, 24 - sm, '#dddddd', false, false, true), 8);
     put(T('"' + ch.quote_zh + '"', 24 - sm, '#ffd966', false, true, true), 6);
     divider();
@@ -240,8 +242,8 @@ class CharSelectScene extends Phaser.Scene {
     for (var i = 0; i < cells.length; i++) {
       var col = i % COLS, row = Math.floor(i / COLS);
       var neg = cells[i].val.charAt(0) === '-';
-      var label = this.add.text(px - TW / 2 + col * CW + 8, 0, cells[i].label, { fontFamily: FONT, fontSize: 21, color: '#a9c9b1' }).setOrigin(0, 0);
-      var val = this.add.text(px - TW / 2 + (col + 1) * CW - 26, 0, cells[i].val, { fontFamily: FONT, fontSize: 22, fontStyle: 'bold', color: neg ? '#ff9a8a' : '#b5f0a8' }).setOrigin(1, 0);
+      var label = self.add.text(px - TW / 2 + col * CW + 8, 0, cells[i].label, { fontFamily: FONT, fontSize: 21 - ex, color: '#a9c9b1' }).setOrigin(0, 0);
+      var val = self.add.text(px - TW / 2 + (col + 1) * CW - 26, 0, cells[i].val, { fontFamily: FONT, fontSize: 22 - ex, fontStyle: 'bold', color: neg ? '#ff9a8a' : '#b5f0a8' }).setOrigin(1, 0);
       label._ly = val._ly = y + row * ROW_H;
       items.push(label, val);
     }
@@ -250,24 +252,32 @@ class CharSelectScene extends Phaser.Scene {
 
     // Normal-attack effect (only characters whose normal attack has an extra effect)
     if (ch.attack_desc_zh) {
-      put(T('普攻特效', 26, '#ffd966', true), 2);
+      put(T('普攻特效', 26 - ex, '#ffd966', true), 2);
       put(T(ch.attack_desc_zh, 23 - sm, '#e8e8e8', false, false, true), 6);
       divider();
     }
 
     // Skill, cooldown on the title line
     var skill = ch.skill;
-    put(T('技能: ' + skill.name_zh + '　冷卻 ' + skill.cooldown + ' 秒', 26, '#ffd966', true), 2);
+    put(T('技能: ' + skill.name_zh + '　冷卻 ' + skill.cooldown + ' 秒', 26 - ex, '#ffd966', true), 2);
     put(T(skill.desc_zh, 23 - sm, '#e8e8e8', false, false, true), 0);
 
     // Level buff (characters.json level_buff): when it applies and what it gives
     if (ch.level_buff) {
       divider();
-      put(T('關卡加成: ' + ch.level_buff.name_zh, 26, '#ffd966', true), 2);
+      put(T('關卡加成: ' + ch.level_buff.name_zh, 26 - ex, '#ffd966', true), 2);
       put(T(ch.level_buff.when_zh + '：' + ch.level_buff.desc_zh, 23 - sm, '#e8e8e8', false, false, true), 0);
     }
 
-    var contentH = y;
+    }
+    var base0 = ch.level_buff ? 4 : 0, ex = 0;
+    for (;;) {
+      layout(base0 + ex, ex);
+      contentH = y;
+      if (contentH + PAD * 2 + 14 + BTN_H + 12 <= 536 || ex >= 8) break;
+      for (var q = 0; q < items.length; q++) items[q].destroy();
+      ex += 2;
+    }
     var ph = Math.min(536, contentH + PAD * 2 + 14 + BTN_H + 12);
     var py = 270, top = py - ph / 2;
     add(this.add.rectangle(px, py, pw, ph, 0x16301f, 1).setStrokeStyle(2, 0x6ab07a), 200);
