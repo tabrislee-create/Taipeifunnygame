@@ -29,7 +29,8 @@ function bootGame() {
     weather: window.__WEATHER || {},
     levels: Array.isArray(window.__LEVELS) ? window.__LEVELS : [],
     shop: toMap(window.__SHOP),
-    bossHints: (window.__BOSS_HINTS && window.__BOSS_HINTS.hints) || []
+    bossHints: (window.__BOSS_HINTS && window.__BOSS_HINTS.hints) || [],
+    condText: window.__COND_TEXT || {}   // levels 1-5: one entrance sentence per level x time x weather (level.js _showIntro)
   };
   if (window.DEMO) {   // trial build: renamed brands / landmarks in the level and equipment texts
     GAME_DATA.levels.forEach(function (L) { ['name_zh', 'intro_text_zh'].forEach(function (k) { if (L[k]) L[k] = demoName(L[k]); }); });
@@ -203,7 +204,8 @@ Promise.all([
   loadJson('./data/levels.json'),
   loadJson('./data/weather.json'),
   loadJson('./data/shop_items.json'),
-  loadJson('./data/boss_hints.json')
+  loadJson('./data/boss_hints.json'),
+  loadJson('./data/level_condition_text.json')
 ]).then(function (res) {
   window.__ENEMIES = res[0];
   window.__BOSSES = res[1];
@@ -215,6 +217,7 @@ Promise.all([
   window.__WEATHER = res[7];
   window.__SHOP = res[8] || [];
   window.__BOSS_HINTS = res[9] || { hints: [] };
+  window.__COND_TEXT = res[10] || {};
   bootGame();
 }).catch(function (err) {
   console.error('Failed to load game data', err);

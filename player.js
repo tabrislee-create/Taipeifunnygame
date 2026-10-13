@@ -155,6 +155,7 @@ class Player {
         const params = ch && ch.skill ? ch.skill.params : {};
         moveSpeed *= (1 + (params.speed_bonus !== undefined ? params.speed_bonus : 0.2));
       }
+      if (scene.flood) moveSpeed *= 0.5;   // flood (user 2026-10-13): half walking speed
       moveSpeed *= (this.terrainSlow || 1);   // slow terrain (the level sets it each frame: pebble pit floor)
       const target = dirIn * moveSpeed + (grounded ? 0 : (scene.windX || 0)); // typhoon: gusts push the player only while airborne
       const accel = 3600 * dt * (grounded ? (scene.wetGrip || 1) : 1); // same on the ground and in the air: Mario-style free air control, a full reversal takes ~0.12s; wet street (scene.wetGrip < 1, set by weather.js): the ground accel / braking is weaker = slide
@@ -166,7 +167,7 @@ class Player {
     if (upEdge) this._jumpBufferAt = now;
     const canJump = (grounded || (now - this._lastGroundedAt <= 100)) && !this._jumpUsed && !knock && !dash;
     if (canJump && (upEdge || (now - this._jumpBufferAt <= 100))) {
-      const jv = st.jump_velocity * (580 / 600);
+      const jv = st.jump_velocity * (580 / 600) * (scene.flood ? Math.SQRT1_2 : 1);   // flood: half the jump height (height ~ v^2)
       b.setVelocityY(jv);
       this._jumpUsed = true;
       this._jumpCut = false;

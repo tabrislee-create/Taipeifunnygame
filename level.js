@@ -33,6 +33,7 @@ const FIRE_ENTER_DMG = 8, FIRE_DMG = 2, FIRE_TICK_MS = 500, FIRE_LINGER_MS = 250
 const POISON_DMG = 1, POISON_TICK_MS = 500, POISON_LINGER_MS = 8000;
 // Warning board lines per pit kind (a random one is shown on the far wall of each pit). spikes / pebble / fire = the user's words (2026-10-12); poison = suggestions, to be picked by the user. The level-4 bottomless pit uses the level's own pit_warning_texts.
 const PIT_WARN = { spikes: ['很尖', '救人喔!'], pebble: ['健康?', '我踩!'], fire: ['燒A!', '五分熟'], poison: ['有毒!', '別喝!', '毒你喔', '快閃!', '不是珍奶'] };
+const FLOOD_SLOW = 0.5;   // flood (user 2026-10-13): walking speed x0.5 (the jump is x1/sqrt2 = half the height, in player.js)
 const PERSP_FACE_DY = 12;   // the cross-section's top edge sits this far below the ground line (= the picture's bottom edge)
 
 class LevelScene extends Phaser.Scene {
@@ -52,6 +53,17 @@ class LevelScene extends Phaser.Scene {
   create() {
     const lvl = this.lvl;
     const theme = this.theme;
+
+    // Weather is drawn first: a flood (WX.isFlood: thunder / typhoon on an outdoor flat level) removes the pits and closes the gaps in the ground, which are built below.
+    this.cond = WX.pick(RUN.level);   // { time: day | dusk | night, wx: weather id or null }
+    this.weatherId = this.cond.wx;
+    this.flood = WX.isFlood(this.cond, RUN.level);
+    let groundSegs = lvl.ground;
+    if (this.flood) {   // flood: no pits, so each ground segment is stretched to meet the next one (lvl.ground itself is left alone)
+      const sorted = lvl.ground.slice().sort((a, b) => a.x - b.x);
+      groundSegs = sorted.map((sg, i) => (i < sorted.length - 1 ? Object.assign({}, sg, { w: sorted[i + 1].x - sg.x }) : sg));
+      this.groundSegments = groundSegs;
+    }
 
     this.physics.world.setBounds(0, 0, lvl.width, 700);
     this.cameras.main.setBounds(0, 0, lvl.width, 540);
@@ -99,7 +111,7 @@ class LevelScene extends Phaser.Scene {
 
     // Ground segments
     this._groundParts = [];
-    for (const seg of lvl.ground) {
+    for (const seg of groundSegs) {
       const fdy = this._persp ? PERSP_FACE_DY : 0; // perspective levels: the cross-section starts below the paving band
       const ts = this.add.tileSprite(seg.x, seg.y + fdy, seg.w, 140 - fdy, custom ? 'ground_' + lvKey : 'ground_' + theme.id);
       ts.setOrigin(0, 0);
@@ -118,7 +130,8 @@ class LevelScene extends Phaser.Scene {
     this._pitG = null;   // the scene object is reused between levels: drop the previous run's (destroyed) pit graphics
     this._pitStatus = { burn: { until: 0, nextTick: 0 }, poison: { until: 0, nextTick: 0 } };
     this._inPit = null;
-    if (sysm) {
+    if (this.flood && this._persp) this._ensurePitLayers();   // the ground cross-sections are still placed by _drawPitsPersp
+    if (sysm && !this.flood) {
       const segs = lvl.ground.slice().sort((a, b) => a.x - b.x);
       for (let i = 0; i < segs.length - 1; i++) {
         const l = segs[i].x + segs[i].w, r = segs[i + 1].x;
@@ -150,8 +163,6 @@ class LevelScene extends Phaser.Scene {
     }
 
     // Weather
-    this.cond = WX.pick(RUN.level);   // { time: day | dusk | night, wx: weather id or null }
-    this.weatherId = this.cond.wx;
     this.wx = WX.start(this, theme.id, this.cond);
 
     // Enemies group (before player)
@@ -317,6 +328,8 @@ class LevelScene extends Phaser.Scene {
       const r = s.ref;
       if (r && !r.dead) {
         r.update(time, delta, this.player);
+        // Flood (user 2026-10-13): ground enemies walk at half speed (same per-frame scaling as the pebble pit below; flyers and knockback are left alone)
+        if (this.flood && s.body && !(r.isFlyer && r.isFlyer()) && time > (r._knockUntil || 0) && (s.body.blocked.down || s.body.touching.down)) s.body.velocity.x *= FLOOD_SLOW;
         // Wet street (weather.js sets this.wetGrip < 1): a ground enemy's speed change is rate-limited like the player's, so it slides when it stops or turns (user 2026-10-12: enemies slip too).
         // Flyers, knockback (_knockUntil) and anything in the air are left alone; the command r.update just wrote to the body is the target the real speed eases toward.
         if (s.body) {
@@ -480,8 +493,10 @@ class LevelScene extends Phaser.Scene {
     const t1 = this.add.text(0, -16, lvl.name_zh, { fontFamily: F, fontSize: '21px', fontStyle: 'bold', color: '#ffffff', stroke: '#1a1a1a', strokeThickness: 5 }).setOrigin(0.5);
     const t2 = this.add.text(0, 18, lvl.intro_text_zh, { fontFamily: F, fontSize: '21px', color: '#fff6d8', stroke: '#1a1a1a', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 780), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
     const parts = [t1, t2]; let extra = 0;
-    if (this.weatherId === 'typhoon') { // typhoon day: one extra safety line under the caption
-      const t3 = this.add.text(0, 18 + t2.height + 10, '颱風天戶外活動請注意：強風會吹偏空中的你，小心腳下的尖刺坑！', { fontFamily: F, fontSize: '21px', fontStyle: 'bold', color: '#ffb347', stroke: '#1a1a1a', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 780), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
+    const ct = GAME_DATA.condText && GAME_DATA.condText[RUN.level], line = ct && this.cond && ct[this.cond.time] && ct[this.cond.time][this.cond.wx || 'none'];   // levels 1-5: one sentence for this level x time x weather (data/level_condition_text.json, written by IQ4)
+    const lineText = line || (this.weatherId === 'typhoon' ? '颱風天戶外活動請注意：強風會吹偏空中的你，小心腳下的尖刺坑！' : null);   // other levels keep the old typhoon safety line
+    if (lineText) {
+      const t3 = this.add.text(0, 18 + t2.height + 10, lineText, { fontFamily: F, fontSize: '21px', fontStyle: 'bold', color: line ? '#9fe3ff' : '#ffb347', stroke: '#1a1a1a', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 780), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
       parts.push(t3); extra = t3.height + 10;
     }
     const w = Math.max(t1.width, t2.width, parts.length > 2 ? parts[2].width : 0) + 56, h = 40 + t2.height + 22 + extra;
@@ -494,17 +509,7 @@ class LevelScene extends Phaser.Scene {
   // Spiked pit: dark cavity, stone floor, a row of upward spikes; an invisible static floor body catches whatever falls in.
   _buildPit(pit) {
     if (this._persp) { // perspective levels: the hole, its walls, the blades and the coping are all drawn every frame by _drawPitsPersp; here only the physics floor
-      if (!this._pitG) this._pitG = this.add.graphics().setDepth(-0.1);
-      if (!this._pitFG) {   // floor decoration layer above it, clipped to the hole openings (user 2026-10-12 bug: pebbles / flames spilled over the neighbouring ground's cross-section, which then looked transparent)
-        this._pitFire = this.add.graphics().setDepth(-0.04);   // flames of fire pits: in front of the warning board text (-0.05), clipped to the hole openings like the other floor details
-        this._pitSmoke = this.add.graphics().setDepth(-0.03);   // black smoke of fire pits: behind the characters; clipped to 'the hole openings + everything above the walkway's front edge' so it never covers the cross-section
-        this._pitSM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitSmoke.setMask(this._pitSM.createGeometryMask());
-        this._pitFG = this.add.graphics().setDepth(-0.1); this._pitFM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitFG.setMask(this._pitFM.createGeometryMask());
-        this._pitFire.setMask(this._pitFM.createGeometryMask());
-        // front copies (user 2026-10-12: a character that falls in stands BETWEEN the back and the front flames / smoke / vapour): the rows nearer than the feet plane (k > SP) are drawn above the characters
-        this._pitFireF = this.add.graphics().setDepth(2.5); this._pitFireF.setMask(this._pitFM.createGeometryMask());
-        this._pitSmokeF = this.add.graphics().setDepth(2.52); this._pitSmokeF.setMask(this._pitSM.createGeometryMask());
-      }
+      this._ensurePitLayers();
       if (pit.deep) return;   // bottomless (level data deep_pit): no floor body, no blades; falling in ends the level (see update)
       const fp = this.add.rectangle((pit.l + pit.r) / 2, pit.floor + 10, pit.r - pit.l, 20, 0x000000, 0);
       this.physics.add.existing(fp, true);
@@ -528,6 +533,21 @@ class LevelScene extends Phaser.Scene {
     const f = this.add.rectangle((pit.l + pit.r) / 2, pit.floor + 10, w, 20, 0x000000, 0);
     this.physics.add.existing(f, true);
     this.groundGroup.add(f);
+  }
+
+  // Graphics layers shared by all pits of a perspective level (also needed on a flood level without pits: _drawPitsPersp places the ground cross-sections).
+  _ensurePitLayers() {
+      if (!this._pitG) this._pitG = this.add.graphics().setDepth(-0.1);
+      if (!this._pitFG) {   // floor decoration layer above it, clipped to the hole openings (user 2026-10-12 bug: pebbles / flames spilled over the neighbouring ground's cross-section, which then looked transparent)
+        this._pitFire = this.add.graphics().setDepth(-0.04);   // flames of fire pits: in front of the warning board text (-0.05), clipped to the hole openings like the other floor details
+        this._pitSmoke = this.add.graphics().setDepth(-0.03);   // black smoke of fire pits: behind the characters; clipped to 'the hole openings + everything above the walkway's front edge' so it never covers the cross-section
+        this._pitSM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitSmoke.setMask(this._pitSM.createGeometryMask());
+        this._pitFG = this.add.graphics().setDepth(-0.1); this._pitFM = this.make.graphics({ x: 0, y: 0, add: false }); this._pitFG.setMask(this._pitFM.createGeometryMask());
+        this._pitFire.setMask(this._pitFM.createGeometryMask());
+        // front copies (user 2026-10-12: a character that falls in stands BETWEEN the back and the front flames / smoke / vapour): the rows nearer than the feet plane (k > SP) are drawn above the characters
+        this._pitFireF = this.add.graphics().setDepth(2.5); this._pitFireF.setMask(this._pitFM.createGeometryMask());
+        this._pitSmokeF = this.add.graphics().setDepth(2.52); this._pitSmokeF.setMask(this._pitSM.createGeometryMask());
+      }
   }
 
   // Every pit gets a yellow warning board mounted on its far wall (drawn by _drawPitsPersp; here only the random line of text and its clip mask are made).

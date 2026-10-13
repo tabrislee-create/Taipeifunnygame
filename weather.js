@@ -12,7 +12,9 @@ var WX = (function () {
     rain: { top: 0x3e4856, bottom: 0x808b96, sat: -0.5, bri: 0.72, tint: 0x888888, overlayAlphaMult: 0.35 },
     thunder: { top: 0x262e3a, bottom: 0x5a6470, sat: -0.5, bri: 0.62, tint: 0x666666, overlayAlphaMult: 0.35 },
     typhoon: { top: 0x262e3a, bottom: 0x5a6470, sat: -0.5, bri: 0.62, tint: 0x666666, overlayAlphaMult: 0.35 },
-    fog: { top: 0x6f7f90, bottom: 0xb4bec8, sat: -0.35, bri: 0.85, tint: 0xaaaaaa, overlayAlphaMult: 0.35 }
+    fog: { top: 0x6f7f90, bottom: 0xb4bec8, sat: -0.35, bri: 0.85, tint: 0xaaaaaa, overlayAlphaMult: 0.35 },
+    fog1: { top: 0x6f7f90, bottom: 0xb4bec8, sat: -0.35, bri: 0.85, tint: 0xaaaaaa, overlayAlphaMult: 0.35 },
+    fog3: { top: 0x6f7f90, bottom: 0xb4bec8, sat: -0.35, bri: 0.85, tint: 0xaaaaaa, overlayAlphaMult: 0.35 }
   };
 
   // Two axes (user 2026-10-12): TIME (day / dusk / night) and WEATHER (null = clear, cloudy, drizzle, rain, thunder, fog, typhoon, petals). A condition is { time, wx }.
@@ -116,7 +118,7 @@ var WX = (function () {
   function mulColor(a, b) { return ((((a >> 16) & 255) * ((b >> 16) & 255) / 255) << 16) | ((((a >> 8) & 255) * ((b >> 8) & 255) / 255) << 8) | (((a & 255) * (b & 255) / 255)); }
   function cloudStyle(cond) {
     var tl = CLOUD_LOOK[cond.time === 'day' ? 'sunny' : cond.time], wl = cond.wx ? (CLOUD_LOOK[cond.wx] || CLOUD_LOOK.cloudy) : CLOUD_LOOK.sunny;
-    var storm = cond.wx === 'typhoon', heavy = storm ? 3 : cond.wx === 'thunder' ? 2 : (cond.wx === 'cloudy' || cond.wx === 'drizzle' || cond.wx === 'rain' || cond.wx === 'fog' ? 1.5 : 1);
+    var storm = cond.wx === 'typhoon', heavy = storm ? 3 : cond.wx === 'thunder' ? 2 : (cond.wx === 'cloudy' || cond.wx === 'drizzle' || cond.wx === 'rain' || cond.wx === 'fog' || cond.wx === 'fog1' || cond.wx === 'fog3' ? 1.5 : 1);
     var night = cond.time === 'night';   // night clouds are opaque (stars behind them are hidden, user 2026-10-12); the colour is darkened to make up for the lost transparency
     var tint = night ? mulColor(mulColor(tl.light, wl.light), 0x9a9aa8) : mulColor(tl.light, wl.light);
     if (storm) tint = mulColor(tint, 0x9a9aa8);   // typhoon: darker still (user 2026-10-12: typhoon clouds are special)
@@ -214,6 +216,16 @@ var WX = (function () {
   // Indoors the rain is only visible on the window glass, not on the frames (screen rects of the glass panes; level 4's observation-deck windows, measured from a screenshot: 3 panes wide x 2 rows,
   // mullions at x 421-433 / 803-816, transom at y 110-123, top frame to y 55, sill from y 434; the backdrop only drifts a few px).
   var INDOOR_WINDOW = { 4: [ [178, 58, 419, 108], [435, 58, 801, 108], [818, 58, 960, 108], [178, 125, 419, 432], [435, 125, 801, 432], [818, 125, 960, 432] ] };
+  // The pane rects above were measured on a 960-wide screen. On a wider screen (GAME_W up to 1280, phones) the backdrop picture is scaled up around the screen centre / sits on the same bottom line, so the
+  // panes move with it (2026-10-13 bug: on a 1200-wide phone the rain showed left of the window and below the sill, in the room). Map the rects through the backdrop's actual scale.
+  function indoorWindows(scene) {
+    var base = INDOOR_WINDOW[RUN.level], bd = scene.backdrop;
+    if (!base || !bd || !bd.active || !bd.width) return base || null;
+    var extra = 2 * 0.03 * Math.max(0, (scene.lvl && scene.lvl.width || 0) - 960), sRef = Math.max((960 + extra + 4) / bd.width, 540 / bd.height), k = bd.scaleX / sRef;
+    if (Math.abs(k - 1) < 0.001 && GAME_W === 960) return base;
+    var cx = GAME_W / 2, by = bd.y;   // bd.y = the picture's bottom edge (origin 0.5, 1), the same for every width
+    return base.map(function (r) { return [cx + (r[0] - 480) * k, by - (by - r[1]) * k, cx + (r[2] - 480) * k, by - (by - r[3]) * k]; });
+  }
   // Wet street (user 2026-10-12): a sheen layer on the paving band that fades in while it rains, plus slippery footing (Player.update reads scene.wetGrip: 1 = dry, lower = longer slide).
   // WET_MAX = how wet the street gets per weather (sheen strength); WET_GRIP = the footing factor at full wetness (first guesses, to be tuned by the user); WET_SECONDS = time to get fully wet.
   var WET_MAX = { drizzle: 0.55, rain: 0.85, thunder: 1, typhoon: 1 }, WET_GRIP = { drizzle: 1, rain: 0.15, thunder: 0.1, typhoon: 0.05 }, WET_SECONDS = 8;
@@ -381,6 +393,68 @@ var WX = (function () {
       g.fillStyle(cols[k.c % cols.length], a); g.fillEllipse(x, k.y, k.w, k.h);
     }
   }
+  // Flood (user 2026-10-13): thunder / typhoon on an outdoor flat level (not the indoor level 4, not the mountain levels). Fixed water height FLOOD_H (= FOG_MIST_H) above the ground line;
+  // a translucent water body drawn over the characters, a rippling surface line, and rising bubbles from any character / enemy whose whole body is under the surface.
+  // The no-pit ground and the half speed / half jump are in level.js and player.js (scene.flood).
+  var FLOOD_H = 38, FLOOD_COLOR = { day: 0x4d7088, dusk: 0x5b6079, night: 0x1c2a48 };
+  function isFlood(cond, level) {
+    var c = normCond(cond);
+    return (c.wx === 'thunder' || c.wx === 'typhoon') && !INDOOR_LEVELS[level] && MOUNTAIN.indexOf(level) < 0;
+  }
+  function floodSplash(ctx, x, y, n, power) {
+    for (var i = 0; i < n; i++) ctx.drops.push({ x: x + rand(-10, 10), y: y, vx: rand(-60, 60) * power, vy: -rand(110, 230) * power, r: rand(1.6, 3.4), life: 0, max: rand(0.35, 0.6) });
+  }
+  function updateFlood(ctx, dt, time) {
+    if (!ctx.floodG) return;
+    var sc = ctx.scene, yg = sc.lvl.y_ground, top = yg - FLOOD_H, bot = sc._persp && sc.backdrop ? sc.backdrop.y : yg, col = FLOOD_COLOR[ctx.cond.time] || FLOOD_COLOR.day, g = ctx.floodG, t = time * 0.001;
+    g.clear();
+    var pts = [{ x: -10, y: bot }], x;
+    for (x = -10; x <= W + 10; x += 16) pts.push({ x: x, y: top + 1.6 * Math.sin(x * 0.05 + t * 2.1 + sc.cameras.main.scrollX * 0.05) + 1.1 * Math.sin(x * 0.13 - t * 3.3) });
+    pts.push({ x: W + 10, y: bot });
+    g.fillStyle(col, 0.42); g.fillPoints(pts, true);
+    g.lineStyle(2, 0xe6f4ff, 0.55); g.beginPath(); g.moveTo(pts[1].x, pts[1].y); for (var i = 2; i < pts.length - 1; i++) g.lineTo(pts[i].x, pts[i].y); g.strokePath();
+    // splashes (user 2026-10-13): translucent water spray at the surface when a character / enemy walks, jumps or lands (enters the water)
+    var who0 = [sc.player && sc.player.sprite];
+    if (sc.enemies) who0 = who0.concat(sc.enemies.getChildren());
+    for (var m = 0; m < who0.length; m++) {
+      var q = who0[m];
+      if (!q || !q.active || !q.body || (q.ref && q.ref.dead) || (q.ref && q.ref.isFlyer && q.ref.isFlyer())) continue;
+      var gr = q.body.blocked.down || q.body.touching.down, vy = q.body.velocity.y, fx = q.body.center.x;
+      if (q._fWasG !== undefined) {
+        if (gr && !q._fWasG && q._fVy > 120) { floodSplash(ctx, fx, top, 6 + Math.min(10, (q._fVy / 60) | 0), 1.2); ctx.rings.push({ x: fx, y: top, age: 0 }); }   // landing = entering the water
+        else if (!gr && q._fWasG && vy < -100) floodSplash(ctx, fx, top, 7, 0.9);   // jump
+      }
+      if (gr && Math.abs(q.body.velocity.x) > 25) { q._fStepT = (q._fStepT || 0) - dt; if (q._fStepT <= 0) { q._fStepT = 0.11; floodSplash(ctx, fx - Math.sign(q.body.velocity.x) * 8, top, 2, 0.5); } }
+      q._fWasG = gr; q._fVy = vy;
+    }
+    // bubbles: submerged = the whole body is under the surface
+    var who = [sc.player && sc.player.sprite];
+    if (sc.enemies) who = who.concat(sc.enemies.getChildren());
+    for (var k = 0; k < who.length; k++) {
+      var sp = who[k];
+      if (!sp || !sp.active || !sp.body || sp.body.top < top || (sp.ref && sp.ref.dead)) continue;
+      sp._bubT = (sp._bubT || 0) - dt;
+      if (sp._bubT <= 0) { sp._bubT = rand(0.25, 0.6); ctx.bubbles.push({ x: sp.x + rand(-6, 6) + (sp.flipX ? -8 : 8), y: sp.body.top + rand(0, 6), r: rand(1.5, 3.5), vy: rand(22, 40), ph: rand(0, 6.28), life: 0 }); }
+    }
+    var bg = ctx.bubbleG; bg.clear();
+    for (var d = ctx.drops.length - 1; d >= 0; d--) {
+      var dr = ctx.drops[d]; dr.life += dt; dr.vy += 520 * dt; dr.x += dr.vx * dt; dr.y += dr.vy * dt;
+      if (dr.life > dr.max || dr.y > top + 4) { ctx.drops.splice(d, 1); continue; }
+      bg.fillStyle(0xdff2ff, 0.5 * (1 - dr.life / dr.max)); bg.fillEllipse(dr.x, dr.y, dr.r * 1.4, dr.r * 2);
+    }
+    for (var rg = ctx.rings.length - 1; rg >= 0; rg--) {
+      var ri = ctx.rings[rg]; ri.age += dt;
+      if (ri.age > 0.5) { ctx.rings.splice(rg, 1); continue; }
+      bg.lineStyle(2, 0xdff2ff, 0.5 * (1 - ri.age / 0.5)); bg.strokeEllipse(ri.x, ri.y + 2, 20 + ri.age * 110, 5 + ri.age * 14);
+    }
+    for (var b = ctx.bubbles.length - 1; b >= 0; b--) {
+      var bu = ctx.bubbles[b]; bu.life += dt; bu.y -= bu.vy * dt; bu.x += Math.sin(bu.ph + bu.life * 6) * 8 * dt;
+      if (bu.y <= top || bu.life > 2.5) { ctx.bubbles.splice(b, 1); continue; }
+      bg.lineStyle(1, 0xe6f4ff, 0.85); bg.fillStyle(0xe6f4ff, 0.25); bg.fillCircle(bu.x, bu.y, bu.r); bg.strokeCircle(bu.x, bu.y, bu.r);
+    }
+  }
+  // Where a rain drop ends: on a flood level (user 2026-10-13) every drop vanishes at the water surface (FLOOD_H above the ground line) and its splash is drawn there; otherwise somewhere on the paving band.
+  function rainLand(ctx) { return ctx.floodY != null ? ctx.floodY + rand(-2, 2) : rand(RAIN_LAND_MIN, RAIN_LAND_MAX); }
   function updateSplashes(ctx, dt) {
     if (!ctx.splashG) return;
     ctx.splashG.clear();
@@ -407,7 +481,7 @@ var WX = (function () {
         d.vy += 650 * dt;
         d.x += d.vx * dt;
         d.y += d.vy * dt;
-        ctx.splashG.fillCircle(d.x, d.y, 1.5);
+        if (d.y <= s.y + 2) ctx.splashG.fillCircle(d.x, d.y, 1.5);   // a spray drop is gone once it falls back to the surface
       }
       i++;
     }
@@ -668,7 +742,7 @@ var WX = (function () {
     var wx = ctx.cond.wx;
     var k = 1;
     if (wx === 'cloudy') k = 0.5;
-    else if (wx === 'fog') k = 0.4;
+    else if (wx === 'fog' || wx === 'fog1' || wx === 'fog3') k = 0.4;
     else if (wx === 'drizzle') k = 0.35;
     else if (wx === 'rain' || wx === 'thunder') k = 0.25;
     else if (wx === 'typhoon') k = 0.1;
@@ -795,13 +869,8 @@ var WX = (function () {
         ctx.flash = scene.add.rectangle(W / 2, H / 2, W, H, 0xffffff, 0).setScrollFactor(0).setDepth(62);
         ctx.flashTimer = rand(5, 10);
       }
-    } else if (weatherId === 'fog') {
-      var fogAlpha = 0.1 * mult;
-      ctx.rain.push({ o: scene.add.rectangle(W / 2, H / 2, W, H, 0xdfe6ea, fogAlpha).setScrollFactor(0).setDepth(59), vx: 0, vy: 0, static: true });
-      for (var fi = 0; fi < 7; fi++) {
-        var fw = rand(500, 700), fg = scene.add.graphics(); fg.fillStyle(0xe6ecef, 0.26); fg.fillEllipse(0, 0, fw, rand(120, 180)); fg.setScrollFactor(0).setDepth(-12);
-        fg.x = rand(0, W); fg.y = rand(250, 470); ctx.fx.push({ o: fg, kind: 'fog', vx: rand(-10, 10) || 6, w: fw });
-      }
+    } else if (weatherId === 'fog' || weatherId === 'fog1' || weatherId === 'fog3') {
+      buildFog(scene, ctx);
     } else if (weatherId === 'petals') {
       addFalling(scene, ctx, 'petal');
     }
@@ -942,8 +1011,86 @@ var WX = (function () {
     }
   }
 
+  // Fog (user 2026-10-13): three levels, a procedural drifting field instead of the old flat veil + 7 ellipses (previews: art_eval/lv_fog/fog_drift.py).
+  // Per low-res cell: alpha = (base + depth * far(y) + bank * (clouds - 0.5) * 2.2) * (1 - 0.35 * near(y)); `clouds` = two tileable noise layers scrolled sideways at different speeds,
+  // so the density varies locally and drifts. far() peaks 0.25 H above the ground line, near() clears the foreground below it.
+  // Characters / enemies (same rule for both, user): fog1 = veiled like the ground behind them (veil 1); fog / fog3 = half veiled (veil 0.5) + a low mist of FOG_MIST_H px above the feet (same for every sprite).
+  // Two layers: `back` (behind the characters, depth -0.02) and `front` (over everything below the HUD, depth 59); the front alpha is veil * a, the back alpha is chosen so the backdrop still sees a in total: 1 - (1 - a) / (1 - veil * a).
+  var FOG_MIST_H = 38;
+  var FOG_CFG = { fog1: { base: 0.18, depth: 0.30, bank: 0.18, veil: 1, mist: false }, fog: { base: 0.42, depth: 0.38, bank: 0.28, veil: 0.5, mist: true }, fog3: { base: 0.70, depth: 0.22, bank: 0.20, veil: 0.5, mist: true } };
+  var FOG_COLOR = { day: 0xccd6e0, dusk: 0xc2aeb3, night: 0x222e54 };   // fog colour follows the time of day
+  var FOG_SPEED = { big: 7, small: 15, mist: 22 };                      // px / s (user 2026-10-13: slower than the first preview's 14 / 30 / 45)
+  var fogUid = 0;
+  function fogTileNoise(gw, gh, cx, cy) {   // value noise, tileable in x (cx cells across), normalised to 0..1
+    var g = [], i, j, x, y;
+    for (j = 0; j <= cy; j++) { g[j] = []; for (i = 0; i < cx; i++) g[j][i] = Math.random(); }
+    var out = new Float32Array(gw * gh), mn = 1, mx = 0;
+    for (y = 0; y < gh; y++) {
+      var fy = y / gh * cy, jy = Math.floor(fy), ty = fy - jy; ty = ty * ty * (3 - 2 * ty);
+      for (x = 0; x < gw; x++) {
+        var fx = x / gw * cx, ix = Math.floor(fx), tx = fx - ix; tx = tx * tx * (3 - 2 * tx); var i1 = (ix + 1) % cx;
+        var v0 = g[jy][ix] + (g[jy][i1] - g[jy][ix]) * tx, v1 = g[jy + 1][ix] + (g[jy + 1][i1] - g[jy + 1][ix]) * tx, v = v0 + (v1 - v0) * ty;
+        out[y * gw + x] = v; if (v < mn) mn = v; if (v > mx) mx = v;
+      }
+    }
+    for (i = 0; i < out.length; i++) out[i] = (out[i] - mn) / (mx - mn || 1);
+    return out;
+  }
+  function buildFog(scene, ctx) {
+    var cfg = FOG_CFG[ctx.weatherId] || FOG_CFG.fog, win = (scene.scene.key === 'Level' && INDOOR_LEVELS[RUN.level]) ? indoorWindows(scene) : null, time = (ctx.cond && ctx.cond.time) || 'day', col = FOG_COLOR[time] || FOG_COLOR.day, nightK = time === 'night' ? 0.55 : 1;
+    if (win) cfg = { base: cfg.base, depth: cfg.depth, bank: cfg.bank, veil: 0, mist: false };   // indoors (user 2026-10-13, level 4): fog only outside the windows - one layer behind the characters, clipped to the glass panes; no veil on the characters, no foot mist
+    var CELL = 6, gw = Math.ceil(W / CELL), gh = Math.ceil(H / CELL), uid = ++fogUid;
+    var yg = (scene.lvl && scene.lvl.y_ground) || 400, j, i;
+    var big = fogTileNoise(gw, gh, 4, 2), small = fogTileNoise(gw, gh, 11, 6), mistN = fogTileNoise(gw, gh, 14, 8);
+    var rowK = new Float32Array(gh), rowFar = new Float32Array(gh), rowMist = new Float32Array(gh);
+    for (j = 0; j < gh; j++) {
+      var y = (j + 0.5) * CELL, far = Math.max(0, 1 - Math.abs(y - (yg - 0.25 * H)) / (0.55 * H)), near = Math.max(0, Math.min(1, (y - yg) / (0.14 * H)));
+      rowFar[j] = far; rowK[j] = 1 - 0.35 * near;
+      rowMist[j] = cfg.mist ? Math.max(0, Math.min(1, (y - (yg - FOG_MIST_H)) / FOG_MIST_H)) * Math.max(0, Math.min(1, 1 - (y - yg) / 25)) : 0;
+    }
+    function mkLayer(name, depth) {
+      var key = 'wx_fog_' + name + uid, tex = scene.textures.createCanvas(key, gw, gh), c = tex.getContext(), img = c.createImageData(gw, gh), d = img.data;
+      for (var p = 0; p < gw * gh; p++) { d[p * 4] = (col >> 16) & 255; d[p * 4 + 1] = (col >> 8) & 255; d[p * 4 + 2] = col & 255; d[p * 4 + 3] = 0; }
+      var im = scene.add.image(0, 0, key).setOrigin(0, 0).setDisplaySize(W, H).setScrollFactor(0).setDepth(depth);
+      return { key: key, tex: tex, c: c, img: img, d: d, im: im };
+    }
+    var front = win ? null : mkLayer('f', 59), back = (win || cfg.veil < 1) ? mkLayer('b', win ? -19.9 : -0.02) : null;   // -19.9: just above the backdrop (-20)
+    if (win) { ctx.fogMaskG = scene.make.graphics({ x: 0, y: 0, add: false }); ctx.fogMaskG.fillStyle(0xffffff, 1); win.forEach(function (r) { ctx.fogMaskG.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]); }); back.im.setMask(ctx.fogMaskG.createGeometryMask()); }
+    ctx.fogT = 0;
+    ctx.fogUpd = function (time2, dt) {
+      ctx.fogT += dt; var t = ctx.fogT;
+      var sb = FOG_SPEED.big * t / CELL, ss = FOG_SPEED.small * t / CELL, sm = FOG_SPEED.mist * t / CELL;   // shifts in cells, rightwards
+      var ib = Math.floor(sb), fb = sb - ib, is = Math.floor(ss), fs = ss - is, im2 = Math.floor(sm), fm = sm - im2;
+      var fd = front ? front.d : null, bd = back ? back.d : null;
+      for (j = 0; j < gh; j++) {
+        var row = j * gw, k = rowK[j], pbase = cfg.base + cfg.depth * rowFar[j], mr = rowMist[j];
+        for (i = 0; i < gw; i++) {
+          var b0 = row + ((i - ib) % gw + gw) % gw, b1 = row + ((i - ib - 1) % gw + gw) % gw, s0 = row + ((i - is) % gw + gw) % gw, s1 = row + ((i - is - 1) % gw + gw) % gw;
+          var cl = 0.6 * (big[b0] * (1 - fb) + big[b1] * fb) + 0.4 * (small[s0] * (1 - fs) + small[s1] * fs);
+          var a = (pbase + cfg.bank * (cl - 0.5) * 2.2) * k; a = a < 0 ? 0 : a > 0.97 ? 0.97 : a; a *= nightK;
+          var af = cfg.veil * a;
+          if (mr > 0) {
+            var m0 = row + ((i - im2) % gw + gw) % gw, m1 = row + ((i - im2 - 1) % gw + gw) % gw, mn = mistN[m0] * (1 - fm) + mistN[m1] * fm;
+            var ma = mr * Math.min(0.95, a * (0.5 + 1.1 * mn)); af = 1 - (1 - af) * (1 - ma);   // the mist sits in front of the sprites
+          }
+          if (fd) fd[(row + i) * 4 + 3] = (af * 255 + 0.5) | 0;
+          if (bd) bd[(row + i) * 4 + 3] = ((1 - (1 - a) / (1 - cfg.veil * a)) * 255 + 0.5) | 0;
+        }
+      }
+      if (front) { front.c.putImageData(front.img, 0, 0); front.tex.refresh(); }
+      if (back) { back.c.putImageData(back.img, 0, 0); back.tex.refresh(); }
+    };
+    ctx.fogUpd(0, 0);
+    ctx.fogDestroy = function () {
+      [front, back].forEach(function (L) { if (!L) return; if (L.im && L.im.active) L.im.destroy(); if (scene.textures.exists(L.key)) scene.textures.remove(L.key); });
+      if (ctx.fogMaskG) { ctx.fogMaskG.destroy(); ctx.fogMaskG = null; }
+      ctx.fogUpd = null;
+    };
+  }
+
   function updateWeather(ctx, dt, time) {
     var i, r;
+    if (ctx.fogUpd) ctx.fogUpd(time, dt);
     if (ctx.typhoon) {
       ctx.windTimer -= dt;
       if (ctx.windTimer <= 0) {                    // new gust: rain slants first (0.6s), the push on the player follows 0.7s later
@@ -952,7 +1099,7 @@ var WX = (function () {
         ctx.scene.tweens.add({ targets: ctx, slant: gt, duration: 600, ease: 'Sine.easeInOut' });
         ctx.scene.tweens.add({ targets: ctx, windNow: gt, delay: 700, duration: 900, ease: 'Sine.easeInOut' });
       }
-      ctx.scene.windX = ctx.windNow;               // read by player.js while airborne
+      ctx.scene.windX = ctx.indoorWin ? 0 : ctx.windNow;   // read by player.js while airborne; indoors no push
       ctx.scene.windInfo = { slant: ctx.slant, push: ctx.windNow };   // read by hud.js (wind-direction chip under the weather pill)
     }
     if (ctx.flash) {
@@ -984,7 +1131,7 @@ var WX = (function () {
           for (var gi = 0; gi < ctx.indoorWin.length; gi++) { var gw = ctx.indoorWin[gi]; if (r.o.x >= gw[0] && r.o.x <= gw[2] && r.o.y >= gw[1] && r.o.y <= gw[3]) { inGlass = true; break; } }
           r.o.setVisible(inGlass);
         }
-        if (r.land === undefined) r.land = rand(RAIN_LAND_MIN, RAIN_LAND_MAX);
+        if (r.land === undefined) r.land = rainLand(ctx);
         if (r.o.y >= r.land) {
           var inPuddle = false;
           if (ctx.puddles.length > 0) {
@@ -1023,7 +1170,7 @@ var WX = (function () {
               drops: drops
             });
           }
-          r.o.y = -10; r.o.x = rand(0, W); r.land = rand(RAIN_LAND_MIN, RAIN_LAND_MAX);
+          r.o.y = -10; r.o.x = rand(0, W); r.land = rainLand(ctx);
         }
         if (r.o.x > W + 20) r.o.x = -20; else if (r.o.x < -20) r.o.x = W + 20;
       }
@@ -1038,6 +1185,7 @@ var WX = (function () {
       wind: 0, windTarget: 0, windTimer: 0,
       gustTimer: 0, gustActive: false, gustLeft: 0,
       lava: null, overlay: null, splashes: [], splashG: null, wetG: null, indoorWin: null, wet: 0, wetStreaks: [], reflImg: null, reflKey: null, windG: null, windLines: [],
+      floodY: (scene.flood && scene.scene.key === 'Level' && scene.lvl) ? scene.lvl.y_ground - FLOOD_H : null,
       fx: [], rainy: false, noSplash: false, typhoon: false, slant: 0, windNow: 0, flash: null, flashTimer: 0,
       puddles: [], puddleG: null, puddleMaskG: null, puddleRefl: null, rippleG: null, ripples: [],
       last: 0, destroyed: false
@@ -1080,7 +1228,17 @@ var WX = (function () {
     else if (auto && weatherId === 'cloudy' && cond.time === 'day' && Math.random() < 0.5) addFalling(scene, ctx, 'leaf');   // cloudy: sometimes leaves
 
     var indoor = scene.scene.key === 'Level' && INDOOR_LEVELS[RUN.level];
-    if (indoor) { ctx.noSplash = true; ctx.indoorWin = INDOOR_WINDOW[RUN.level] || null; }
+    if (indoor) { ctx.noSplash = true; ctx.indoorWin = indoorWindows(scene); }
+    if (indoor && ctx.indoorWin) {   // indoors (user 2026-10-13): every full-screen effect (colour tints, sun beams, petals / leaves, debris, lightning flash) shows only through the glass panes
+      ctx.winMaskG = scene.make.graphics({ x: 0, y: 0, add: false }); ctx.winMaskG.setScrollFactor(0); ctx.winMaskG.fillStyle(0xffffff, 1);
+      ctx.indoorWin.forEach(function (r) { ctx.winMaskG.fillRect(r[0], r[1], r[2] - r[0], r[3] - r[1]); });
+      var winMask = ctx.winMaskG.createGeometryMask(), masked = [];
+      ctx.rain.forEach(function (r) { if (r.static) masked.push(r.o); });
+      ctx.fx.forEach(function (f) { masked.push(f.o); });
+      if (ctx.flash) masked.push(ctx.flash);
+      (ctx.skyObjs || []).forEach(function (o) { if (o.depth > 0) masked.push(o); });   // sun beams / sparkles (depth 57); the clouds are behind the backdrop already
+      masked.forEach(function (o) { o.setMask(winMask); });
+    }
     if ((ctx.rainy || weatherId === 'rain') && !ctx.noSplash) {
       ctx.splashG = scene.add.graphics().setScrollFactor(0).setDepth(61);
     }
@@ -1090,7 +1248,7 @@ var WX = (function () {
       if (!ctx.reflImg) for (var wk = 0; wk < 24; wk++) ctx.wetStreaks.push({ x: rand(0, W + 200), y: rand(RAIN_LAND_MIN, RAIN_LAND_MAX), w: rand(60, 240), h: rand(3, 7), a: rand(0.5, 0.95), c: (Math.random() * 4) | 0, sp: rand(0.8, 2.4), ph: rand(0, 6.28) });
       
       // Puddles: only if reflection exists and weather is rain/thunder/typhoon
-      if (ctx.reflImg && (ctx.weatherId === 'thunder' || ctx.weatherId === 'typhoon')) {   // puddles: thunder and typhoon only (user 2026-10-13: not rain / drizzle)
+      if (ctx.reflImg && !scene.flood && (ctx.weatherId === 'thunder' || ctx.weatherId === 'typhoon')) {   // (no puddles on a flood: the whole street is under water)   // puddles: thunder and typhoon only (user 2026-10-13: not rain / drizzle)
         ctx.puddleG = scene.add.graphics().setScrollFactor(0).setDepth(-0.45);
         ctx.rippleG = scene.add.graphics().setScrollFactor(0).setDepth(-0.43);
         
@@ -1118,6 +1276,10 @@ var WX = (function () {
         }
       }
     }
+    if (scene.flood && scene.scene.key === 'Level' && !indoor) {
+      ctx.floodG = scene.add.graphics().setScrollFactor(0).setDepth(3);   // screen space (the water spans the screen); the bubble / splash layer below is in world space like the characters
+       ctx.bubbleG = scene.add.graphics().setDepth(3.1); ctx.bubbles = []; ctx.drops = []; ctx.rings = [];
+    }
     if (ctx.typhoon && scene.scene.key === 'Level' && !indoor) {
       ctx.windG = scene.add.graphics().setScrollFactor(0).setDepth(58);
       for (var wi = 0; wi < 28; wi++) {
@@ -1142,6 +1304,7 @@ var WX = (function () {
       updateSplashes(ctx, dt);
       updateWind(ctx, dt, time);
       updateWet(ctx, dt, time);
+      updateFlood(ctx, dt, time);
       updatePuddles(ctx, dt, time);
       if (ctx.skyFx) ctx.skyFx(time, dt);
     };
@@ -1173,6 +1336,8 @@ var WX = (function () {
         for (i = 0; i < ctx.rays.length; i++) ctx.rays[i].destroy();
         for (i = 0; i < ctx.fx.length; i++) ctx.fx[i].o.destroy();
         if (ctx.flash) ctx.flash.destroy();
+        if (ctx.fogDestroy) ctx.fogDestroy();
+        if (ctx.winMaskG) { ctx.winMaskG.destroy(); ctx.winMaskG = null; }
         scene.windX = 0;
         if (ctx.lava) ctx.lava.destroy();
         if (ctx.overlay) ctx.overlay.destroy();
@@ -1187,6 +1352,7 @@ var WX = (function () {
         ctx.puddles = [];
         ctx.ripples = [];
         scene.windInfo = null;
+        if (ctx.floodG) { ctx.floodG.destroy(); ctx.bubbleG.destroy(); ctx.floodG = null; }
         if (ctx.windG) ctx.windG.destroy();
         ctx.windLines = [];
         scene.wetGrip = 1;
@@ -1201,19 +1367,25 @@ var WX = (function () {
   function pickWeather(level) {
     var time = WX.devTime, wx = WX.devWx;   // forced from the developer menu (undefined = random; devWx 'none' = clear); cleared on the title screen
     var qs = (typeof location !== 'undefined') ? location.search : '';
-    var qw = qs.match(/[?&]weather=([a-z]+)/), qt = qs.match(/[?&]time=([a-z]+)/);
+    var qw = qs.match(/[?&]weather=([a-z0-9]+)/), qt = qs.match(/[?&]time=([a-z]+)/);
     if (qt) time = qt[1];
     if (qw) { if (qw[1] === 'dusk' || qw[1] === 'night') { if (!qt) time = qw[1]; if (wx === undefined) wx = 'none'; } else wx = qw[1]; }   // ?weather=night keeps working (= ?time=night)
     var auto = !(typeof navigator !== 'undefined' && navigator.webdriver) && !qw && !qt;
     if (time === undefined) {
       var allowed = TIMES_OF_LEVEL[level];
-      time = allowed ? allowed[(Math.random() * allowed.length) | 0] : (auto && Math.random() < 0.2 ? 'dusk' : 'day');   // automated tests stay deterministic (clear day) unless forced
+      var tr = Math.random();
+      if (allowed) time = allowed[(Math.random() * allowed.length) | 0];
+      else if (!auto) time = 'day';
+      else if (level >= 1 && level <= 5) time = tr < 0.4 ? 'day' : tr < 0.7 ? 'dusk' : 'night';   // levels 1-5 (user 2026-10-13): day 40% / dusk 30% / night 30%
+      else time = tr < 0.2 ? 'dusk' : 'day';   // automated tests stay deterministic (clear day) unless forced
     }
     if (wx === undefined && !auto) wx = null;
     if (wx === undefined) {
-      var out = OUTDOOR.indexOf(level) >= 0, pool = ['cloudy', 'drizzle'];
+      var out = OUTDOOR.indexOf(level) >= 0 || level <= 5, pool = ['cloudy', 'drizzle'];
       if (out) pool = pool.concat(['rain', 'thunder']);
-      if (MOUNTAIN.indexOf(level) >= 0) pool.push('fog');
+      if (level >= 1 && level <= 5) pool.push('fog1');   // levels 1-5 (user 2026-10-13): lowland 1-3 = plain fog only; high places 4 (101) and 5 (Xiangshan) = all three fogs
+      if (level === 4 || level === 5) pool.push('fog', 'fog3');
+      else if (MOUNTAIN.indexOf(level) >= 0) pool.push('fog');
       var r = Math.random();
       if (r < 0.35) wx = null;
       else if (out) { if (r < 0.45) wx = 'typhoon'; else { r = (r - 0.45) / 0.55; wx = pool[Math.min(pool.length - 1, (r * pool.length) | 0)]; } }
@@ -1222,7 +1394,22 @@ var WX = (function () {
     return { time: time, wx: (wx === 'none' || !wx) ? null : wx };
   }
 
-  var NAMES = { cloudy: '陰天', drizzle: '細雨', rain: '大雨', thunder: '雷陣雨', fog: '大霧', typhoon: '颱風', petals: '花瓣飄落' };
+  // Developer menu (user 2026-10-13): the times / weathers that pickWeather can really give on this level, in menu order ([label, value]; value '' = random). On a level that floods,
+  // thunder / typhoon are listed as 雷雨淹水 / 颱風淹水 (that is what they are there).
+  function levelOptions(level) {
+    var times = TIMES_OF_LEVEL[level] || (level >= 1 && level <= 5 ? ['day', 'dusk', 'night'] : ['day', 'dusk']), TN = { day: '白天', dusk: '黃昏', night: '夜晚' };
+    var out = OUTDOOR.indexOf(level) >= 0 || level <= 5, ids = ['none', 'cloudy', 'drizzle'], fl = isFlood({ wx: 'thunder' }, level);
+    if (out) ids.push('rain', 'thunder', 'typhoon');
+    if (level >= 1 && level <= 5) ids.push('fog1');
+    if (level === 4 || level === 5) ids.push('fog', 'fog3'); else if (MOUNTAIN.indexOf(level) >= 0) ids.push('fog');
+    var order = ['none', 'cloudy', 'drizzle', 'rain', 'thunder', 'fog1', 'fog', 'fog3', 'typhoon'];
+    ids.sort(function (a, b) { return order.indexOf(a) - order.indexOf(b); });
+    return {
+      times: [['隨機', '']].concat(times.map(function (t) { return [TN[t], t]; })),
+      weathers: [['隨機', '']].concat(ids.map(function (id) { return [id === 'none' ? '晴天' : (fl && id === 'thunder' ? '雷雨淹水' : fl && id === 'typhoon' ? '颱風淹水' : NAMES[id]), id]; }))
+    };
+  }
+  var NAMES = { cloudy: '陰天', drizzle: '細雨', rain: '大雨', thunder: '雷陣雨', fog1: '一般霧', fog: '大霧', fog3: '濃霧', typhoon: '颱風', petals: '花瓣飄落' };
   var TIME_NAMES = { dusk: '黃昏', night: '夜晚' };
   // HUD label: day -> the weather alone (clear = 晴天); dusk / night -> 夜晚·大雨 (time alone when clear: 夜晚)
   function weatherName(c) {
@@ -1260,7 +1447,9 @@ var WX = (function () {
     typhoon: { light: 0x7e8792, dark: 0x353c46, alphaMult: 1.0 },
     dusk:    { light: 0xffcfa8, dark: 0x6a5878, alphaMult: 1.0 },
     night:   { light: 0x5c6884, dark: 0x262d42, alphaMult: 0.6 },
-    fog:     { light: 0xc6ccd4, dark: 0x6a7482, alphaMult: 1.0 }
+    fog:     { light: 0xc6ccd4, dark: 0x6a7482, alphaMult: 1.0 },
+    fog1:    { light: 0xc6ccd4, dark: 0x6a7482, alphaMult: 1.0 },
+    fog3:    { light: 0xc6ccd4, dark: 0x6a7482, alphaMult: 1.0 }
   };
 
   // Shape configuration per cloud type
@@ -1738,5 +1927,5 @@ var WX = (function () {
     };
   }
 
-  return { start: start, pick: pickWeather, name: weatherName, softCloud: makeSoftCloud, cloud2: makeCloud2, skyPieces: skyPieceList, skyLook: getSkyLook, moon: MOON, rainBriOfLevel: RAIN_BRI_OF_LEVEL, drizzle: DRIZZLE, storm: STORM, typhoonDrops: TYPHOON_DROPS };
+  return { start: start, pick: pickWeather, isFlood: isFlood, options: levelOptions, name: weatherName, softCloud: makeSoftCloud, cloud2: makeCloud2, skyPieces: skyPieceList, skyLook: getSkyLook, moon: MOON, rainBriOfLevel: RAIN_BRI_OF_LEVEL, drizzle: DRIZZLE, storm: STORM, typhoonDrops: TYPHOON_DROPS };
 })();
