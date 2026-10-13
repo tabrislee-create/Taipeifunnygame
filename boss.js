@@ -7,7 +7,8 @@ class Boss {
     this.maxHp = def.hp;
     this.hp = def.hp;
     this.dead = false;
-    this.contactDamage = 15;
+    this._am = RUN.hard ? 1.5 : 1;   // hard mode (user 2026-10-13): every boss attack hits 1.5x
+    this.contactDamage = 15 * this._am;
     this.displayHeight = 200;
     this._phaseIndex = 0;
     this._patternIndex = 0;
@@ -326,7 +327,7 @@ class Boss {
       this._jumpDuration = 2 * Math.sqrt(2 * this._jumpHeight / 1000) * 1000;
       this._jumpElapsed = 0;
       this._jumpRadius = p.shockwave_radius || 120;
-      this._jumpDamage = p.damage || 20;
+      this._jumpDamage = (p.damage || 20) * this._am;
       s.body.setAllowGravity(false);
       s.body.setVelocity(0, 0);
     } else if (pr === 'ground_wave') {
@@ -334,7 +335,7 @@ class Boss {
       this._waveDir = dir;
       this._waveRemaining = 900;
       this._waveSpeed = p.speed || 250;
-      this._waveDamage = p.damage || 15;
+      this._waveDamage = (p.damage || 15) * this._am;
       this._waveHit = false;
       const wx = s.x + dir * 30;
       const wy = gy - 18;
@@ -359,7 +360,7 @@ class Boss {
       this._laserDir = dir;
       this._laserDuration = (p.duration || 1.5) * 1000;
       this._laserTimer = 0;
-      this._laserDamage = p.damage || 12;
+      this._laserDamage = (p.damage || 12) * this._am;
       this._laserHitTimer = 0;
       const x0 = s.x;
       const x1 = dir > 0 ? b.right : b.left;
@@ -384,7 +385,7 @@ class Boss {
     const count = p.count || 5;
     const spread = p.spread || 60;
     const speed = p.speed || 300;
-    const damage = p.damage || 12;
+    const damage = (p.damage || 12) * this._am;
     const mx = s.x - 40;
     const my = s.y - this._dispH * 0.6;
     const px = (scene.player && scene.player.sprite) ? scene.player.sprite.x : s.x;
@@ -408,7 +409,7 @@ class Boss {
 
   // Green puddle (same look as the green slime's): hurts once per tick_interval while the player stands in it, fades out at the end.
   _spawnPool(x, p) {
-    const scene = this.scene, self = this, r = p.radius || 150, dur = p.duration || 3000, tick = p.tick_interval || 500, dmg = p.damage_per_tick || 5;
+    const scene = this.scene, self = this, r = p.radius || 150, dur = p.duration || 3000, tick = p.tick_interval || 500, dmg = (p.damage_per_tick || 5) * this._am;
     const pool = scene.add.ellipse(x, this._groundY() - 10, r * 2, 28, 0x4cd964, 0.8).setStrokeStyle(2, 0x1f8f3a).setDepth(1.9);
     const t0 = scene.time.now; let last = -1e9;
     const upd = function () {
@@ -433,7 +434,7 @@ class Boss {
       proj.setStrokeStyle(3, 0xffffff); proj.setDepth(6);
       const ang = -Math.PI / 2 + (count === 1 ? 0 : (i / (count - 1) - 0.5) * 1.6);   // fan upward
       proj._vx = Math.cos(ang) * speed; proj._vy = Math.sin(ang) * speed; proj._speed = speed;
-      proj._life = p.lifetime || 3000; proj._dmg = p.damage || 12; proj._hit = false; proj._home = 1.5 + 0.0;   // rad/s turn rate
+      proj._life = p.lifetime || 3000; proj._dmg = (p.damage || 12) * this._am; proj._hit = false; proj._home = 1.5 + 0.0;   // rad/s turn rate
       this._projectiles.push(proj);
     }
   }

@@ -194,7 +194,10 @@ class LevelScene extends Phaser.Scene {
         this.enemiesRemaining++;
       } else {
         const def = GAME_DATA.enemies[sp.type];
-        if (def) this.addEnemy(def, sp.x, sp.y_hint);
+        if (def) {
+          this.addEnemy(def, sp.x, sp.y_hint);
+          if (RUN.hard) this.addEnemy(def, Math.min(this.lvl.width - 80, sp.x + 56), sp.y_hint);   // hard mode (user 2026-10-13): twice as many minions per level
+        }
       }
     }
 

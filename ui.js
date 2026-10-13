@@ -1,6 +1,6 @@
 // TITLE_COPY moved to titlecopy.js (the landing page in index.html needs it before the game scripts are loaded)
-// Hard mode is a toggle on the landing page (index.html: window.__landingHard); the trial build never has it.
-Object.defineProperty(window, 'HARD_MODE', { get: function () { return !!window.__landingHard && !window.DEMO; }, set: function (v) { window.__landingHard = !!v; } });
+// Hard mode is a toggle on the landing page (index.html: window.__landingHard); the trial build has it too since 2026-10-13.
+Object.defineProperty(window, 'HARD_MODE', { get: function () { return !!window.__landingHard; }, set: function (v) { window.__landingHard = !!v; } });
 var FONT = 'Microsoft JhengHei, PingFang TC, sans-serif';
 var RARITY_COLOR = { common: 0xaaaaaa, rare: 0x4aa3ff, epic: 0xb061ff };
 var RARITY_ZH = { common: '普通', rare: '稀有', epic: '傳奇' };
