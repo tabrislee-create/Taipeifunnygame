@@ -62,6 +62,7 @@ class Boss {
     this._glints = []; this._pools = []; this._glintAcc = 0;       // code-drawn light effects (no flares baked into the art)
     this._afx = 1; this._afy = 1; this._hitSquashUntil = 0; this._flashUntil = 0; this._landSquashT = -1e9;   // procedural squash & stretch
     this._phase = this._computePhase();
+    this._freezeUntil = 0; this._seq = null; this._initSeq();   // skill selection (see _nextPattern)
     this._buildSprite(x, y);
     // (user 2026-10-13) no phase bar over the boss's head: the boss HP bar is the one at the top of the screen. _phaseBar stays null, so _drawPhaseBar() returns at once.
     if (scene.enemies) scene.enemies.add(this.sprite);
@@ -193,8 +194,9 @@ class Boss {
       this._clearWave();
       this._clearLaser();
       this._rainGlowOff();
-      const first = this._activePatterns()[0];
-      if (first && first.on_enter) { const pat = this._nextPattern(); if (pat) this._startTelegraph(pat); }   // pattern flag on_enter (phase 3 of the level-5 boss, user 2026-10-13): the first skill starts the moment the phase begins, no idle wait
+      this._initSeq();
+      const first = this._seq && this._seq[0];
+      if (first && first.immediate) { const pat = this._nextPattern(); if (pat) this._startTelegraph(pat); }   // pattern flag immediate: that opening skill starts the moment the phase begins, no idle wait
       FX.bossPhase(this.scene, this.sprite, this._phaseLabel(np));
       this._drawPhaseBar();
     }
@@ -236,9 +238,46 @@ class Boss {
     return (ph && ph.patterns) ? ph.patterns : [];
   }
 
+  // Skill selection (user 2026-10-13). A pattern may carry: id (cooldown key, shared between phases), cd_ms (from the moment it starts), seq (opening sequence of the phase, in order, ignores cooldowns),
+  // immediate (the first seq skill starts at once when the phase begins), once (only ever used inside the seq), trigger 'on_hit' (not in the rotation: starts when the player's normal attack hits, see _onNormalHit).
+  // Free choice = a random skill whose cooldown is over. A boss whose data has none of these fields keeps the old fixed rotation (_nextPatternRotate).
+  _initSeq() {
+    const pats = this._activePatterns();
+    this._seq = pats.filter((p) => p.seq).sort((x, y) => x.seq - y.seq);
+  }
+
   _nextPattern() {
     const pats = this._activePatterns();
     if (!pats.length) return null;
+    if (!pats.some((p) => p.cd_ms || p.trigger || p.seq)) return this._nextPatternRotate(pats);
+    const now = this.scene.time.now;
+    if (!this._skillCd) this._skillCd = new Map();
+    const stamp = (p) => { this._skillCd.set(p.id || p.primitive, now + (p.cd_ms || 0)); return p; };
+    if (this._seq && this._seq.length) return stamp(this._seq.shift());
+    if (now < this._freezeUntil) return null;
+    const ready = pats.filter((p) => !p.trigger && !p.once && now >= (this._skillCd.get(p.id || p.primitive) || 0));
+    return ready.length ? stamp(ready[Math.floor(Math.random() * ready.length)]) : null;
+  }
+
+  // 藍色衝撞 (phase 1): started by the player's normal attack (not skills / procs / burn) hitting the boss, only while the boss is not busy with another skill or frozen after a landing; own cooldown.
+  _onNormalHit(info) {
+    if (info && info.proc) return;
+    if (this._seq && this._seq.length) return;   // the opening skill (summon) comes first
+    if (this._state !== 'idle' && this._state !== 'cooldown') return;
+    const now = this.scene.time.now;
+    if (now < this._freezeUntil) return;
+    const pats = this._activePatterns(), pat = pats.find((p) => p.trigger === 'on_hit');
+    if (!pat) return;
+    if (!this._skillCd) this._skillCd = new Map();
+    // a skill that is due (opening sequence pending, or a free-choice skill whose cooldown is over) goes first: otherwise hitting the boss non-stop would starve the summon
+    if ((this._seq && this._seq.length) || pats.some((p) => !p.trigger && !p.once && now >= (this._skillCd.get(p.id || p.primitive) || 0))) return;
+    const key = pat.id || pat.primitive;
+    if (now < (this._skillCd.get(key) || 0)) return;
+    this._skillCd.set(key, now + (pat.cd_ms || 0));
+    this._startTelegraph(pat);
+  }
+
+  _nextPatternRotate(pats) {
     // a pattern with skill_cd_ms (the 6-minion summon: 30 s, user 2026-10-12) is skipped while its own cooldown runs; the next one in the rotation is used instead
     const now = this.scene.time.now;
     if (!this._skillCd) this._skillCd = new Map();
@@ -251,6 +290,7 @@ class Boss {
     }
     return null;
   }
+
 
   _startTelegraph(pattern) {
     this._activePattern = pattern;
@@ -297,6 +337,7 @@ class Boss {
     } else if (pr === 'rainbow_sky_rain') {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 1.0 - 20, 70, tm));
       this._rainGlowOn();   // the colour outline starts with the charge (invulnerable from here on)
+      if (scene.textures.exists('bossskill_rain')) { this._rainTextImg = scene.add.image(s.x, s.y, 'bossskill_rain').setDepth(97).setAlpha(0); this._rainTextImg.setDisplaySize(260, 260 * this._rainTextImg.height / this._rainTextImg.width); this._telegraphObjs.push(this._rainTextImg); }   // brush-calligraphy skill name over the head for the whole charge
     } else if (pr === 'summon_adds') {
       for (const sl of this._summonSlots(p)) this._telegraphObjs.push(FX.telegraphCircle(scene, sl.x, gy - 20, 30, tm));
     } else if (pr === 'laser_sweep') {
@@ -415,6 +456,7 @@ class Boss {
       proj._life = 3000;
       proj._dmg = damage;
       proj._hit = false;
+      proj._stun = 500;   // a hit stuns the player for 0.5 s (user 2026-10-13)
       this._projectiles.push(proj);
     }
   }
@@ -423,14 +465,14 @@ class Boss {
   _spawnPool(x, p) {
     const scene = this.scene, self = this, r = p.radius || 150, dur = p.duration || 3000, tick = p.tick_interval || 500, dmg = (p.damage_per_tick || 5) * this._am;
     const pool = scene.add.ellipse(x, this._groundY() - 10, r * 2, 28, 0x4cd964, 0.8).setStrokeStyle(2, 0x1f8f3a).setDepth(1.9);
-    const t0 = scene.time.now; let last = -1e9;
+    const t0 = scene.time.now;
     const upd = function () {
       if (!pool.active) { scene.events.off('update', upd); return; }
       const now = scene.time.now, left = t0 + dur - now;
       if (left <= 0) { pool.destroy(); scene.events.off('update', upd); return; }
       pool.setAlpha(left < 600 ? 0.8 * left / 600 : 0.72 + 0.08 * Math.sin(now / 120));
       const pl = scene.player;
-      if (pl && !pl.dead && now - last >= tick && Phaser.Geom.Intersects.RectangleToRectangle(pool.getBounds(), bodyRect(pl.sprite))) { last = now; pl.takeDamage(dmg, x); }
+      if (pl && !pl.dead && Phaser.Geom.Intersects.RectangleToRectangle(pool.getBounds(), bodyRect(pl.sprite))) pl.applyDot(2000, dmg, tick);   // standing in it (re)starts a 2 s damage-over-time, one tick per tick_interval (user 2026-10-13)
     };
     scene.events.on('update', upd);
     this._pools.push(pool);
@@ -456,7 +498,7 @@ class Boss {
   _updateWalk(dt) {
     const sp = this.def.walk_speed, s = this.sprite, scene = this.scene, now = scene.time.now;
     this._moving = false;
-    if (!sp || (this._state !== 'idle' && this._state !== 'cooldown')) return;
+    if (!sp || (this._state !== 'idle' && this._state !== 'cooldown') || now < this._freezeUntil) return;
     const b = this._worldBounds(), lo = this._minX(), hi = b.right - this._dispW * 0.3;
     if (!this._roamUntil || now >= this._roamUntil) {
       const r = Math.random();
@@ -571,6 +613,12 @@ class Boss {
       this._crescent(g, ox, oy, R, dir, 66, 1.6, 0x8fe4ff, 0.6 * k);
       this._crescent(g, ox, oy, R * 0.97, dir, 66, 2.1, 0xf0fdff, 0.9 * k);
     }
+    const ti = this._rainTextImg;
+    if (ti && ti.active && st === 'telegraph' && pr === 'rainbow_sky_rain') {   // name: fades in 0.25 s, out for the last 0.3 s; kept clear of the HUD boss bar at the top
+      const t = this._stateTimer, tm = this._telegraphMs || 1;
+      ti.setAlpha(Math.max(0, Math.min(1, t / 250, (tm - t) / 300)));
+      ti.setPosition(s.x, Math.max(60 + ti.displayHeight / 2, s.y - this._dispH - 66 - ti.displayHeight / 2));
+    }
     if (st === 'telegraph' && pr === 'rainbow_sky_rain') {   // colour orb gathering over the head
       const p = Math.min(1, this._stateTimer / (this._telegraphMs || 1)), hx = s.x, hy = s.y - this._dispH - 20, R = 10 + 46 * p;
       for (let i = 0; i < 6; i++) { const a = now / 300 + i * Math.PI / 3; g.fillStyle(RAIN_COLS[i], 0.55); g.fillCircle(hx + Math.cos(a) * R * 0.5, hy + Math.sin(a) * R * 0.3, R * 0.55); }
@@ -593,11 +641,12 @@ class Boss {
   // A strip hurts once (params.damage) if it touches the player in flight or splashes within 45 px of where it lands; the puddle it leaves is visual only.
   // Rainbow sky: invulnerable for the whole skill, the 2 s charge included (user 2026-10-13).
   _rainCharge() { return this._state === 'telegraph' && !!this._activePattern && this._activePattern.primitive === 'rainbow_sky_rain'; }
-  _rainInv() { return this._state === 'rain' || this._rainCharge(); }
+  _skillInv() { return this._state === 'rain' || this._state === 'jump' || this._rainCharge(); }   // also the whole flight of 黃色跳壓 (user 2026-10-13)
 
   _startRain(p) {
     this._state = 'rain';
     this._stateTimer = 0;
+    this._rainHits = 0;   // strips that have hit the player this cast: the n-th one does x(1 + 0.2 (n-1))
     this._rain = { t: 0, n: 0, total: p.count || 20, gap: p.interval_ms || 200, dur: p.duration_ms || 4000, dmg: (p.damage || 10) * this._am, bins: { '-1': this._rainBins(), '1': this._rainBins() }, k: { '-1': 0, '1': 0 } };
     this._rainDmg = this._rain.dmg;
     this._rainGlowOn();
@@ -661,10 +710,10 @@ class Boss {
       let done = false;
       if (plOk && !st.hit && now >= pl.invUntil) {
         const rc = bodyRect(pl.sprite), pts = [st.trail[0], st.trail[Math.min(3, n - 1)]];
-        for (const q of pts) if (q.x >= rc.x - 10 && q.x <= rc.right + 10 && q.y >= rc.y - 10 && q.y <= rc.bottom + 10) { st.hit = true; pl.takeDamage(this._rainDmg, st.x); FX.hitSpark(scene, q.x, q.y); done = true; break; }
+        for (const q of pts) if (q.x >= rc.x - 10 && q.x <= rc.right + 10 && q.y >= rc.y - 10 && q.y <= rc.bottom + 10) { st.hit = true; if (pl.takeDamage(this._rainDmg * (1 + 0.2 * this._rainHits), st.x)) this._rainHits++; FX.hitSpark(scene, q.x, q.y); done = true; break; }
       }
       if (!done && st.vy > 0 && st.y >= gy - 6) {
-        if (plOk && !st.hit && now >= pl.invUntil && Math.abs(pl.sprite.x - st.x) <= 45 && pl.sprite.body.bottom >= gy - 70) { st.hit = true; pl.takeDamage(this._rainDmg, st.x); }
+        if (plOk && !st.hit && now >= pl.invUntil && Math.abs(pl.sprite.x - st.x) <= 45 && pl.sprite.body.bottom >= gy - 70) { st.hit = true; if (pl.takeDamage(this._rainDmg * (1 + 0.2 * this._rainHits), st.x)) this._rainHits++; }
         const pu = scene.add.ellipse(st.x, gy - 8, 78, 16, st.col, 0.85).setDepth(1.95);
         pud.push({ o: pu, t0: now });
         FX.hitSpark(scene, st.x, gy - 8);
@@ -723,7 +772,7 @@ class Boss {
       let remove = proj._life <= 0;
       if (!remove && player && !player.dead && !proj._hit) {
         if (Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), bodyRect(player.sprite))) {
-          player.takeDamage(proj._dmg, proj.x);
+          if (player.takeDamage(proj._dmg, proj.x) && proj._stun) player.applyStun(proj._stun);
           proj._hit = true;
           remove = true;
         }
@@ -791,10 +840,11 @@ class Boss {
       FX.explosionRing(this.scene, s.x, this._groundY(), this._jumpRadius);
       FX.screenShake(this.scene, 0.012, 250);
       this._landSquashT = this.scene.time.now;
+      this._freezeUntil = this.scene.time.now + 1000;   // after the landing: stands still, no skills, 1 s (user 2026-10-13)
       const player = this.scene.player;
       if (player && !player.dead && player.sprite.body.onFloor()) {
         if (Math.abs(player.sprite.x - s.x) <= this._jumpRadius) {
-          player.takeDamage(this._jumpDamage, s.x);
+          if (player.takeDamage(this._jumpDamage, s.x)) player.blockAttack(2000);   // sealed normal attack for 2 s (user 2026-10-13)
         }
       }
       this._state = 'cooldown';
@@ -820,7 +870,7 @@ class Boss {
 
   // Vendor's skill (stir fry): cfg = { durationMs, intervalMs, damage }. Ignores boss invulnerability frames; already scorched -> ignored.
   scorch(now, cfg) {
-    if (this.dead || this._entering || this._scorchEnd > 0 || this._rainInv()) return;
+    if (this.dead || this._entering || this._scorchEnd > 0 || this._skillInv()) return;
     this._scorchCfg = { durationMs: cfg.durationMs, intervalMs: cfg.intervalMs, damage: cfg.damage, ticks: Math.floor(cfg.durationMs / cfg.intervalMs + 1e-6) };
     this._scorchEnd = now + cfg.durationMs;
     this._scorchStep = 0;
@@ -831,7 +881,7 @@ class Boss {
     const sc = this._scorchCfg, t0 = this._scorchEnd - sc.durationMs;
     while (this._scorchStep < sc.ticks && now >= t0 + (this._scorchStep + 1) * sc.intervalMs) {
       this._scorchStep++;
-      if (this._rainInv()) continue;   // invulnerable: that tick is lost, not postponed
+      if (this._skillInv()) continue;   // invulnerable: that tick is lost, not postponed
       this.hp -= sc.damage;
       FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, sc.damage, false, false);
       FX.burnFlame(this.scene, this.sprite.x, this.sprite.y - this._dispH * 0.5);
@@ -841,7 +891,7 @@ class Boss {
   }
 
   _updateBurn(dt) {
-    if (this._rainInv()) return;
+    if (this._skillInv()) return;
     if (this._burnDps > 0 && this._burnTimer > 0) {
       this._burnTimer -= dt;
       this._burnAcc += this._burnDps * dt;
@@ -887,18 +937,19 @@ class Boss {
 
   takeHit(damage, srcX, isCrit, info) {
     if (this.dead || this._entering) return;
-    if (this._invuln > 0 || this._rainInv()) return;   // rainbow_sky_rain: invulnerable
+    if (this._invuln > 0 || this._skillInv()) return;   // rainbow_sky_rain: invulnerable
     this.hp -= damage;
     FX.hitEnemy(this.scene, this.sprite, isCrit, this.sprite.x, this.sprite.y - this._dispH * 0.5);
     FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, damage, isCrit, false);
     this._hitCd = 0.08;
     this._invuln = 0.05;
     this._hitSquashUntil = this.scene.time.now + 320; this._flashUntil = this.scene.time.now + 160;
-    if (this.hp <= 0) { this.hp = 0; this._die(); }
+    if (this.hp <= 0) { this.hp = 0; this._die(); return; }
+    this._onNormalHit(info);
   }
 
   applyBurn(dps, duration) {
-    if (this.dead || this._rainInv()) return;
+    if (this.dead || this._skillInv()) return;
     this._burnDps = Math.max(this._burnDps, dps);
     this._burnTimer = Math.max(this._burnTimer, duration);
   }
@@ -951,13 +1002,14 @@ class Boss {
       this._updateRainState(delta);
     } else if (this._state === 'cooldown') {
       this._stateTimer += delta;
-      const cd = (this._activePattern && this._activePattern.cooldown_ms) || 1000;
+      const cdm = this._activePattern ? this._activePattern.cooldown_ms : null;
+      const cd = cdm != null ? cdm : 1000;   // 0 is a real value (the level-5 boss has none: only the fixed 0.8 s idle between skills)
       if (this._stateTimer >= cd) {
         this._state = 'idle';
         this._stateTimer = 0;
       }
     }
-    if (player && !player.dead && this.sprite.active) {
+    if (player && !player.dead && this.sprite.active && this._state !== 'jump') {   // no touch damage during the jump flight: the landing shockwave (and its attack seal) is that skill's hit
       if (Phaser.Geom.Intersects.RectangleToRectangle(bodyRect(this.sprite), bodyRect(player.sprite))) {
         const dmg = this._dashContact ? this.contactDamage * 1.5 : this.contactDamage;
         player.takeDamage(dmg, this.sprite.x);

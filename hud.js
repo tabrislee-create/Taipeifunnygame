@@ -289,29 +289,36 @@ class HUD {
       this.warnSubText = s.add.text(GAME_W / 2, 310, randomPhrase, { fontFamily: HUD_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
       this.warnSubText.setAlpha(0);
     }
+    // Fixed rule line for every boss entrance (user 2026-10-13): stops players from trying to stomp the boss
+    this.warnRuleText = s.add.text(GAME_W / 2, this.warnSubText ? 352 : 310, '魔王就是魔王，是不能踩的!', { fontFamily: HUD_FONT, fontSize: '26px', color: '#ffd966', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+    this.warnRuleText.setAlpha(1);   // lit for the whole warning (does not flash with the phrase), fades with the rest at the end
 
     this.warnBorder = s.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0xff0000, 0).setOrigin(0.5).setScrollFactor(0).setDepth(99);
     this.warnBorder.setStrokeStyle(12, 0xff0000, 0);
     let count = 0;
+    const destroyAll = () => {
+      if (this.warnText) { this.warnText.destroy(); this.warnText = null; }
+      if (this.warnSubText) { this.warnSubText.destroy(); this.warnSubText = null; }
+      if (this.warnRuleText) { this.warnRuleText.destroy(); this.warnRuleText = null; }
+      if (this.warnBorder) { this.warnBorder.destroy(); this.warnBorder = null; }
+    };
+    // Timing (user 2026-10-13): 3 flashes, lit 0.4 s / dark 0.3 s; the third one stays lit 0.4 s and then fades out over 1.5 s (the old final fade ran on texts that were already dark, so it could not be seen)
     const flash = () => {
-      if (count >= 3) {
-        this.warnBorder.setStrokeStyle(12, 0xff0000, 0);
-        s.tweens.add({ targets: this.warnText, alpha: 0, duration: 400, onComplete: () => { 
-          if (this.warnText) { this.warnText.destroy(); this.warnText = null; } 
-          if (this.warnSubText) { this.warnSubText.destroy(); this.warnSubText = null; }
-          if (this.warnBorder) { this.warnBorder.destroy(); this.warnBorder = null; } 
-        } });
-        return;
-      }
+      if (!this.warnText) return;
       count++;
       this.warnText.setAlpha(1);
       if (this.warnSubText) this.warnSubText.setAlpha(1);
       this.warnBorder.setStrokeStyle(12, 0xff0000, 0.8);
-      s.time.delayedCall(200, () => {
+      s.time.delayedCall(400, () => {
+        if (!this.warnText) return;
+        if (count >= 3) {
+          s.tweens.add({ targets: [this.warnText, this.warnSubText, this.warnRuleText, this.warnBorder].filter(Boolean), alpha: 0, duration: 1500, onComplete: destroyAll });
+          return;
+        }
         this.warnText.setAlpha(0);
         if (this.warnSubText) this.warnSubText.setAlpha(0);
         this.warnBorder.setStrokeStyle(12, 0xff0000, 0);
-        s.time.delayedCall(200, flash);
+        s.time.delayedCall(300, flash);
       });
     };
     flash();

@@ -142,6 +142,7 @@ class BootScene extends Phaser.Scene {
       }
       if (c && c.level_buff) this.load.image('lvbuff_' + c.level_buff.id, 'assets/lvbuff_' + c.level_buff.id + '.png');   // brush-calligraphy level-buff name (characters.json level_buff)
     }
+    this.load.image('bossskill_rain', 'assets/bossskill_rain.png');   // brush-calligraphy 漫天幻彩 (level-5 boss, shown over its head during the charge; user picked Qwen-Image seed 303, colours painted by the model)
     var en = Object.keys(D.enemies);
     for (var j = 0; j < en.length; j++) {
       this.load.image('enemy_' + en[j], 'assets/enemy_' + en[j] + '.png');

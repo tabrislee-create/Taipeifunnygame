@@ -922,7 +922,7 @@ class LevelScene extends Phaser.Scene {
     
     // Full-screen semi-transparent white mask (user 2026-10-13) instead of cameras.main.fadeOut: the camera fade is drawn over everything the camera renders, which would also hide the line of text
     const cover = this.add.rectangle(GAME_W / 2, 270, GAME_W * 2, 1080, 0xffffff, 1).setScrollFactor(0).setDepth(299).setAlpha(0);
-    this.tweens.add({ targets: cover, alpha: 0.7, duration: 500, onComplete: () => {
+    this.tweens.add({ targets: cover, alpha: 0.7, duration: 1500, onComplete: () => {   // mask fade 1.5 s, line shown 2.5 s (user 2026-10-13)
       const phrases = [
         '不服不服，再來一次!',
         '喲,小鬼頭,你想要當我的徒弟嗎?',
@@ -938,7 +938,7 @@ class LevelScene extends Phaser.Scene {
         strokeThickness: 5
       }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
 
-      this.time.delayedCall(1000, () => {
+      this.time.delayedCall(2500, () => {
         this.anims.resumeAll();   // the animation manager is global: leave it running for the next scene
         RUN.levelStats.time = Date.now() - RUN.levelStats.startMs;
         

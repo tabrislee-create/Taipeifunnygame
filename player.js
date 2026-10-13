@@ -32,6 +32,7 @@ class Player {
     this.examUntil = 0;
     this.nanoUntil = 0;
     this.stirUntil = 0;   // Vendor stir fry: invincible + rooted until this time
+    this.stunUntil = 0; this.atkBlockUntil = 0; this._dot = null;   // boss debuffs (user 2026-10-13): stun = no input at all, attack block = the attack key is dead, DOT = damage over time
     this.streakUntil = 0;
     this.dashUntil = 0;
     this._atkCd = 0;
@@ -83,6 +84,7 @@ class Player {
     b.allowGravity = false;
     this.spawning = true; this._spawnAt = now; this._spawnDropAt = 0;
     this.invUntil = 1e12; this._knockUntil = 0; this.dashUntil = 0; this._jumpUsed = false;
+    this.stunUntil = 0; this.atkBlockUntil = 0; this._dot = null;
     this._ov = null; s.clearTint();
   }
 
@@ -101,10 +103,13 @@ class Player {
   }
 
   update(time, delta, cursors) {
-    if (this.dead) return;
+    if (this.dead) { if (this._stG) this._stG.clear(); return; }
     const scene = this.scene;
     const now = scene.time.now;
+    this._statusFx(now);
     if (this.spawning) { this._updateSpawn(now); return; }
+    this._updateDot(now);
+    if (this.dead) return;
     const s = this.sprite;
     const b = s.body;
     const st = this.stats;
@@ -126,6 +131,8 @@ class Player {
     let atk = cursors.attack.isDown;
     let skl = cursors.skill.isDown;
     if (now < this.stirUntil) { left = right = up = atk = skl = false; }   // Vendor's stir fry: rooted, can do nothing for its whole duration
+    if (now < this.stunUntil) { left = right = up = atk = skl = false; }   // stunned by a boss orb
+    if (now < this.atkBlockUntil) atk = false;   // normal attack sealed (boss 黃色跳壓)
 
     const knock = now < this._knockUntil;
     const dash = now < this.dashUntil;
@@ -569,10 +576,10 @@ class Player {
   }
 
   takeDamage(amount, srcX, ignoreDefense) {
-    if (window.GAME_DEBUG && GAME_DEBUG.godMode) return;
+    if (window.GAME_DEBUG && GAME_DEBUG.godMode) return false;
     const scene = this.scene;
     const now = scene.time.now;
-    if (this.dead || now < this.invUntil || now < this.examUntil || now < this.nanoUntil || now < this.stirUntil) return;
+    if (this.dead || now < this.invUntil || now < this.examUntil || now < this.nanoUntil || now < this.stirUntil) return false;   // true = the hit landed (the boss effects stun / attack block depend on it)
     const st = this.stats;
     let dmg = ignoreDefense ? amount : Math.max(1, Math.round(amount * (1 - st.defense_pct)));
     if (this.shieldHp > 0) {
@@ -597,6 +604,55 @@ class Player {
       this.dead = true;
       scene.events.emit('player-dead');
     }
+    return true;
+  }
+
+  // Boss effects (user 2026-10-13). applyDot: damage every intervalMs for durationMs, refreshed (not stacked) by contact; ignores the 0.8 s hit invulnerability and causes no knock-back, but not the skills' invulnerability.
+  // Status icons over the head (user 2026-10-13): three stars circling while stunned, a red "no entry" sign while the normal attack is sealed (blinks in its last 0.4 s).
+  _statusFx(now) {
+    const stun = now < this.stunUntil && !this.spawning, seal = now < this.atkBlockUntil && !this.spawning;
+    if (!stun && !seal) { if (this._stG) this._stG.clear(); return; }
+    if (!this._stG) this._stG = this.scene.add.graphics().setDepth(60);
+    const g = this._stG, s = this.sprite, top = s.body.top;
+    g.clear();
+    if (stun) {
+      for (let i = 0; i < 3; i++) {
+        const a = now / 140 + i * 2.094, x = s.x + Math.cos(a) * 22, y = top - 12 + Math.sin(a) * 7, R = 7.5 + 1.5 * Math.sin(a), pts = [];
+        for (let k = 0; k < 8; k++) { const r = k % 2 === 0 ? R : R * 0.4, an = k * Math.PI / 4 - Math.PI / 2; pts.push({ x: x + Math.cos(an) * r, y: y + Math.sin(an) * r }); }
+        g.fillStyle(0xffe14a, 1); g.fillPoints(pts, true);
+        g.lineStyle(1, 0x8a6a00, 1); g.strokePoints(pts, true);
+      }
+    }
+    if (seal && !(this.atkBlockUntil - now < 400 && Math.floor(now / 80) % 2)) {
+      const cx = s.x, cy = top - (stun ? 42 : 26), r = 11, d = r * 0.71;
+      g.fillStyle(0xffffff, 0.92); g.fillCircle(cx, cy, r);
+      g.lineStyle(4, 0xe02020, 1); g.strokeCircle(cx, cy, r - 2);
+      g.lineBetween(cx - d + 1, cy - d + 1, cx + d - 1, cy + d - 1);
+    }
+  }
+  applyStun(ms) { this.stunUntil = Math.max(this.stunUntil, this.scene.time.now + ms); }
+  blockAttack(ms) { this.atkBlockUntil = Math.max(this.atkBlockUntil, this.scene.time.now + ms); }
+  applyDot(durationMs, dmg, intervalMs) {
+    const now = this.scene.time.now;
+    if (!this._dot) this._dot = { next: now + intervalMs };
+    this._dot.until = now + durationMs; this._dot.dmg = dmg; this._dot.iv = intervalMs;
+  }
+  _updateDot(now) {
+    const d = this._dot; if (!d) return;
+    if (this.dead) { this._dot = null; return; }
+    while (this._dot && now >= d.next && d.next <= d.until + 1) {
+      d.next += d.iv;
+      if (window.GAME_DEBUG && GAME_DEBUG.godMode) continue;
+      if (now < this.examUntil || now < this.nanoUntil || now < this.stirUntil) continue;
+      let dmg = Math.max(1, Math.round(d.dmg * (1 - this.stats.defense_pct)));
+      if (this.shieldHp > 0) { const ab = Math.min(this.shieldHp, dmg); this.shieldHp -= ab; dmg -= ab; FX.shieldHit(this.scene, this.sprite); }
+      if (dmg > 0) {
+        RUN.hp -= dmg;
+        FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - 30, dmg, false, true);
+        if (RUN.hp <= 0) { this.dead = true; this._dot = null; this.scene.events.emit('player-dead'); return; }
+      }
+    }
+    if (this._dot && now >= d.until) this._dot = null;
   }
 
   // Small damage over time (pebble pit floor): no knockback, hit-stop or invulnerability window, only a light red flash and the number.
