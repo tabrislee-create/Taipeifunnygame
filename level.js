@@ -901,7 +901,58 @@ class LevelScene extends Phaser.Scene {
 
   // All enemies dead: normally open the exit; if a boss is waiting (level 5) bring it in instead.
   _afterClear() {
-    if (this._pendingBoss) this._startBossEntrance(); else this.openExit();
+    if (this._pendingBoss) {
+      this._startBossEntrance();
+    } else if (this.boss && this.boss.dead && this.boss.def.id === 'boss_slime_king' && RUN.level === 5) {
+      this._bossDefeatCutscene();
+    } else {
+      this.openExit();
+    }
+  }
+
+  _bossDefeatCutscene() {
+    if (this._defeatCutscene || this.deathStarted || this.finished) return;
+    this._defeatCutscene = true;
+    
+    // Freeze the frame at the moment of the final hit (user 2026-10-13): physics, update() (finished makes it return), running tweens and sprite animations all stop; the cover tween below is created afterwards so it still runs
+    this.physics.pause();
+    this.finished = true;
+    this.tweens.getTweens().forEach((t) => t.pause());   // not tweens.pauseAll(): that pauses the whole manager, including the cover tween created below
+    this.anims.pauseAll();
+    
+    // Full-screen semi-transparent white mask (user 2026-10-13) instead of cameras.main.fadeOut: the camera fade is drawn over everything the camera renders, which would also hide the line of text
+    const cover = this.add.rectangle(GAME_W / 2, 270, GAME_W * 2, 1080, 0xffffff, 1).setScrollFactor(0).setDepth(299).setAlpha(0);
+    this.tweens.add({ targets: cover, alpha: 0.7, duration: 500, onComplete: () => {
+      const phrases = [
+        '不服不服，再來一次!',
+        '喲,小鬼頭,你想要當我的徒弟嗎?',
+        '我把魔王的稱號讓給你吧!'
+      ];
+      const textStr = phrases[Math.floor(Math.random() * phrases.length)];
+      
+      this.add.text(GAME_W / 2, 270, textStr, {
+        fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif',
+        fontSize: '30px',
+        color: '#fff6d8',
+        stroke: '#1a1a1a',
+        strokeThickness: 5
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
+
+      this.time.delayedCall(1000, () => {
+        this.anims.resumeAll();   // the animation manager is global: leave it running for the next scene
+        RUN.levelStats.time = Date.now() - RUN.levelStats.startMs;
+        
+        if (RUN.levelBuff && RUN.levelBuff.clear_coins && typeof _addCoins === 'function') {
+          _addCoins(this.player, RUN.levelBuff.clear_coins);
+        }
+        
+        if (RUN.level === GAME_DATA.levels.length) {
+          this.scene.start('End', { result: 'victory' });
+        } else {
+          this.scene.start('Cleared', { cleared: RUN.level, stats: RUN.levelStats });
+        }
+      });
+    } });
   }
 
   // Player goes back to the level start (blink in + drop, controls locked until landed) and the boss blinks in above its spot and drops.

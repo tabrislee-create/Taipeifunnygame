@@ -59,7 +59,7 @@ class Boss {
     this._afx = 1; this._afy = 1; this._hitSquashUntil = 0; this._flashUntil = 0; this._landSquashT = -1e9;   // procedural squash & stretch
     this._phase = this._computePhase();
     this._buildSprite(x, y);
-    this._buildPhaseBar();
+    // (user 2026-10-13) no phase bar over the boss's head: the boss HP bar is the one at the top of the screen. _phaseBar stays null, so _drawPhaseBar() returns at once.
     if (scene.enemies) scene.enemies.add(this.sprite);
     this.sprite.ref = this;
   }
