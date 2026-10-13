@@ -22,7 +22,7 @@ const PERSP = {
   2: { bottom: 1129, band: 65, vpy: 967, vpx: 0.5, base: [245, 215, 190], pave: [241, 206, 181], frontMax: 528 },   // frontMax: the front edge of the hole's floor (front plane) must stay above this screen row (user 2026-10-12: level 2's pit floor ran off the bottom edge); the pit gets shallower to fit
   3: { bottom: 1215, band: 70, vpy: 1040, vpx: 0.5, base: [108, 91, 96], pave: [81, 70, 80], frontMax: 528 },
   4: { bottom: 1250, band: 60, vpy: 1100, vpx: 0.5781, base: [42, 57, 133], pave: [32, 42, 121], glass: true },   // glass: the rim of a hole is the bright teal glass edge (like the cross-section's top rows), with red warning lamps
-  5: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [157, 137, 126], pave: [145, 128, 120] },   // level 5 (user 2026-10-12): perspective floor like levels 1-4; no pits on this level, so only the band / cross-section are used
+  5: { bottom: 1312, band: 67, vpy: 1157, vpx: 0.5, base: [157, 137, 126], pave: [145, 128, 120] },   // level 5 (user 2026-10-12): perspective floor like levels 1-4; no pits on this level, so only the band / cross-section are used
   6: { bottom: 1135, band: 76, vpy: 980, vpx: 0.5, base: [198, 135, 77], pave: [153, 103, 67], frontMax: 528 },   // level 6 (user 2026-10-12, night market): picture cut at the street band in front of the shops; same frontMax as level 3 (same y_ground)
   18: { bottom: 1312, band: 76, vpy: 990, vpx: 0.5, base: [125, 114, 113], pave: [112, 103, 106], frontMax: 528 }   // level 18 (user 2026-10-13, Ximending wide panorama pano45_s2101): numbers from art_eval/lv_shinkai/v3/out/L18v3_pano45p_s2105_persp.json (2026-10-13: 2105p + TAIPEI painted by add_taipei_text.py, no grey band; replaced 2101p, backup art_eval/persp/prev2101p_*) (vpy 899 measured from the crossing stripe edges 2026-10-13, was the pipeline default 1157)
 };
@@ -33,6 +33,8 @@ const FIRE_ENTER_DMG = 8, FIRE_DMG = 2, FIRE_TICK_MS = 500, FIRE_LINGER_MS = 250
 const POISON_DMG = 1, POISON_TICK_MS = 500, POISON_LINGER_MS = 8000;
 // Warning board lines per pit kind (a random one is shown on the far wall of each pit). spikes / pebble / fire = the user's words (2026-10-12); poison = suggestions, to be picked by the user. The level-4 bottomless pit uses the level's own pit_warning_texts.
 const PIT_WARN = { spikes: ['很尖', '救人喔!'], pebble: ['健康?', '我踩!'], fire: ['燒A!', '五分熟'], poison: ['有毒!', '別喝!', '毒你喔', '快閃!', '不是珍奶'] };
+const RAIL_H_SRC = 150, RAIL_FOOT = 1203, RAIL_PAR = 0.85;   // level 5 railing layer: height in source-picture px, foot row on the parapet, share of the camera scroll it moves (the feet plane = 1)
+const BACKDROP_PARALLAX = { 5: 0.12 };   // per-level override of the default 0.03 (user 2026-10-13: level 5's railing / distant view looked frozen while walking); a larger value scales the picture up
 const FLOOD_SLOW = 0.5;   // flood (user 2026-10-13): walking speed x0.5 (the jump is x1/sqrt2 = half the height, in player.js)
 const PERSP_FACE_DY = 12;   // the cross-section's top edge sits this far below the ground line (= the picture's bottom edge)
 
@@ -91,7 +93,8 @@ class LevelScene extends Phaser.Scene {
     
     // Scale logic: use actual texture dimensions for sky-cut images too
     const isCustomArt = this.skyCut || custom;
-    const s = Math.max(isCustomArt ? (GAME_W + 2 * 0.03 * Math.max(0, lvl.width - GAME_W) + 4) / bd.width : GAME_W / bd.width, 540 / bd.height);
+    this._bdPar = BACKDROP_PARALLAX[RUN.level] || 0.03;   // backdrop parallax: share of the camera scroll the picture moves (the picture is scaled up to stay covered)
+    const s = Math.max(isCustomArt ? (GAME_W + 2 * this._bdPar * Math.max(0, lvl.width - GAME_W) + 4) / bd.width : GAME_W / bd.width, 540 / bd.height);
     bd.setScale(s);
     
     // level 1 is a far view: the picture ends at the foot of the building, so sit its bottom edge on the ground line (the plaza tile is drawn by the program)
@@ -100,6 +103,17 @@ class LevelScene extends Phaser.Scene {
     if ((RUN.level <= 6 || RUN.level === 18) && isCustomArt) { bd.setOrigin(0.5, 1); bd.y = lvl.y_ground + (this._persp ? PERSP_FACE_DY : 8); }
 
     this.backdrop = bd;
+
+    // Level 5 (user 2026-10-13): the railing is a separate layer that scrolls faster than the distant view. One post-to-post tile (fg_lv05_rail, art_eval/sky_cut/make_lv05_split.py) repeats along the walkway,
+    // standing on the picture's own stone parapet (src row RAIL_FOOT of the 3168 x 1312 picture); it takes the same colour look as the backdrop (weather.js).
+    this.railFg = null;
+    if (RUN.level === 5 && isCustomArt && this.textures.exists('fg_lv05_rail')) {
+      const k = s * 1920 / 3168;                                    // source-picture px -> screen px
+      const tex = this.textures.get('fg_lv05_rail').getSourceImage(), sc = (RAIL_H_SRC / tex.height) * k;
+      const rl = this.add.tileSprite(0, bd.y - (1312 - RAIL_FOOT) * k, GAME_W, tex.height * sc, 'fg_lv05_rail').setOrigin(0, 1).setScrollFactor(0).setDepth(-19.9);
+      rl.setTileScale(sc, sc); rl._sc = sc;   // the tile is scaled, the sprite's own size is in screen px
+      this.railFg = rl;
+    }
 
     // Level 4 glass floor (user 2026-10-12): the walkable band of the backdrop is semi-transparent glass; the strip behind the backdrop (the view straight down on Taipei) shows through it (see _drawGlassFloor)
     this._glassUV = null; this._glassG = null; this._glassLook = false;
@@ -342,7 +356,8 @@ class LevelScene extends Phaser.Scene {
     if ((typeof Extras !== 'undefined')) Extras.update(this, time, delta);
 
     // Backdrop parallax
-    if (this.backdrop) this.backdrop.x = GAME_W / 2 - this.cameras.main.scrollX * 0.03;
+    if (this.backdrop) this.backdrop.x = GAME_W / 2 - this.cameras.main.scrollX * this._bdPar;
+    if (this.railFg) this.railFg.tilePositionX = this.cameras.main.scrollX * RAIL_PAR / this.railFg._sc;
     if (this._pitG) this._drawPitsPersp();
     if (this._glassUV) this._drawGlassFloor();
 

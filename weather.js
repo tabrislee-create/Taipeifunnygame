@@ -1203,17 +1203,18 @@ var WX = (function () {
       ctx.sky = skyG;
 
       // 2. Backdrop Tinting (Depth -20 is backdrop)
-      var bd = scene.backdrop;
-      if (bd && bd.active) {
-        if (scene.renderer.type === Phaser.WEBGL && bd.postFX) {
-          var cm = bd.postFX.addColorMatrix();
-          if (look.sat !== 0) cm.saturate(look.sat);
-          if (look.bri !== 1) cm.brightness(look.bri, true); // multiply
-        } else {
-          // Canvas fallback: use tint to approximate brightness/saturation
-          if (look.tint) bd.setTint(look.tint);
+      [scene.backdrop, scene.railFg].forEach(function (bd) {   // level 5's railing layer gets the backdrop's colour look
+        if (bd && bd.active) {
+          if (scene.renderer.type === Phaser.WEBGL && bd.postFX) {
+            var cm = bd.postFX.addColorMatrix();
+            if (look.sat !== 0) cm.saturate(look.sat);
+            if (look.bri !== 1) cm.brightness(look.bri, true); // multiply
+          } else {
+            // Canvas fallback: use tint to approximate brightness/saturation
+            if (look.tint) bd.setTint(look.tint);
+          }
         }
-      }
+      });
 
     }
 
@@ -1321,11 +1322,12 @@ var WX = (function () {
           if (ctx.sky) ctx.sky.destroy();
           if (ctx.skyObjs) { for (var so = 0; so < ctx.skyObjs.length; so++) ctx.skyObjs[so].destroy(); ctx.skyObjs = []; ctx.skyFx = null; }
           
-          var bd = scene.backdrop;
-          if (bd && bd.active) {
-            if (bd.postFX) bd.postFX.clear();
-            bd.clearTint();
-          }
+          [scene.backdrop, scene.railFg].forEach(function (bd) {
+            if (bd && bd.active) {
+              if (bd.postFX) bd.postFX.clear();
+              bd.clearTint();
+            }
+          });
         }
 
         var i;
