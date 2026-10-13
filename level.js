@@ -644,7 +644,7 @@ class LevelScene extends Phaser.Scene {
       return out;
     };
     const xf = (x) => VPX + (x - VPX) / SP;   // world x on the feet plane -> x on the front plane (the cross-section face is nearer than the feet)
-    for (const gp of this._groundParts) { const a = xf(gp.seg.x), b = xf(gp.seg.x + gp.seg.w); gp.ts.x = a; gp.ts.width = b - a; }
+    for (const gp of this._groundParts) { const a = xf(gp.seg.x), b = xf(gp.seg.x + gp.seg.w); gp.ts.x = a; gp.ts.width = b - a + (this.flood && gp !== this._groundParts[this._groundParts.length - 1] ? 1 : 0); }   // flood: neighbouring segments meet; +1 px overlap hides the light hairline that showed between them at fractional x
     for (const pit of this._pits) {
       const l = pit.l, r = pit.r;
       if (r < sx - 260 || l > sx + GAME_W + 260) { if (pit._warnT) pit._warnT.setVisible(false); continue; }
