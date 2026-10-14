@@ -442,7 +442,17 @@
    },
    {
     "type": "slime_black",
-    "x": 1800,
+    "x": 1500,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_black",
+    "x": 1700,
+    "y_hint": 380
+   },
+   {
+    "type": "slime_black",
+    "x": 1850,
     "y_hint": 380
    },
    {

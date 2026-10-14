@@ -329,34 +329,26 @@ class HUD {
     this.enemyText.setText(String(n));
   }
 
+  // Boss bar (user 2026-10-14): same look as the player's HP bar (rounded, dark well, red fill with a gloss stripe, thin outline) but thicker; in the final phase the outline turns gold-orange and pulses.
   _updateBossBar() {
     const s = this.scene;
     const boss = s.boss;
     if (boss && !boss.dead) {
       if (!this._bossBar) {
-        const barLeft = GAME_W / 2 - 300;
-        this._bossFrame = s.add.rectangle(GAME_W / 2, 40, 600, 16, 0x111111, 0.85).setOrigin(0.5).setScrollFactor(0).setDepth(100);
-        this._bossFill = s.add.rectangle(barLeft, 32, 600, 16, 0xc02020, 1).setOrigin(0, 0).setScrollFactor(0).setDepth(101);
-        this._bossName = s.add.text(GAME_W / 2, 22, '', { fontFamily: HUD_FONT, fontSize: '16px', color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(102);
-        this._bossFlash = s.add.rectangle(barLeft, 32, 600, 16, 0xffffff, 0).setOrigin(0, 0).setScrollFactor(0).setDepth(102);
-        this._bossFlashOn = false;
-        this._bossFlashT = 0;
-        this._bossFlashActive = false;
-        this._bossFlashColor = 0xffffff;
-        this._bossFlashDur = 120;
-        this._bossFlashPending = false;
-        this._bossFlashPendingActive = false;
-        this._bossFlashPendingT = 0;
-        this._bossFlashPendingColor = 0xffffff;
-        this._bossFlashPendingDur = 120;
-        this._bossFlashPendingOn = false;
+        // layout: between the top-left panel's right edge and the restart button, centred in that gap
+        const gapL = HUD_L.PX + HUD_L.PW + 16, gapR = GAME_W - 170, bw = Math.min(560, gapR - gapL);
+        this._bossW = bw; this._bossX = (gapL + gapR) / 2 - bw / 2;
+        this._bossFrame = s.add.graphics().setScrollFactor(0).setDepth(100);
+        this._bossName = s.add.text(this._bossX + bw / 2, 12, '', { fontFamily: HUD_FONT, fontSize: '18px', fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5, 0).setScrollFactor(0).setDepth(102);
+        this._bossHpTxt = s.add.text(this._bossX + bw / 2, 51, '', { fontFamily: HUD_FONT, fontSize: '14px', fontStyle: 'bold', color: '#ffffff', stroke: '#000000', strokeThickness: 3 }).setOrigin(0.5).setScrollFactor(0).setDepth(102);
+        this._bossFlashOn = false; this._bossFlashT = 0; this._bossFlashActive = false; this._bossFlashColor = 0xffffff; this._bossFlashDur = 120;
+        this._bossFlashPending = false; this._bossFlashPendingColor = 0xffffff; this._bossFlashPendingDur = 120; this._bossFlashPendingOn = false;
         this._lastBossHp = boss.hp;
         this._bossName.setText(boss.def ? boss.def.name_zh : '魔王');
         this._bossBar = true;
       }
       const maxHp = boss.maxHp || 1;
-      const ratio = Math.max(0, boss.hp / maxHp);
-      this._bossFill.width = 600 * ratio;
+      const ratio = Math.max(0, Math.min(1, boss.hp / maxHp));
       if (this._lastBossHp != null && boss.hp < this._lastBossHp) {
         this._bossFlashPending = true;
         this._bossFlashPendingColor = 0xffffff;
@@ -365,6 +357,23 @@ class HUD {
       }
       this._lastBossHp = boss.hp;
       this._updateBossFlash(this._delta || 16);
+      this._bossHpTxt.setText(Math.ceil(boss.hp) + ' / ' + Math.ceil(maxHp));
+      const phases = (boss.def && boss.def.phases) || [];
+      const finalPhase = phases.length > 1 ? boss._phaseIndex >= phases.length - 1 : ratio < 0.3;
+      const g = this._bossFrame, bx = this._bossX, bw = this._bossW, bh = 30, by = 36, fw = bw * ratio, rad = 15;
+      g.clear();
+      g.fillStyle(0x000000, 0.6); g.fillRoundedRect(bx, by, bw, bh, rad);
+      if (fw > 0) {
+        g.fillStyle(finalPhase ? 0xd02010 : 0xd8283a, 1); g.fillRoundedRect(bx, by, fw, bh, Math.min(rad, fw / 2));
+        g.fillStyle(0xffffff, 0.28); g.fillRoundedRect(bx + 3, by + 3, Math.max(0, fw - 6), bh * 0.42, Math.min(10, Math.max(0, fw - 6) / 2));
+      }
+      if (this._bossFlashActive && this._bossFlashOn) { g.fillStyle(this._bossFlashColor, 0.7); g.fillRoundedRect(bx, by, bw, bh, rad); }
+      if (finalPhase) {
+        const pulse = 0.75 + 0.25 * Math.sin(this.scene.time.now / 160);
+        g.lineStyle(4, 0xffa126, pulse); g.strokeRoundedRect(bx - 1, by - 1, bw + 2, bh + 2, rad + 1);
+      } else {
+        g.lineStyle(2, 0xffffff, 0.4); g.strokeRoundedRect(bx, by, bw, bh, rad);
+      }
     } else if (this._bossBar) {
       this._destroyBossBar();
     }
@@ -378,22 +387,17 @@ class HUD {
       this._bossFlashDur = this._bossFlashPendingDur;
       this._bossFlashOn = this._bossFlashPendingOn;
       this._bossFlashT = 0;
-      this._bossFlash.setFillStyle(this._bossFlashColor, this._bossFlashOn ? 0.7 : 0);
     }
     if (this._bossFlashActive) {
       this._bossFlashT += delta;
-      if (this._bossFlashT >= this._bossFlashDur) {
-        this._bossFlashActive = false;
-        this._bossFlash.setFillStyle(0xffffff, 0);
-      }
+      if (this._bossFlashT >= this._bossFlashDur) this._bossFlashActive = false;
     }
   }
 
   _destroyBossBar() {
     if (this._bossFrame) { this._bossFrame.destroy(); this._bossFrame = null; }
-    if (this._bossFill) { this._bossFill.destroy(); this._bossFill = null; }
     if (this._bossName) { this._bossName.destroy(); this._bossName = null; }
-    if (this._bossFlash) { this._bossFlash.destroy(); this._bossFlash = null; }
+    if (this._bossHpTxt) { this._bossHpTxt.destroy(); this._bossHpTxt = null; }
     this._bossBar = null;
   }
 

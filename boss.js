@@ -627,7 +627,7 @@ class Boss {
     if (ti && ti.active && st === 'telegraph' && pr === 'rainbow_sky_rain') {   // name: fades in 0.25 s, out for the last 0.3 s; kept clear of the HUD boss bar at the top
       const t = this._stateTimer, tm = this._telegraphMs || 1;
       ti.setAlpha(Math.max(0, Math.min(1, t / 250, (tm - t) / 300)));
-      ti.setPosition(s.x, Math.max(60 + ti.displayHeight / 2, s.y - this._dispH - 66 - ti.displayHeight / 2));
+      ti.setPosition(s.x, Math.max(78 + ti.displayHeight / 2, s.y - this._dispH - 66 - ti.displayHeight / 2));
     }
     if (st === 'telegraph' && pr === 'rainbow_sky_rain') {   // colour orb gathering over the head
       const p = Math.min(1, this._stateTimer / (this._telegraphMs || 1)), hx = s.x, hy = s.y - this._dispH - 20, R = 10 + 46 * p;
@@ -1019,7 +1019,19 @@ class Boss {
       this._deadEmitted = true;
       this.scene.events.emit('enemy-dead', { x: x, y: y, ref: this });  // contract payload, same as Enemy
     }
-    this.sprite.destroy();
+    if (this.def.id === 'boss_slime_king') this._leaveGreyCorpse();   // level 5 boss (user 2026-10-14): stays on the field, the iridescent colours drained to grey
+    else this.sprite.destroy();
+  }
+
+  _leaveGreyCorpse() {
+    const s = this.sprite;
+    if (this.scene.enemies) this.scene.enemies.remove(s, false, false);   // no longer a target / contact hazard, but not destroyed
+    s.setScale(s.baseScaleX, s.baseScaleY); s.clearTint(); s.setAlpha(1);
+    if (s.postFX && this.scene.renderer.type === Phaser.WEBGL) s.postFX.addColorMatrix().grayscale(1);
+    else s.setTint(0x8c8c8c);   // canvas fallback: darkened
+    const gap = this._groundY() - s.body.bottom;
+    s.body.setVelocity(0, 0); s.body.enable = false;
+    if (gap > 2) this.scene.tweens.add({ targets: s, y: s.y + gap, duration: 220, ease: 'Quad.easeIn' });   // died in mid-air: settle onto the ground
   }
 
   takeHit(damage, srcX, isCrit, info) {

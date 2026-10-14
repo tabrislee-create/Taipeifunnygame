@@ -88,11 +88,14 @@
   "params": {
    "patrol_range": 400,
    "hop_height_px": 100,
-   "hop_rest_mul": 0.1
+   "hop_rest_mul": 0.1,
+   "rim_color": 10335464,
+   "split_count": 3,
+   "split_hp": 20
   },
   "first_level": 5,
   "art_prompt": "hue-shifted blue slime sheet, black body",
-  "notes": "Bludger-like special slime: 1.5x size, bounces fast and constantly (almost no rest). Level 5, last spawn before the boss."
+  "notes": "Bludger-like special slime: 1.5x size (medium), bounces fast and constantly (almost no rest). Level 5, last spawn before the boss. When killed it splits into 3 small black slimes (split_hp each) that flicker and are harmless for their first 1.5 s."
  },
  {
   "id": "bat_brown",

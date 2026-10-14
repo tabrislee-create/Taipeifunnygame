@@ -33,7 +33,8 @@ const FIRE_ENTER_DMG = 8, FIRE_DMG = 2, FIRE_TICK_MS = 500, FIRE_LINGER_MS = 250
 const POISON_DMG = 1, POISON_TICK_MS = 500, POISON_LINGER_MS = 8000;
 // Warning board lines per pit kind (a random one is shown on the far wall of each pit). spikes / pebble / fire = the user's words (2026-10-12); poison = suggestions, to be picked by the user. The level-4 bottomless pit uses the level's own pit_warning_texts.
 const PIT_WARN = { spikes: ['很尖', '救人喔!'], pebble: ['健康?', '我踩!'], fire: ['燒A!', '五分熟'], poison: ['有毒!', '別喝!', '毒你喔', '快閃!', '不是珍奶'] };
-const RAIL_H_SRC = 150, RAIL_FOOT = 1203, RAIL_PAR = 0.85;   // level 5 railing layer: height in source-picture px, foot row on the parapet, share of the camera scroll it moves (the feet plane = 1)
+const LANE_BOTTOM = 941, LANE_X0 = 33;   // level 3 lane layer: texture row under the tile, texture column of tile column 0 (make_lv03_lane.py)
+const RAIL_H_SRC = 150, RAIL_FOOT = 1203, RAIL_PAR = 0.7;   // level 5 railing layer: height in source-picture px, foot row on the parapet, share of the camera scroll it moves (the feet plane = 1)
 const BACKDROP_PARALLAX = { 5: 0.12 };   // per-level override of the default 0.03 (user 2026-10-13: level 5's railing / distant view looked frozen while walking); a larger value scales the picture up
 const FLOOD_SLOW = 0.5;   // flood (user 2026-10-13): walking speed x0.5 (the jump is x1/sqrt2 = half the height, in player.js)
 const PERSP_FACE_DY = 12;   // the cross-section's top edge sits this far below the ground line (= the picture's bottom edge)
@@ -113,6 +114,15 @@ class LevelScene extends Phaser.Scene {
       const rl = this.add.tileSprite(0, bd.y - (1312 - RAIL_FOOT) * k, GAME_W, tex.height * sc, 'fg_lv05_rail').setOrigin(0, 1).setScrollFactor(0).setDepth(-19.9);
       rl.setTileScale(sc, sc); rl._sc = sc;   // the tile is scaled, the sprite's own size is in screen px
       this.railFg = rl;
+    }
+
+    // Level 3 (user 2026-10-14): the white lane dashes are their own layer (art_eval/sky_cut/make_lv03_lane.py took them out of the backdrop), scrolled with the full camera scroll so they stay put on the road
+    this.laneFg = null;
+    if (RUN.level === 3 && isCustomArt && this.textures.exists('fg_lv03_lane')) {
+      const tex = this.textures.get('fg_lv03_lane').getSourceImage();
+      const ln = this.add.tileSprite(0, bd.y - (960 - LANE_BOTTOM) * s, GAME_W, tex.height * s, 'fg_lv03_lane').setOrigin(0, 1).setScrollFactor(0).setDepth(-19.9);
+      ln.setTileScale(s, s); ln._sc = s; ln._x0 = GAME_W / 2 - 960 * s + LANE_X0 * s;   // screen x of the first dash at scroll 0
+      this.laneFg = ln;
     }
 
     // Level 4 glass floor (user 2026-10-12): the walkable band of the backdrop is semi-transparent glass; the strip behind the backdrop (the view straight down on Taipei) shows through it (see _drawGlassFloor)
@@ -357,6 +367,7 @@ class LevelScene extends Phaser.Scene {
 
     // Backdrop parallax
     if (this.backdrop) this.backdrop.x = GAME_W / 2 - this.cameras.main.scrollX * this._bdPar;
+    if (this.laneFg) this.laneFg.tilePositionX = (this.cameras.main.scrollX - this.laneFg._x0) / this.laneFg._sc;
     if (this.railFg) this.railFg.tilePositionX = this.cameras.main.scrollX * RAIL_PAR / this.railFg._sc;
     if (this._pitG) this._drawPitsPersp();
     if (this._glassUV) this._drawGlassFloor();
@@ -995,6 +1006,7 @@ class LevelScene extends Phaser.Scene {
     x = this._clearOfPits(x, 48); // never spawn over (or at the edge of) a spike pit
     const enemy = new Enemy(this, def, x, y_hint - 40, RUN.level);
     this.enemies.add(enemy.sprite);
+    enemy.sprite.setCollideWorldBounds(true);   // the second add() resets the body's world-bounds flag that the Enemy constructor set (user 2026-10-14: launched / knocked slimes flew past the level's right end, fell and counted as dead, so level 5's boss came early)
     this.enemiesRemaining++;
   }
 
@@ -1012,7 +1024,9 @@ class LevelScene extends Phaser.Scene {
       // Forward on_kill hooks handled by player or hooks module externally
       if (this.player.onKill) this.player.onKill(data.x, data.y);
     }
-    if (this.enemiesRemaining <= 0 && !this.exitOpen) {
+    if (RUN.level === 5 && this.boss && data && data.ref === this.boss && this.boss.def.id === 'boss_slime_king' && !this.exitOpen) {   // level 5 (user 2026-10-14): beating the boss clears the level whatever minions are left
+      this._bossDefeatCutscene();
+    } else if (this.enemiesRemaining <= 0 && !this.exitOpen) {
       this._afterClear();
     }
   }

@@ -1203,7 +1203,7 @@ var WX = (function () {
       ctx.sky = skyG;
 
       // 2. Backdrop Tinting (Depth -20 is backdrop)
-      [scene.backdrop, scene.railFg].forEach(function (bd) {   // level 5's railing layer gets the backdrop's colour look
+      [scene.backdrop, scene.railFg, scene.laneFg].forEach(function (bd) {   // level 5's railing layer gets the backdrop's colour look
         if (bd && bd.active) {
           if (scene.renderer.type === Phaser.WEBGL && bd.postFX) {
             var cm = bd.postFX.addColorMatrix();
@@ -1322,7 +1322,7 @@ var WX = (function () {
           if (ctx.sky) ctx.sky.destroy();
           if (ctx.skyObjs) { for (var so = 0; so < ctx.skyObjs.length; so++) ctx.skyObjs[so].destroy(); ctx.skyObjs = []; ctx.skyFx = null; }
           
-          [scene.backdrop, scene.railFg].forEach(function (bd) {
+          [scene.backdrop, scene.railFg, scene.laneFg].forEach(function (bd) {
             if (bd && bd.active) {
               if (bd.postFX) bd.postFX.clear();
               bd.clearTint();

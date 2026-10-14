@@ -170,6 +170,7 @@ class BootScene extends Phaser.Scene {
       var skKey = 'lv' + (skLv < 10 ? '0' : '') + skLv;
       this.load.image('backdrop_' + skKey + '_sky', 'assets/backdrop_' + skKey + '_sky.png');
     }
+    this.load.image('fg_lv03_lane', 'assets/fg_lv03_lane.png');   // level 3: the lane dashes are their own layer (level.js)
     this.load.image('fg_lv05_rail', 'assets/fg_lv05_rail.png');   // level 5: the railing is its own scrolling layer (level.js), one seamless post-to-post tile
     this.load.image('underview_lv04', 'assets/underview_lv04.png');   // level 4 glass floor: the view straight down on Taipei (level.js _drawGlassFloor)
     // Cloud pieces for the sunny sky effects (weather.js buildSkyFx)

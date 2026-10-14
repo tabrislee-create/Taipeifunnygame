@@ -25,6 +25,7 @@ class Enemy {
         this.sprite.baseScaleX = scale; // FX.squash restores to these; without them rapid hits compound and the sprite stays distorted
         this.sprite.baseScaleY = scale;
         this.sprite.setDepth(2);
+        if (def.params && def.params.rim_color && this.sprite.postFX && scene.renderer.type === Phaser.WEBGL) this.sprite.postFX.addGlow(def.params.rim_color, 1.6, 0, false, 0.1, 6);   // faint pale rim so a black body shows against a night backdrop (user 2026-10-14)
         this.sprite.setFlipX(true);
         this.sprite.ref = this;
         scene.enemies.add(this.sprite);
@@ -123,6 +124,11 @@ class Enemy {
         const s = this.sprite;
         const px = player ? player.sprite.x : s.x;
         const py = player ? player.sprite.y : s.y;
+
+        if (this._splitGraceUntil) {       // just split off a dying parent (user 2026-10-14): flickers and cannot hurt the player for the first 1.5 s
+            if (time < this._splitGraceUntil) s.setAlpha(Math.floor(time / 90) % 2 ? 0.25 : 0.9);
+            else { this._splitGraceUntil = 0; s.setAlpha(1); }
+        }
 
         if (this._resetUntil) {            // just reset after falling into a pit: half transparent, frozen, harmless
             if (time < this._resetUntil) { s.body.setVelocity(0, 0); return; }
@@ -233,7 +239,7 @@ class Enemy {
         }
 
         // no contact damage for a moment after the player stomped this enemy (player.js checkStomp sets _stompGrace)
-        if (player && !player.dead && !(this._stompGrace > time) && Phaser.Geom.Intersects.RectangleToRectangle(bodyRect(s), bodyRect(player.sprite))) {
+        if (player && !player.dead && !(this._stompGrace > time) && !(this._splitGraceUntil > time) && Phaser.Geom.Intersects.RectangleToRectangle(bodyRect(s), bodyRect(player.sprite))) {
             if (player.examUntil > time || player.nanoUntil > time || player.stirUntil > time) { // Greenie's invincible skill: no damage, the enemy is shoved away instead
                 if (time > (this._knockUntil || 0) && !this.isFlyer() && this.behavior !== 'Exploder') {
                     this._knockUntil = time + 400;
@@ -577,6 +583,7 @@ class Enemy {
 
     takeHit(damage, srcX, isCrit, info) {
         if (this.dead) return;
+        if (this._splitGraceUntil > this.scene.time.now) return;   // freshly split black slime: invulnerable while it flickers (user 2026-10-14)
         this.hp -= damage;
         FX.hitEnemy(this.scene, this.sprite, isCrit, this.sprite.x, this.sprite.y);
         FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - 24, Math.round(damage), isCrit, false);
@@ -784,9 +791,24 @@ class Enemy {
         const x = s.x, y = s.y;
         FX.killEnemy(this.scene, x, y);
         if (this.params.death_goo && !this.fell && s.body && this.scene.hasGroundAt(x) && !(this.scene._pitAt && this.scene._pitAt(x))) this.spawnGoo(x, s.body.bottom);
+        if (this.params.split_count && !this.fell && !this._isSplitChild && this.scene.addEnemy) this._splitInto(x, y);   // before 'enemy-dead' so the level never sees "0 enemies left" in between
         if (this._telegraph) this._telegraph.destroy();
         this.scene.tweens.add({ targets: s, alpha: 0, scale: s.scale * 1.2, duration: 200, onComplete: function () { s.destroy(); } });
         this.scene.events.emit('enemy-dead', { x: x, y: y, ref: this });
+    }
+
+    // Black slime (user 2026-10-14): the medium one splits into params.split_count small ones of the same kind (split_hp each) that flicker and are harmless for the first 1.5 s.
+    _splitInto(x, y) {
+        const n = this.params.split_count, now = this.scene.time.now;
+        const childDef = Object.assign({}, this.def, { size: 'small', hp: this.params.split_hp || this.def.hp, params: Object.assign({}, this.params, { split_count: 0 }) });
+        for (let i = 0; i < n; i++) {
+            const ox = (i - (n - 1) / 2) * 44;
+            this.scene.addEnemy(childDef, x + ox, y + 40);
+            const kids = this.scene.enemies.getChildren(), c = kids[kids.length - 1] && kids[kids.length - 1].ref;
+            if (!c || c.def !== childDef) continue;
+            c._isSplitChild = true; c._splitGraceUntil = now + 1500;
+            if (ox !== 0) c.dir = ox > 0 ? 1 : -1;
+        }
     }
 
     drawTelegraph(s, px) {
