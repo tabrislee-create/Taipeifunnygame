@@ -33,7 +33,9 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 #lload .bar i{display:block;height:100%;width:0;background:#4caf50;transition:width .15s}
 #lload .txt{margin-top:1vmin;font-weight:700;text-shadow:0 2px 4px #000}
 body.loading #lstart{display:none}body.loading #lload{display:block}body.loading #linst,body.loading #lopts,body.loading #lhint{visibility:hidden}
-#lflag{font-weight:800;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000}
+/* 試玩版 label (user 2026-10-14: the 4-corner shadow outline looked broken): same real stroke as the tagline (#ltag), with the same fallback */
+#lflag{font-weight:800;-webkit-text-stroke:.2em #0a1224;paint-order:stroke fill;text-shadow:0 .12em .3em rgba(0,0,0,.45)}
+@supports not (paint-order:stroke fill){#lflag{-webkit-text-stroke:0;text-shadow:1.5px 0 0 #0a1224,-1.5px 0 0 #0a1224,0 1.5px 0 #0a1224,0 -1.5px 0 #0a1224,1px 1px 0 #0a1224,-1px 1px 0 #0a1224,1px -1px 0 #0a1224,-1px -1px 0 #0a1224,0 3px 6px rgba(0,0,0,.45)}}
 #lhint{opacity:.95;text-shadow:0 1px 4px #000,0 0 6px #000;font-weight:700}
 #linst,#lopts{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
 #lopts button.on{background:#b3541e}
@@ -119,7 +121,7 @@ body.big #lrecbox{font-size:18px}body.big #lrecbox h3{font-size:22px}body.big #l
   <div id="lrec"><div id="lrecbox"></div></div>
 </div>
 
-<script>window.DEMO_BUILD = true; window.DEMO_VERSION = '0.3.28';   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
+<script>window.DEMO_BUILD = true; window.DEMO_VERSION = '0.3.29';   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
 window.DEV_MENU = true;      // the 開發者選項 button on this page (full build only); set false for a public full release</script>
 <script src="viewport.js?v=20261009a"></script>
 <script src="titlecopy.js?v=20261012a"></script>
@@ -184,6 +186,14 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
     $('lava').appendChild(w);
   });
   if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 ' + (window.DEMO_VERSION ? 'v' + window.DEMO_VERSION : '（開發版）') + '｜AI 輔助製作'; }   // DEMO_VERSION: set by tools/make_demo_bundle.py from tools/demo_bundle/VERSION
+  else {   // full build (user 2026-10-14): © + build stamp from version.js (written by the post-commit hook, tools/git_hooks/post-commit); loaded fresh every time so a phone never shows a stale stamp
+    // each part kept on one line (a narrow portrait phone wraps only at the ｜ separators, never inside a part)
+    var foot = function (stamp) { $('lfoot').innerHTML = ['© 2026 tabrislee-create', '開發版' + (stamp ? ' ' + stamp : ''), 'AI 輔助製作'].map(function (t) { return '<span style="white-space:nowrap">' + t.replace(/[&<>]/g, '') + '</span>'; }).join('｜'); };
+    foot('');
+    var vs = document.createElement('script'); vs.src = 'version.js?t=' + Date.now();
+    vs.onload = function () { if (window.BUILD_STAMP) foot(window.BUILD_STAMP); };
+    document.head.appendChild(vs);
+  }
   $('lstart').addEventListener('click', function () { start('play'); });
   // 困難模式 toggle: both builds (user 2026-10-13: hard mode is in the trial build too); 開發者選項: full build only
   {
