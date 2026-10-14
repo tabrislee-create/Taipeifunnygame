@@ -109,7 +109,7 @@
  {
   "id": "shop_lifesteal",
   "name_zh": "吸血牙",
-  "desc_zh": "下一關每次擊中或踩中敵人回血 3 點",
+  "desc_zh": "下一關擊中回血 3 點",
   "price": 10,
   "effect_type": "lifesteal_flat",
   "value": 3,

@@ -64,7 +64,8 @@ class DevMenuScene extends Phaser.Scene {
     var self = this, objs = [], pick = { char: null, time: undefined, weather: undefined };
     var cx = GAME_W / 2;
     function add(o) { o.setDepth(200); objs.push(o); return o; }
-    function clear() { for (var i = 0; i < objs.length; i++) objs[i].destroy(); objs = []; }
+    var offs = [];   // input handlers of the level list (removed with the objects)
+    function clear() { for (var i = 0; i < objs.length; i++) objs[i].destroy(); objs = []; offs.forEach(function (f) { f(); }); offs = []; }
     function close() { clear(); if (window.showLanding) window.showLanding(); }
     // items: [{ label, sub, boss, value }]; draws a titled grid panel, calls onPick(value). backFn adds a 上一步 button.
     function panel(title, items, cols, cw, ch, onPick, backFn) {
@@ -95,18 +96,72 @@ class DevMenuScene extends Phaser.Scene {
       var cb = add(self.add.rectangle(backFn ? cx + 80 : cx, by, 120, 36, 0x444444).setInteractive({ useHandCursor: true }));
       add(self.add.text(backFn ? cx + 80 : cx, by, '關閉 (Esc)', { fontFamily: FONT, fontSize: 17, color: '#ffffff' }).setOrigin(0.5));
       cb.on('pointerdown', close);
+      return { top: top, ph: ph, pw: pw, by: by };
     }
     function stepChar() {
       var items = Object.keys(GAME_DATA.characters).map(function (id) { return { label: GAME_DATA.characters[id].name_zh, value: id }; });
-      panel('開發者選項 1/4：選擇角色', items, 4, 140, 56, function (id) { pick.char = id; stepLevel(); }, null);
+      var P = panel('開發者選項 1/4：選擇角色', items, 4, 140, 56, function (id) { pick.char = id; stepLevel(); }, null);
+      // debug readout toggle (user 2026-10-14: in the full build the readout lives only here): remembered in localStorage 'dbg'; level.js shows it only in runs started from this menu
+      var dbgOn = function () { try { return localStorage.getItem('dbg') === '1'; } catch (e) { return false; } };
+      var tw = window.__bigText ? 220 : 150, tx = cx - P.pw / 2 + 20 + tw / 2, tb = add(self.add.rectangle(tx, P.by, tw, 36, 0x444444).setInteractive({ useHandCursor: true }));
+      var tt = add(self.add.text(tx, P.by, '', { fontFamily: FONT, fontSize: 17, color: '#ffffff' }).setOrigin(0.5));
+      var show = function () { var on = dbgOn(); tt.setText('debug 視窗：' + (on ? '開' : '關')); tb.setFillStyle(on ? 0xb3541e : 0x444444); };
+      tb.on('pointerdown', function () { try { if (dbgOn()) localStorage.removeItem('dbg'); else localStorage.setItem('dbg', '1'); } catch (e) {} show(); });
+      show();
     }
+    // Level select (user 2026-10-14): a full-page list that scrolls (drag / wheel), one row per level (number + name side by side);
+    // a tap only selects the row, the 確定 button at the bottom goes on.  Same layout in both text sizes.
     function stepLevel() {
-      var n = Math.min(30, GAME_DATA.levels.length), items = [];
+      clear();
+      var n = Math.min(30, GAME_DATA.levels.length), big = !!window.__bigText, sel = pick.level || null;
+      var LT = 52, LB = 540 - 64, LH = LB - LT, RH = big ? 58 : 46, GAP = 6, RW = Math.min(GAME_W - 80, 760), rx = cx - RW / 2;
+      var dim = add(self.add.rectangle(cx, 270, GAME_W, 540, 0x000000, 0.6).setInteractive());
+      dim.on('pointerdown', function () { /* swallow */ });
+      add(self.add.rectangle(cx, 270, RW + 40, 532, 0x16301f, 0.97).setStrokeStyle(2, 0x6ab07a));
+      add(self.add.text(cx, 28, '開發者選項 2/4：選擇關卡', { fontFamily: FONT, fontSize: 22, fontStyle: 'bold', color: '#ffffff' }).setOrigin(0.5));
+      var list = add(self.add.container(0, 0)), rows = [];
       for (var lv = 1; lv <= n; lv++) {
-        var isBoss = lv % 5 === 0, nm = (GAME_DATA.levels[lv - 1] && GAME_DATA.levels[lv - 1].name_zh) || '';
-        items.push({ label: '第 ' + lv + ' 關' + (isBoss ? '·魔王' : ''), sub: nm, boss: isBoss, value: lv });
+        var isBoss = lv % 5 === 0, nm = (GAME_DATA.levels[lv - 1] && GAME_DATA.levels[lv - 1].name_zh) || '', ry = LT + (lv - 1) * (RH + GAP);
+        var r = self.add.rectangle(rx, ry, RW, RH, isBoss ? 0x6a2a2a : 0x2a6a3a).setOrigin(0, 0);
+        var t1 = self.add.text(rx + 16, ry + RH / 2, '第 ' + lv + ' 關' + (isBoss ? '·魔王' : ''), { fontFamily: FONT, fontSize: 17, fontStyle: 'bold', color: '#ffffff' }).setOrigin(0, 0.5);
+        var t2 = self.add.text(rx + (big ? 210 : 150), ry + RH / 2, nm, { fontFamily: FONT, fontSize: 17, color: '#ffffff' }).setOrigin(0, 0.5);
+        list.add([r, t1, t2]); rows.push({ lv: lv, r: r, t1: t1, t2: t2, base: isBoss ? 0x6a2a2a : 0x2a6a3a, y: ry });
       }
-      panel('開發者選項 2/4：選擇關卡', items, 6, 112, 56, function (lv) { pick.level = lv; stepTime(); }, stepChar);
+      var contentH = n * (RH + GAP) - GAP, maxS = Math.max(0, contentH - LH), sc = 0;
+      var mg = self.make.graphics({ x: 0, y: 0, add: false }); mg.fillStyle(0xffffff); mg.fillRect(rx - 4, LT, RW + 8, LH);
+      list.setMask(mg.createGeometryMask());
+      var bar = add(self.add.graphics()), bx = rx + RW + 8;
+      var paint = function () {
+        rows.forEach(function (o) { var on = o.lv === sel; o.r.setFillStyle(on ? 0xffcc00 : o.base); o.t1.setColor(on ? '#111111' : '#ffffff'); o.t2.setColor(on ? '#111111' : '#ffffff'); });
+        okR.setFillStyle(sel ? 0x2a6a3a : 0x333333); okT.setColor(sel ? '#ffffff' : '#888888').setText(sel ? '確定（第 ' + sel + ' 關）' : '確定');
+      };
+      var apply = function () {
+        sc = Math.max(0, Math.min(maxS, sc)); list.y = -sc; bar.clear();
+        if (maxS > 0) { var th = Math.max(30, LH * LH / contentH), ty = LT + (LH - th) * (sc / maxS); bar.fillStyle(0xffffff, 0.15); bar.fillRoundedRect(bx, LT, 6, LH, 3); bar.fillStyle(0xffffff, 0.6); bar.fillRoundedRect(bx, ty, 6, th, 3); }
+      };
+      // bottom buttons: 上一步 / 確定 (enabled once a level is selected) / 關閉
+      var by = 540 - 34, BW = big ? 200 : 170;
+      var bb = add(self.add.rectangle(cx - BW - 12, by, 120, 40, 0x444444).setInteractive({ useHandCursor: true }));
+      add(self.add.text(cx - BW - 12, by, '上一步', { fontFamily: FONT, fontSize: 17, color: '#ffffff' }).setOrigin(0.5)); bb.on('pointerdown', stepChar);
+      var okR = add(self.add.rectangle(cx, by, BW, 40, 0x333333).setInteractive({ useHandCursor: true }));
+      var okT = add(self.add.text(cx, by, '確定', { fontFamily: FONT, fontSize: 17, fontStyle: 'bold', color: '#888888' }).setOrigin(0.5));
+      okR.on('pointerdown', function () { if (sel) { pick.level = sel; stepTime(); } });
+      var cb = add(self.add.rectangle(cx + BW + 12, by, 120, 40, 0x444444).setInteractive({ useHandCursor: true }));
+      add(self.add.text(cx + BW + 12, by, '關閉 (Esc)', { fontFamily: FONT, fontSize: 17, color: '#ffffff' }).setOrigin(0.5)); cb.on('pointerdown', close);
+      // tap = select (only when the finger did not move: a drag scrolls); wheel scrolls
+      var inList = function (p) { return p.y >= LT && p.y <= LB && p.x >= rx && p.x <= rx + RW + 14; };
+      var downY = null, lastY = null, moved = 0, openTap = self.input.activePointer.downTime;   // the tap that opened this list (on a character) must not also select a row
+      var onDown = function (p) { if (p.downTime !== openTap && inList(p)) { downY = lastY = p.y; moved = 0; } };
+      var onMove = function (p) { if (downY != null && p.isDown) { moved = Math.max(moved, Math.abs(p.y - downY)); sc -= p.y - lastY; lastY = p.y; apply(); } };
+      var onUp = function (p) {
+        if (downY != null && moved < 10 && inList(p)) { var y = p.y + sc; rows.forEach(function (o) { if (y >= o.y && y <= o.y + RH) sel = o.lv; }); paint(); }
+        downY = null;
+      };
+      var onWheel = function (p, o, dx, dy) { if (inList(p)) { sc += dy * 0.6; apply(); } };
+      self.input.on('pointerdown', onDown); self.input.on('pointermove', onMove); self.input.on('pointerup', onUp); self.input.on('wheel', onWheel);
+      offs.push(function () { self.input.off('pointerdown', onDown); self.input.off('pointermove', onMove); self.input.off('pointerup', onUp); self.input.off('wheel', onWheel); });
+      if (sel) sc = (sel - 1) * (RH + GAP) - LH / 2 + RH / 2;   // coming back with 上一步 from step 3: the chosen level is in view
+      apply(); paint();
     }
     // time and weather come after the level: only the ones WX.options says this level can really have are offered (user 2026-10-13)
     function stepTime() {
@@ -270,9 +325,12 @@ class CharSelectScene extends Phaser.Scene {
     }
 
     }
-    var base0 = ch.level_buff ? 4 : 0, ex = 0;
+    // 大字版 (2026-10-14): shrinking cannot go below the 24 px floor, so lay out once at full size; a too-tall body scrolls instead (below)
+    var big = !!window.__bigText;
+    var base0 = (ch.level_buff && !big) ? 4 : 0, ex = 0;
     for (;;) {
       layout(base0 + ex, ex);
+      if (big) { contentH = y; break; }
       contentH = y;
       if (contentH + PAD * 2 + 14 + BTN_H + 12 <= 536 || ex >= 8) break;
       for (var q = 0; q < items.length; q++) items[q].destroy();
@@ -282,15 +340,35 @@ class CharSelectScene extends Phaser.Scene {
     var py = 270, top = py - ph / 2;
     add(this.add.rectangle(px, py, pw, ph, 0x16301f, 1).setStrokeStyle(2, 0x6ab07a), 200);
     var base = top + PAD;
-    for (var j = 0; j < items.length; j++) { items[j].y = base + items[j]._ly; add(items[j]); }
-    var g = add(this.add.graphics());
+    var btnY = top + ph - PAD / 2 - BTN_H / 2 - 4;
+    var aTop = base, aH = btnY - BTN_H / 2 - 10 - aTop, scrolls = big && contentH > aH;   // 大字版: body taller than the space above the buttons -> it scrolls
+    var body = scrolls ? add(this.add.container(0, 0), 201) : null;
+    for (var j = 0; j < items.length; j++) { items[j].y = base + items[j]._ly; if (body) body.add(items[j]); else add(items[j]); }
+    var g = this.add.graphics(); if (body) body.add(g); else add(g);
     g.lineStyle(1, 0x3a6a4a, 1);
     for (var d = 0; d < dividers.length; d++) {
       g.lineBetween(px - TW / 2, base + dividers[d], px + TW / 2, base + dividers[d]);
     }
+    if (body) {   // mask + drag / wheel scrolling + a scroll bar at the panel's right edge (handlers removed in _closePopup)
+      var mg = this.make.graphics({ x: 0, y: 0, add: false }); mg.fillStyle(0xffffff); mg.fillRect(px - pw / 2, aTop, pw, aH);
+      body.setMask(mg.createGeometryMask());
+      var maxS = contentH - aH, sc = 0, dragY = null, bar = add(this.add.graphics(), 202), bx = px + pw / 2 - 12;
+      var apply = function () {
+        sc = Math.max(0, Math.min(maxS, sc)); body.y = -sc; bar.clear();
+        var th = Math.max(30, aH * aH / contentH), ty = aTop + (aH - th) * (sc / maxS);
+        bar.fillStyle(0xffffff, 0.15); bar.fillRoundedRect(bx, aTop, 6, aH, 3); bar.fillStyle(0xffffff, 0.6); bar.fillRoundedRect(bx, ty, 6, th, 3);
+      };
+      apply();
+      var inArea = function (p) { return p.y >= aTop && p.y <= aTop + aH && Math.abs(p.x - px) <= pw / 2; };
+      var onWheel = function (p, o, dx, dy) { if (inArea(p)) { sc += dy * 0.6; apply(); } };
+      var onDown = function (p) { if (inArea(p)) dragY = p.y; };
+      var onMove = function (p) { if (dragY != null && p.isDown) { sc -= p.y - dragY; dragY = p.y; apply(); } };
+      var onUp = function () { dragY = null; };
+      this.input.on('wheel', onWheel); this.input.on('pointerdown', onDown); this.input.on('pointermove', onMove); this.input.on('pointerup', onUp);
+      this._popupOff = function () { self.input.off('wheel', onWheel); self.input.off('pointerdown', onDown); self.input.off('pointermove', onMove); self.input.off('pointerup', onUp); };
+    }
 
     // Buttons
-    var btnY = top + ph - PAD / 2 - BTN_H / 2 - 4;
     var okBtn = add(this.add.rectangle(cx - 100, btnY, 150, BTN_H, 0x2a6a3a).setInteractive({ useHandCursor: true }));
     add(this.add.text(cx - 100, btnY, '確定', { fontFamily: FONT, fontSize: 24, color: '#ffffff' }).setOrigin(0.5));
     okBtn.on('pointerdown', function () {
@@ -310,6 +388,7 @@ class CharSelectScene extends Phaser.Scene {
     this._popupObjs = objs;
   }
   _closePopup() {
+    if (this._popupOff) { this._popupOff(); this._popupOff = null; }
     for (var i = 0; i < this._popupObjs.length; i++) {
       this._popupObjs[i].destroy();
     }

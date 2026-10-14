@@ -314,11 +314,12 @@ class LevelScene extends Phaser.Scene {
 
     // Debug hooks
     window.__level = this;
-    // ?dbg=1 (remembered until ?dbg=0): on-screen state readout for diagnosing "stuck" reports on phones (nothing is created without the flag)
-    try { if (/[?&]dbg=1/.test(location.search)) localStorage.setItem('dbg', '1'); else if (/[?&]dbg=0/.test(location.search)) localStorage.removeItem('dbg'); } catch (e) {}   // the flag sticks, so an installed app (no URL params) can show it too
-    var dbgOn = false; try { dbgOn = localStorage.getItem('dbg') === '1'; } catch (e) {}
+    // On-screen state readout for diagnosing "stuck" reports on phones (nothing is created without it).  User 2026-10-14: in the full build it lives only in 開發者選項 -
+    // the toggle there (localStorage 'dbg') and only for runs started from that menu (window.__entry 'dev'); the old ?dbg=1 URL switch is gone.
+    var dbgOn = false; try { dbgOn = window.__entry === 'dev' && localStorage.getItem('dbg') === '1'; } catch (e) {}
     if (dbgOn) {
-      this._dbgTxt = this.add.text(4, 150, '', { fontFamily: 'monospace', fontSize: '12px', color: '#00ff66', backgroundColor: '#000000bb' }).setScrollFactor(0).setDepth(9999);
+      // top-right corner, always 12 px (keepSize: 大字版 does not enlarge it) (user 2026-10-14: it covered the HUD on the left)
+      this._dbgTxt = this.add.text(GAME_W - 4, 4, '', { fontFamily: 'monospace', fontSize: '12px', color: '#00ff66', backgroundColor: '#000000bb', keepSize: true }).setOrigin(1, 0).setScrollFactor(0).setDepth(9999);
       this._dbgFrames = 0; this._dbgErr = '';
       window.addEventListener('error', (e) => { this._dbgErr = String(e.message || e).slice(0, 80); });
       window.addEventListener('unhandledrejection', (e) => { this._dbgErr = String(e.reason).slice(0, 80); });

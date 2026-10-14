@@ -2,7 +2,12 @@ const HUD_FONT = 'Microsoft JhengHei, PingFang TC, sans-serif';
 
 // Geometry of the top-left info block (panel + the pill row under it); _redraw() draws from it and the how-to page (charpanel.js) spotlights it.
 const HUD_L = { PX: 10, PY: 10, PW: 360, PH: 100, GAP: 8, PILL_H: 32, PILL_GAP: 10 };
-HUD_L.rect = { x: HUD_L.PX, y: HUD_L.PY, w: HUD_L.PW, h: HUD_L.PH + HUD_L.PILL_GAP + HUD_L.PILL_H };
+// 大字版 (user 2026-10-14: HUD 加大): bigger panel / pills for the 24 px text; set by each HUD (the toggle can change between runs)
+HUD_L.setBig = function (big) {
+  HUD_L.big = !!big; HUD_L.PW = big ? 440 : 360; HUD_L.PH = big ? 116 : 100; HUD_L.PILL_H = big ? 40 : 32;
+  HUD_L.rect = { x: HUD_L.PX, y: HUD_L.PY, w: HUD_L.PW, h: HUD_L.PH + HUD_L.PILL_GAP + HUD_L.PILL_H };
+};
+HUD_L.setBig(false);
 HUD_L.pill = function (i) { const pw = (HUD_L.PW - 2 * HUD_L.GAP) / 3; return { x: HUD_L.PX + i * (pw + HUD_L.GAP), y: HUD_L.PY + HUD_L.PH + HUD_L.PILL_GAP, w: pw, h: HUD_L.PILL_H }; };
 
 class HUD {
@@ -34,6 +39,7 @@ class HUD {
     this._bossFlashPendingOn = false;
     this._bossFlashPendingActive = false;
     this._bossFlashPendingT = 0;
+    HUD_L.setBig(window.__bigText);
     this._build();
   }
 
@@ -67,7 +73,7 @@ class HUD {
       c.beginPath(); c.arc(80, 80, 80, 0, Math.PI * 2); c.clip(); c.drawImage(src, 0, 0, 160, 160); cv.refresh();
     }
     this.avatarImg = s.textures.exists(avKey) ? s.add.image(0, 0, avKey).setDisplaySize(72, 72).setScrollFactor(0).setDepth(101) : null;
-    this.avatarZone = s.add.zone(16, 20, 84, 80).setOrigin(0).setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
+    this.avatarZone = s.add.zone(16, 20, 84, HUD_L.PH - 20).setOrigin(0).setScrollFactor(0).setDepth(104).setInteractive({ useHandCursor: true });
     this.avatarZone.on('pointerdown', () => this.openCharPanel());
     this._onResume = () => { this._resumeFromPanel(); };
     s.events.on('resume', this._onResume);
@@ -105,9 +111,9 @@ class HUD {
     g.lineStyle(3, 0xffc94a, 1); g.strokeCircle(ax, ay, 38);
     if (this.avatarImg) this.avatarImg.setPosition(ax, ay);
     // HP row: the bar spans the whole right column (no heart icon, user 2026-10-12), row centre y = PY + 32
-    const hy = PY + 32;
-    const bx = COLX, bw = COLR - bx, bh = 24, by = hy - bh / 2, fw = bw * r;
-    g.fillStyle(0x000000, 0.55); g.fillRoundedRect(bx, by, bw, bh, 12);
+    const B = HUD_L.big, hy = PY + (B ? 36 : 32);
+    const bx = COLX, bw = COLR - bx, bh = B ? 30 : 24, by = hy - bh / 2, fw = bw * r;
+    g.fillStyle(0x000000, 0.55); g.fillRoundedRect(bx, by, bw, bh, bh / 2);
     if (fw > 0) {
       g.fillStyle(low ? 0xc01818 : 0xd8283a, 1); g.fillRoundedRect(bx, by, fw, bh, Math.min(12, fw / 2));
       g.fillStyle(0xffffff, 0.28); g.fillRoundedRect(bx + 2, by + 2, Math.max(0, fw - 4), bh * 0.42, Math.min(8, Math.max(0, fw - 4) / 2));
@@ -116,13 +122,14 @@ class HUD {
     g.lineStyle(1.5, 0xffffff, 0.35); g.strokeRoundedRect(bx, by, bw, bh, 12);
     this.hpText.setPosition(bx + bw / 2, hy);
     // level row: chip + name, row centre y = PY + 66
-    const ly = PY + 68;
+    const ly = PY + (B ? 84 : 68), chH = B ? 32 : 24;
     const cw = Math.max(56, this.levelChipText.width + 24);   // chip fits its text ("第 10 關" is wider than "第 1 關")
-    g.fillStyle(0xffc94a, 1); g.fillRoundedRect(COLX, ly - 12, cw, 24, 12);
+    g.fillStyle(0xffc94a, 1); g.fillRoundedRect(COLX, ly - chH / 2, cw, chH, chH / 2);
     this.levelChipText.setPosition(COLX + cw / 2, ly); this.levelText.setPosition(COLX + cw + 10, ly);
+    if (B) { const room = COLR - (COLX + cw + 10); this.levelText.setScale(this.levelText.width > room ? room / this.levelText.width : 1); }   // 大字版: a long level name (10 characters) is squeezed to fit
     // pill row: weather / enemies / coins, equal widths spanning the panel width, 10 px below it
     const py = PY + PH + HUD_L.PILL_GAP, ph = HUD_L.PILL_H, my = py + ph / 2, pw = (PW - 2 * GAP) / 3;
-    const pill = (i) => { const x = PX + i * (pw + GAP); g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(x, py, pw, ph, 16); g.lineStyle(1.5, 0xffffff, 0.22); g.strokeRoundedRect(x, py, pw, ph, 16); return x; };
+    const pill = (i) => { const x = PX + i * (pw + GAP); g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(x, py, pw, ph, ph / 2); g.lineStyle(1.5, 0xffffff, 0.22); g.strokeRoundedRect(x, py, pw, ph, ph / 2); return x; };
     const pair = (x, a, b) => { const tot = a.width + 8 + b.width, x0 = x + (pw - tot) / 2; a.setPosition(x0, my); b.setPosition(x0 + a.width + 8, my); };
     {   // weather pill: a long name ("夜晚·雷陣雨") must not overflow it: first drop the "天氣" label, then shrink the text to fit
       const wl = this.weatherLabel, wt = this.weatherText, x = pill(0), room = pw - 14;
@@ -140,10 +147,10 @@ class HUD {
       if (a < 1) this.windText.setVisible(false);
       else {
         const lvl = Math.max(9, Math.min(12, 9 + Math.round(3 * (a - 40) / 50))), warn = Math.abs(wi.push - wi.slant) > 0.15 * a;
-        const cx = HUD_L.PX + pw / 2, cy = py + ph + 6 + 13;
+        const wh = B ? 34 : 26, cx = HUD_L.PX + pw / 2, cy = py + ph + 6 + wh / 2;
         this.windText.setText((wi.slant > 0 ? '→ ' : '← ') + lvl + ' 級').setColor(warn ? '#ffc94a' : '#ffffff').setPosition(cx, cy).setVisible(true);
         this.windText.setAlpha(warn ? 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(this.scene.time.now * 0.02)) : 1);
-        g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(HUD_L.PX, py + ph + 6, pw, 26, 13); g.lineStyle(1.5, warn ? 0xffc94a : 0xffffff, warn ? 0.6 : 0.22); g.strokeRoundedRect(HUD_L.PX, py + ph + 6, pw, 26, 13);
+        g.fillStyle(0x0a1224, 0.58); g.fillRoundedRect(HUD_L.PX, py + ph + 6, pw, wh, wh / 2); g.lineStyle(1.5, warn ? 0xffc94a : 0xffffff, warn ? 0.6 : 0.22); g.strokeRoundedRect(HUD_L.PX, py + ph + 6, pw, wh, wh / 2);
       }
     }
     pair(pill(1), this.enemyLabel, this.enemyText);
@@ -182,7 +189,7 @@ class HUD {
 
   // True when the pointer is on the avatar button (touch.js ignores such touches so tapping the avatar does not pop up the walk pad).
   avatarHit(pointer) {
-    return pointer.x >= 16 && pointer.x <= 100 && pointer.y >= 20 && pointer.y <= 100;
+    return pointer.x >= 16 && pointer.x <= 100 && pointer.y >= 20 && pointer.y <= HUD_L.PY + HUD_L.PH;
   }
 
   // Restart-level button (user 2026-10-13): a round button in the top-right corner. The first tap arms it (red, with a hint) for 2.5 s, the second tap restarts the level from the state it started in
@@ -238,8 +245,9 @@ class HUD {
       if (stacks <= 0) continue;
       const col = this._buffCount % 6;
       const row = Math.floor(this._buffCount / 6);
-      const x = GAME_W - 16 - col * 34;
-      const y = 72 + row * 34;   // below the restart button (top-right corner, 2026-10-13)
+      const sp = HUD_L.big ? 48 : 34;   // 大字版: the 24 px "x2" needs more room between icons
+      const x = GAME_W - 16 - col * sp;
+      const y = (HUD_L.big ? 80 : 72) + row * sp;   // below the restart button (top-right corner, 2026-10-13)
       if (s.textures.exists('icon_' + id)) {
         const icon = s.add.image(x, y, 'icon_' + id).setScrollFactor(0).setDepth(100).setDisplaySize(24, 24);
         this.buffIcons.push(icon);

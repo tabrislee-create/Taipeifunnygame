@@ -53,8 +53,11 @@ class ChoiceScene extends Phaser.Scene {
     // Look follows the character panel (charpanel.js): one dark rounded panel, white 25 % border, 24 px padding, bold text with a dark outline, yellow accent bars before the section titles.
     // Type sizes (user 2026-10-12: 字體盡量加大): title 28, section 22, item name 22, tags / descriptions / buttons 18, small notes 16.
     var F = FONT, SEC = '#9fb4d0', self0 = this;
-    var PW = 880, PH = 490, PX = Math.round((GAME_W - PW) / 2), PY = 25, PAD = 24;
-    this._L = { PX: PX, PY: PY, PW: PW, PH: PH, PAD: PAD, CW: 266, GAP: 17, CY0: PY + 70 + 36, CH: 212 };
+    // 大字版 (2026-10-14, 24 px text): the longest description (~30 characters) must stay at 3 lines -> a wider panel (up to 940) and cards, the panel uses nearly the whole height,
+    // tighter gaps between the rows; everything still fits on one screen (no scrolling, so a tap on a card is never mistaken for a drag)
+    var big = this._big = !!window.__bigText;
+    var PW = big ? Math.min(GAME_W - 20, 940) : 880, PH = big ? 524 : 490, PX = Math.round((GAME_W - PW) / 2), PY = big ? 4 : 25, PAD = 24, GAP = 17;
+    this._L = { PX: PX, PY: PY, PW: PW, PH: PH, PAD: PAD, CW: big ? Math.floor((PW - 2 * PAD - 2 * GAP) / 3) : 266, GAP: GAP, CY0: PY + (big ? 96 : 70 + 36), CH: big ? 244 : 212 };
     var T = function (x, y, str, sz, col, extra) { return self0.add.text(x, y, str, Object.assign({ fontFamily: F, fontSize: sz + 'px', fontStyle: 'bold', color: col || '#ffffff', stroke: '#0a1224', strokeThickness: 3 }, extra || {})); };
     this._T = T;
     this.add.rectangle(GAME_W / 2, 270, GAME_W, 540, 0x000000, 0.45).setDepth(-40);
@@ -79,12 +82,12 @@ class ChoiceScene extends Phaser.Scene {
       self0.add.rectangle(PX + PAD, y + 12, 5, 24, 0xffc94a).setOrigin(0, 0.5);
       T(PX + PAD + 16, y + 12, title, 22, '#ffc94a').setOrigin(0, 0.5);
     };
-    section(PY + 70, '獎勵');
+    section(PY + (big ? 62 : 70), '獎勵');
     this._buildCards();
 
-    var shopY = this._L.CY0 + this._L.CH + 12;   // below the three reward cards
+    var shopY = this._L.CY0 + this._L.CH + (big ? 8 : 12);   // below the three reward cards
     section(shopY, '商店');
-    var sy = shopY + 36, SH = 78, CW = this._L.CW, GAP = this._L.GAP, sx0 = PX + PAD;
+    var sy = shopY + (big ? 32 : 36), SH = big ? 84 : 78, CW = this._L.CW, GAP = this._L.GAP, sx0 = PX + PAD;
     this._shopY = sy; this._shopH = SH;
     this._shopGfx = this.add.graphics();
 
@@ -111,7 +114,7 @@ class ChoiceScene extends Phaser.Scene {
       }
       var sRect = this.add.rectangle(bcx, bcy, CW, SH, 0xffffff, 0.001).setInteractive({ useHandCursor: true });
       var sName = T(bx + 16, sy + 10, '', 20, '#ffffff').setOrigin(0, 0);
-      var sDesc = T(bx + 16, sy + 38, '', 16, SEC, { wordWrap: { width: CW - 32, useAdvancedWrap: true }, lineSpacing: 2 }).setOrigin(0, 0);
+      var sDesc = T(bx + 16, sy + (big ? 44 : 38), '', 16, SEC, { wordWrap: { width: CW - 32, useAdvancedWrap: true }, lineSpacing: 2 }).setOrigin(0, 0);
       var sPrice = T(bx + CW - 16, sy + 10, '', 20, '#ffd24a').setOrigin(1, 0);
       var sBought = T(bcx, bcy, '已購買', 22, '#ffffff', { backgroundColor: '#000000aa', padding: { x: 12, y: 5 } }).setOrigin(0.5).setVisible(false);
       this._shopCards.push({ rect: sRect, nameT: sName, descT: sDesc, priceT: sPrice, boughtT: sBought, item: this._shopItems[si], x: bx, y: sy, w: CW, h: SH });
@@ -175,7 +178,7 @@ class ChoiceScene extends Phaser.Scene {
     var tagText = isSim ? '特殊攻擊·30 次' : (item.slot ? '裝備·' + SLOT_ZH[item.slot] + ' ' + RARITY_ZH[item.rarity] : '增益 ' + RARITY_ZH[item.rarity]);
     cont.add(T(tx, -H / 2 + PADC + 42, tagText, 18, hexColor(rc)).setOrigin(0, 0.5));
 
-    cont.add(T(-W / 2 + PADC, -H / 2 + PADC + 68, item.desc_zh, 18, '#d6e2f2', { wordWrap: { width: W - 2 * PADC, useAdvancedWrap: true }, lineSpacing: 3 }).setOrigin(0, 0));
+    cont.add(T(-W / 2 + PADC, -H / 2 + PADC + 68, item.desc_zh, 18, '#d6e2f2', { wordWrap: { width: W - PADC - (this._big ? 8 : PADC), useAdvancedWrap: true }, lineSpacing: this._big ? 2 : 3 }).setOrigin(0, 0));
 
     var bottomText = isSim ? (RUN.simUses > 0 ? '目前剩 ' + RUN.simUses + ' 次，再拿重置為 30' : '用完後恢復普通攻擊') : (item.slot ? '目前：' + (card.current ? card.current.name_zh : '無') : '只作用於下一關');
     cont.add(T(-W / 2 + PADC, H / 2 - PADC + 2, bottomText, 16, '#7f93b0').setOrigin(0, 1));

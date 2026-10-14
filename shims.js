@@ -14,6 +14,20 @@
     const ct = C.prototype.clearTint;
     C.prototype.clearTint = function () { this.tintFill = false; return ct.call(this); };
   });
+  // 大字版 (user 2026-10-14): the landing page's 字體：標準／大字 toggle sets window.__bigText.  Every scene.add.text smaller than BIG_TEXT_MIN is raised to it;
+  // bigger text is left alone (user chose "raise the small text to a floor, keep the big text").  Read at creation time, so a toggle takes effect on the next scene.
+  const BIG_TEXT_MIN = 24;
+  const GOF = Phaser.GameObjects.GameObjectFactory && Phaser.GameObjects.GameObjectFactory.prototype;
+  if (GOF && GOF.text && !GOF._textOrig) {
+    GOF._textOrig = GOF.text;
+    GOF.text = function (x, y, str, style) {
+      if (window.__bigText && style && style.fontSize != null && !style.keepSize) {   // keepSize: true opts a text out (the debug readout, level.js)
+        const n = parseFloat(style.fontSize);
+        if (n > 0 && n < BIG_TEXT_MIN) style = Object.assign({}, style, { fontSize: BIG_TEXT_MIN + 'px' });
+      }
+      return GOF._textOrig.call(this, x, y, str, style);
+    };
+  }
   // Arcade bodies follow the sprite's scale, so squash/stretch tweens made the body shrink and the player sink through the ground.
   // Keep the body size tied to sprite.baseScaleX/Y (set by makeSprite) so visual squash never changes the physics body.
   const Body = Phaser.Physics.Arcade && Phaser.Physics.Arcade.Body;

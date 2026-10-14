@@ -19,7 +19,10 @@ html,body{margin:0;background:#000;height:100%;overflow:hidden;touch-action:none
 .logo img{display:block;width:100%;height:100%}
 .logo::after{content:'';position:absolute;inset:0;background:linear-gradient(100deg,transparent 38%,rgba(255,190,60,.95) 50%,transparent 62%) 0 0/300% 100%;-webkit-mask:url(assets/title_logo.png) center/100% 100% no-repeat;mask:url(assets/title_logo.png) center/100% 100% no-repeat;animation:glint 7s linear infinite}
 @keyframes glint{0%{background-position:150% 0}85%,100%{background-position:-50% 0}}
-#ltag{font-weight:700;line-height:1.35;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000,0 3px 6px rgba(0,0,0,.5);max-width:92%}
+/* tagline outline (user 2026-10-14: the old 4-corner shadow outline looked jagged): a real stroke drawn behind the white fill (paint-order) in the game's outline navy + a soft drop shadow;
+   browsers without paint-order on HTML text get a smoother 8-direction shadow outline instead */
+#ltag{font-weight:700;line-height:1.35;max-width:92%;-webkit-text-stroke:.2em #0a1224;paint-order:stroke fill;text-shadow:0 .12em .3em rgba(0,0,0,.45)}
+@supports not (paint-order:stroke fill){#ltag{-webkit-text-stroke:0;text-shadow:1.5px 0 0 #0a1224,-1.5px 0 0 #0a1224,0 1.5px 0 #0a1224,0 -1.5px 0 #0a1224,1px 1px 0 #0a1224,-1px 1px 0 #0a1224,1px -1px 0 #0a1224,-1px -1px 0 #0a1224,0 3px 6px rgba(0,0,0,.45)}}
 #lava{display:flex;gap:2.2vmin;justify-content:center}
 #lava .av{display:flex;flex-direction:column;align-items:center}
 #lava img{width:11vmin;height:11vmin;max-width:84px;max-height:84px;border-radius:50%;object-fit:cover;background:#fff;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.45)}
@@ -81,6 +84,11 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
 #lrecbox .btns{display:flex;gap:10px;justify-content:center;margin-top:10px}
 #lrecbox .btns button{appearance:none;font:700 16px 'Microsoft JhengHei',sans-serif;color:#fff;background:#2f6fc8;border:2px solid #fff;border-radius:99px;padding:5px 26px;cursor:pointer}
 #lrecbox .btns button.del{background:#6a2a2a}#lrecbox .btns button.del.arm{background:#c0392b}
+/* 大字版 (user 2026-10-14, 字體：大字): the small landing-page text is raised to at least 18px; the bigger text is left alone */
+body.big #linst button,body.big #lopts button{font-size:18px}
+body.big #lfoot{font-size:16px}
+body.big #lbox{font-size:18px}body.big #lbox h3{font-size:20px}
+body.big #lline,body.big #lhint{font-size:18px!important}
 @media (orientation:landscape){#lrecbox{width:94vw;max-width:860px}#lrecbox .grid{grid-template-columns:repeat(6,1fr)}}   /* phones held sideways: the six numbers in one row */
 </style>
 </head><body>
@@ -120,8 +128,8 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
 // Landing page + loader (user 2026-10-12): the page opens on this start screen at once (no game script loaded yet).  "開始遊戲" asks for fullscreen + landscape (touch devices), then loads the game scripts,
 // starts Phaser (its loading screen takes over) and the first scene is the character select.  ?go=1, or an automated browser (navigator.webdriver; ?landing=1 forces the landing page), skip it and start straight away.
 (function () {
-  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261009a', 'state.js?v=20261013a', 'effects.js?v=20261013a', 'weather.js?v=20261013e', 'hooks.js?v=20261013a', 'hud.js?v=20261013d', 'player.js?v=20261013b',
-    'enemy.js?v=20261011c', 'boss.js?v=20261013i', 'extras.js?v=20261012a', 'touch.js?v=20261013a', 'level.js?v=20261013l', 'ui.js?v=20261013f', 'choice.js?v=20261012b', 'charpanel.js?v=20261013a', 'main.js?v=20261013d'];
+  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261014c', 'state.js?v=20261013a', 'effects.js?v=20261013a', 'weather.js?v=20261013e', 'hooks.js?v=20261013a', 'hud.js?v=20261014a', 'player.js?v=20261013b',
+    'enemy.js?v=20261011c', 'boss.js?v=20261013i', 'extras.js?v=20261012a', 'touch.js?v=20261013a', 'level.js?v=20261014b', 'ui.js?v=20261014d', 'choice.js?v=20261014b', 'charpanel.js?v=20261014g', 'main.js?v=20261013d'];
   var demo = !!window.DEMO_BUILD || /[?&]demo=1/.test(location.search);
   var bypass = /[?&]go=1/.test(location.search) || (navigator.webdriver && !/[?&]landing=1/.test(location.search));
   var $ = function (id) { return document.getElementById(id); };
@@ -181,6 +189,14 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
     var hb = document.createElement('button'); hb.type = 'button'; hb.textContent = '困難模式：關';
     hb.addEventListener('click', function () { window.__landingHard = !window.__landingHard; hb.textContent = '困難模式：' + (window.__landingHard ? '開' : '關'); hb.classList.toggle('on', !!window.__landingHard); });
     $('lopts').appendChild(hb);
+  }
+  // 字體：標準／大字 (user 2026-10-14): full build only for now; remembered in this browser.  shims.js raises small in-game text when window.__bigText is set.
+  if (!demo) {
+    try { window.__bigText = localStorage.getItem('bigText') === '1'; } catch (e) {}
+    var fb = document.createElement('button'); fb.type = 'button';
+    var showFont = function () { fb.textContent = '字體：' + (window.__bigText ? '大字' : '標準'); fb.classList.toggle('on', !!window.__bigText); document.body.classList.toggle('big', !!window.__bigText); };
+    fb.addEventListener('click', function () { window.__bigText = !window.__bigText; try { localStorage.setItem('bigText', window.__bigText ? '1' : '0'); } catch (e) {} showFont(); });
+    showFont(); $('lopts').appendChild(fb);
   }
   // 遊玩記錄: trial build only (user 2026-10-13); the records stay in this browser (records.js)
   if (demo) { var rb = document.createElement('button'); rb.type = 'button'; rb.textContent = '遊玩記錄'; rb.addEventListener('click', showRecords); $('lopts').appendChild(rb); }
