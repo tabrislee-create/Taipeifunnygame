@@ -119,7 +119,7 @@ body.big #lrecbox{font-size:18px}body.big #lrecbox h3{font-size:22px}body.big #l
   <div id="lrec"><div id="lrecbox"></div></div>
 </div>
 
-<script>window.DEMO_BUILD = true;   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
+<script>window.DEMO_BUILD = true; window.DEMO_VERSION = '0.3.28';   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
 window.DEV_MENU = true;      // the 開發者選項 button on this page (full build only); set false for a public full release</script>
 <script src="viewport.js?v=20261009a"></script>
 <script src="titlecopy.js?v=20261012a"></script>
@@ -183,7 +183,7 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
     var im = new Image(); im.src = 'assets/avatar_' + id + '.png'; im.alt = ''; w.appendChild(im);
     $('lava').appendChild(w);
   });
-  if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 v0.1｜AI 輔助製作'; }
+  if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 ' + (window.DEMO_VERSION ? 'v' + window.DEMO_VERSION : '（開發版）') + '｜AI 輔助製作'; }   // DEMO_VERSION: set by tools/make_demo_bundle.py from tools/demo_bundle/VERSION
   $('lstart').addEventListener('click', function () { start('play'); });
   // 困難模式 toggle: both builds (user 2026-10-13: hard mode is in the trial build too); 開發者選項: full build only
   {
