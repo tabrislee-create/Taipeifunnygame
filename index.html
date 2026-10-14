@@ -89,6 +89,7 @@ body.big #linst button,body.big #lopts button{font-size:18px}
 body.big #lfoot{font-size:16px}
 body.big #lbox{font-size:18px}body.big #lbox h3{font-size:20px}
 body.big #lline,body.big #lhint{font-size:18px!important}
+body.big #lrecbox{font-size:18px}body.big #lrecbox h3{font-size:22px}body.big #lrecbox h4{font-size:18px}body.big #lrecbox .grid b{font-size:22px}body.big #lrecbox .grid span,body.big #lrecbox .note,body.big #lrecbox table{font-size:16px}body.big #lrecbox .btns button{font-size:18px}body.big #lrecbox{padding:12px 10px}body.big #lrecbox td,body.big #lrecbox th{padding:3px 2px}   /* 遊玩記錄 (trial build); tighter padding so the six-column table fits a portrait phone */
 @media (orientation:landscape){#lrecbox{width:94vw;max-width:860px}#lrecbox .grid{grid-template-columns:repeat(6,1fr)}}   /* phones held sideways: the six numbers in one row */
 </style>
 </head><body>
@@ -190,8 +191,8 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
     hb.addEventListener('click', function () { window.__landingHard = !window.__landingHard; hb.textContent = '困難模式：' + (window.__landingHard ? '開' : '關'); hb.classList.toggle('on', !!window.__landingHard); });
     $('lopts').appendChild(hb);
   }
-  // 字體：標準／大字 (user 2026-10-14): full build only for now; remembered in this browser.  shims.js raises small in-game text when window.__bigText is set.
-  if (!demo) {
+  // 字體：標準／大字 (user 2026-10-14; in the trial build too since v0.3.27): remembered in this browser.  shims.js raises small in-game text when window.__bigText is set.
+  {
     try { window.__bigText = localStorage.getItem('bigText') === '1'; } catch (e) {}
     var fb = document.createElement('button'); fb.type = 'button';
     var showFont = function () { fb.textContent = '字體：' + (window.__bigText ? '大字' : '標準'); fb.classList.toggle('on', !!window.__bigText); document.body.classList.toggle('big', !!window.__bigText); };
