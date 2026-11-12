@@ -121,7 +121,7 @@ body.big #lrecbox{font-size:18px}body.big #lrecbox h3{font-size:22px}body.big #l
   <div id="lrec"><div id="lrecbox"></div></div>
 </div>
 
-<script>window.DEMO_BUILD = true; window.DEMO_VERSION = '0.3.29';   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
+<script>window.DEMO_BUILD = true; window.DEMO_VERSION = '0.3.30';   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
 window.DEV_MENU = true;      // the 開發者選項 button on this page (full build only); set false for a public full release</script>
 <script src="viewport.js?v=20261009a"></script>
 <script src="titlecopy.js?v=20261012a"></script>
@@ -131,8 +131,8 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
 // Landing page + loader (user 2026-10-12): the page opens on this start screen at once (no game script loaded yet).  "開始遊戲" asks for fullscreen + landscape (touch devices), then loads the game scripts,
 // starts Phaser (its loading screen takes over) and the first scene is the character select.  ?go=1, or an automated browser (navigator.webdriver; ?landing=1 forces the landing page), skip it and start straight away.
 (function () {
-  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261014c', 'state.js?v=20261013a', 'effects.js?v=20261013a', 'weather.js?v=20261013e', 'hooks.js?v=20261013a', 'hud.js?v=20261014a', 'player.js?v=20261013b',
-    'enemy.js?v=20261011c', 'boss.js?v=20261013i', 'extras.js?v=20261012a', 'touch.js?v=20261013a', 'level.js?v=20261014b', 'ui.js?v=20261014d', 'choice.js?v=20261014b', 'charpanel.js?v=20261014g', 'main.js?v=20261013d'];
+  var SCRIPTS = ['phaser.min.js?v=20261009a', 'shims.js?v=20261014c', 'state.js?v=20261013a', 'effects.js?v=20261013a', 'weather.js?v=20261013e', 'hooks.js?v=20261013a', 'hud.js?v=20261014a', 'player.js?v=20261109a',
+    'enemy.js?v=20261011c', 'boss.js?v=20261013i', 'extras.js?v=20261109a', 'touch.js?v=20261013a', 'groundjoints_data.js?v=20261028a', 'groundjoints.js?v=20261028a', 'level.js?v=20261110a', 'ui.js?v=20261014d', 'choice.js?v=20261014b', 'charpanel.js?v=20261014g', 'main.js?v=20261110a'];
   var demo = !!window.DEMO_BUILD || /[?&]demo=1/.test(location.search);
   var bypass = /[?&]go=1/.test(location.search) || (navigator.webdriver && !/[?&]landing=1/.test(location.search));
   var $ = function (id) { return document.getElementById(id); };

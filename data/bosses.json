@@ -288,5 +288,435 @@
   "art_prompt": "chibi cute large red dragon with golden horns and wings, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
   "intro_text_zh": "龍王現身，最終決戰開始！",
   "notes": "Final boss. Multi-phase. Uses all primitives. HP scaled to 8.0x base enemy HP."
+ },
+ {
+  "id": "boss_terracotta_general",
+  "name_en": "Terracotta General",
+  "name_zh": "將軍俑",
+  "level": 10,
+  "hp": 600,
+  "size": "large",
+  "display_h": 160,
+  "telegraph_style": "halo",
+  "aoe_telegraph": "kiln",
+  "skill_banner": true,
+  "hitbox": {
+   "w": 0.8,
+   "h": 0.85
+  },
+  "phases": [
+   {
+    "hp_below_pct": 100,
+    "patterns": [
+     {
+      "primitive": "summon_adds",
+      "params": {
+       "count": 3,
+       "enemy_type": "terracotta_mirror_big",
+       "sequence": [
+        "terracotta_mirror_big",
+        "terracotta_pig",
+        "terracotta_pig"
+       ],
+       "interval_ms": 350
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 0,
+      "zh_name": "將軍號令",
+      "zh_desc": "召喚一隻大鏡怪和兩隻陶豬。",
+      "id": "summon",
+      "seq": 1,
+      "once": true
+     },
+     {
+      "primitive": "ground_wave",
+      "params": {
+       "speed": 180,
+       "damage": 18
+      },
+      "telegraph_ms": 900,
+      "cooldown_ms": 1000,
+      "zh_name": "窯裂震波",
+      "zh_desc": "震出窯裂震波。",
+      "id": "kiln_wave",
+      "cd_ms": 4000
+     },
+     {
+      "primitive": "dash",
+      "params": {
+       "swing_ms": 1750,
+       "fx": "shockwave"
+      },
+      "telegraph_ms": 1,
+      "cooldown_ms": 0,
+      "zh_name": "青銅戈劈",
+      "zh_desc": "不預警，青銅戈由上劈下，命中把玩家彈飛，後退可閃。",
+      "id": "crescent",
+      "trigger": "on_hit",
+      "cd_ms": 2500
+     }
+    ]
+   },
+   {
+    "hp_below_pct": 66,
+    "patterns": [
+     {
+      "primitive": "summon_adds",
+      "params": {
+       "count": 5,
+       "enemy_type": "terracotta_mirror_big",
+       "sequence": [
+        "terracotta_mirror_big",
+        "terracotta_pig",
+        "terracotta_pig",
+        "terracotta_pig",
+        "terracotta_pig"
+       ],
+       "interval_ms": 350
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 0,
+      "zh_name": "將軍號令",
+      "zh_desc": "召喚一隻大鏡怪和四隻陶豬。",
+      "id": "summon",
+      "seq": 1,
+      "once": true,
+      "immediate": true
+     },
+     {
+      "primitive": "ground_wave",
+      "params": {
+       "speed": 180,
+       "damage": 18
+      },
+      "telegraph_ms": 900,
+      "cooldown_ms": 1000,
+      "zh_name": "窯裂震波",
+      "zh_desc": "震出窯裂震波。",
+      "id": "kiln_wave",
+      "cd_ms": 4000
+     },
+     {
+      "primitive": "dash",
+      "params": {
+       "swing_ms": 1750,
+       "fx": "shockwave"
+      },
+      "telegraph_ms": 1,
+      "cooldown_ms": 0,
+      "zh_name": "青銅戈劈",
+      "zh_desc": "不預警，青銅戈由上劈下，命中把玩家彈飛，後退可閃。",
+      "id": "crescent",
+      "trigger": "on_hit",
+      "cd_ms": 2500
+     },
+     {
+      "primitive": "dash",
+      "params": {
+       "speed": 400,
+       "distance": 300,
+       "fx": "rage"
+      },
+      "telegraph_ms": 1200,
+      "cooldown_ms": 1500,
+      "zh_name": "窯火燃身",
+      "zh_desc": "窯火燃身，猛衝向前。",
+      "id": "rage",
+      "cd_ms": 8000
+     },
+     {
+      "primitive": "green_terrain_aoe",
+      "params": {
+       "count": 2,
+       "stun": true,
+       "radius": 150,
+       "damage_per_tick": 5,
+       "tick_interval": 500,
+       "duration": 3500
+      },
+      "telegraph_ms": 3000,
+      "cooldown_ms": 1200,
+      "zh_name": "窯火焚坑",
+      "zh_desc": "同時在場上留下兩個窯火焚坑，被燒到的人無法行動。",
+      "id": "kiln_pool",
+      "cd_ms": 10500
+     }
+    ]
+   },
+   {
+    "hp_below_pct": 33,
+    "patterns": [
+     {
+      "primitive": "summon_adds",
+      "params": {
+       "count": 7,
+       "enemy_type": "terracotta_mirror_big",
+       "sequence": [
+        "terracotta_mirror_big",
+        "terracotta_mirror_big",
+        "terracotta_pig",
+        "terracotta_pig",
+        "terracotta_pig",
+        "terracotta_pig",
+        "terracotta_pig"
+       ],
+       "interval_ms": 350
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 0,
+      "zh_name": "將軍號令",
+      "zh_desc": "召喚兩隻大鏡怪和五隻陶豬。",
+      "id": "summon",
+      "seq": 1,
+      "once": true,
+      "immediate": true
+     },
+     {
+      "primitive": "ground_wave",
+      "params": {
+       "speed": 180,
+       "damage": 18
+      },
+      "telegraph_ms": 900,
+      "cooldown_ms": 1000,
+      "zh_name": "窯裂震波",
+      "zh_desc": "震出窯裂震波。",
+      "id": "kiln_wave",
+      "cd_ms": 4000
+     },
+     {
+      "primitive": "dash",
+      "params": {
+       "swing_ms": 1750,
+       "fx": "shockwave"
+      },
+      "telegraph_ms": 1,
+      "cooldown_ms": 0,
+      "zh_name": "青銅戈劈",
+      "zh_desc": "不預警，青銅戈由上劈下，命中把玩家彈飛，後退可閃。",
+      "id": "crescent",
+      "trigger": "on_hit",
+      "cd_ms": 2500
+     },
+     {
+      "primitive": "dash",
+      "params": {
+       "speed": 400,
+       "distance": 300,
+       "fx": "rage"
+      },
+      "telegraph_ms": 1200,
+      "cooldown_ms": 1500,
+      "zh_name": "窯火燃身",
+      "zh_desc": "窯火燃身，猛衝向前。",
+      "id": "rage",
+      "cd_ms": 8000
+     },
+     {
+      "primitive": "green_terrain_aoe",
+      "params": {
+       "count": 2,
+       "stun": true,
+       "radius": 150,
+       "damage_per_tick": 5,
+       "tick_interval": 500,
+       "duration": 3500
+      },
+      "telegraph_ms": 3000,
+      "cooldown_ms": 1200,
+      "zh_name": "窯火焚坑",
+      "zh_desc": "同時在場上留下兩個窯火焚坑，被燒到的人無法行動。",
+      "id": "kiln_pool",
+      "cd_ms": 10500
+     },
+     {
+      "primitive": "laser_sweep",
+      "params": {
+       "duration": 2,
+       "damage": 22
+      },
+      "telegraph_ms": 2000,
+      "cooldown_ms": 1500,
+      "zh_name": "窯裂光柱",
+      "zh_desc": "掃射窯裂光柱。",
+      "id": "beam",
+      "seq": 2,
+      "cd_ms": 12000
+     }
+    ]
+   }
+  ],
+  "phase_tints": [
+   16777215,
+   16756848,
+   16738890
+  ],
+  "fx_colors": {
+   "swing": {
+    "glow": [
+     16767392,
+     14721104
+    ],
+    "layers": [
+     3809034,
+     7027220,
+     10115614,
+     13208116,
+     15251552,
+     16773320
+    ],
+    "trail": 14721104
+   },
+   "pool": {
+    "fill": 16742938,
+    "stroke": 11022860
+   },
+   "beam": {
+    "fill": 16742938,
+    "band": 16773320,
+    "core": 16774364,
+    "glow": 16756848
+   }
+  },
+  "clear_on_death": true,
+  "warn_lines": [
+    "本將軍甦醒，誰敢放肆!",
+    "窯火燒醒，爾等受死!",
+    "兵俑列陣，擋者皆碎!"
+  ],
+  "defeat_lines": [
+    "窯火已熄，本將軍就此退去!",
+    "兵俑歸土，爾等好自為之!",
+    "敗於烈焰，爾等速速散去!"
+  ],
+  "art_prompt": "This is an RGBA image with transparency. A chibi cute terracotta army general figurine boss for a 2D platformer game: lamellar armour made of rectangular plates tied with cords, a tall flat headdress, a three-strand beard, one hand holding a bronze halberd, a cracked clay body with ember-orange kiln light glowing in the cracks, a blank deadpan face, thick clean dark outline, three-quarter side view facing left, a single sprite centered. No sparkles, no star glints, no lens flare, no light rays and no glow outside the body outline, nothing but the figurine itself. The image has alpha channel and the background is transparent.",
+  "intro_text_zh": "",
+  "notes": "Level-10 boss with three color stages; summons two double-size reflecting mirror minions at the start and at each color change.",
+  "walk_speed": 50,
+  "roam_min_x": 1000,
+  "sink": 14
+ },
+ {
+  "id": "boss_rock_golem",
+  "name_en": "Rock Golem",
+  "name_zh": "岩石怪",
+  "level": 15,
+  "hp": 1000,
+  "size": "large",
+  "display_h": 200,
+  "hitbox": {
+   "w": 0.8,
+   "h": 0.9
+  },
+  "wake": {
+   "distance": 400,
+   "y_tol": 120,
+   "open_ms": 600
+  },
+  "phases": [
+   {
+    "hp_below_pct": 100,
+    "patterns": [
+     {
+      "primitive": "stone_toss",
+      "params": {
+       "count": 3,
+       "interval_ms": 400,
+       "speed": 300,
+       "gravity": 448,
+       "damage": 12,
+       "radius": 14
+      },
+      "telegraph_ms": 900,
+      "cooldown_ms": 1800,
+      "zh_name": "連環投石",
+      "zh_desc": "連續投出三顆拋物線石頭。",
+      "id": "stone_toss",
+      "cd_ms": 5000
+     },
+     {
+      "primitive": "stone_rain",
+      "params": {
+       "count": 10,
+       "interval_ms": 250,
+       "damage": 10,
+       "radius": 12
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 3200,
+      "zh_name": "漫天石雨",
+      "zh_desc": "天上連續掉下十顆石頭，落點隨機。",
+      "id": "stone_rain",
+      "cd_ms": 9000
+     }
+    ]
+   },
+   {
+    "hp_below_pct": 25,
+    "patterns": [
+     {
+      "primitive": "boulder_roll",
+      "params": {
+       "count": 3,
+       "interval_ms": 1500,
+       "speed": 300,
+       "diameter": 200,
+       "damage": 20,
+       "knock_x": 650,
+       "knock_y": -380,
+       "inv_through_rolls": true
+      },
+      "telegraph_ms": 2000,
+      "cooldown_ms": 5500,
+      "zh_name": "巨石滾落",
+      "zh_desc": "停頓兩秒發出黃光（無敵），接著連續滾出三顆貼地巨石。",
+      "id": "boulder_roll",
+      "seq": 1,
+      "once": true,
+      "immediate": true
+     },
+     {
+      "primitive": "stone_toss",
+      "params": {
+       "count": 3,
+       "interval_ms": 400,
+       "speed": 300,
+       "gravity": 448,
+       "damage": 12,
+       "radius": 14
+      },
+      "telegraph_ms": 900,
+      "cooldown_ms": 1800,
+      "zh_name": "連環投石",
+      "zh_desc": "連續投出三顆拋物線石頭。",
+      "id": "stone_toss",
+      "cd_ms": 5000
+     },
+     {
+      "primitive": "stone_rain",
+      "params": {
+       "count": 10,
+       "interval_ms": 250,
+       "damage": 10,
+       "radius": 12
+      },
+      "telegraph_ms": 1000,
+      "cooldown_ms": 3200,
+      "zh_name": "漫天石雨",
+      "zh_desc": "天上連續掉下十顆石頭，落點隨機。",
+      "id": "stone_rain",
+      "cd_ms": 9000
+     }
+    ]
+   }
+  ],
+  "art_prompt": "",
+  "intro_text_zh": "",
+  "notes": "Level-15 boss (hiking line), slow rock golem. Dormant with eyes closed (untouchable, idle) until the player comes within wake.distance horizontally and wake.y_tol vertically; then opens its eyes (assets/boss_rock_golem_open.png). Phase 1 skills: stone_toss, stone_rain. Final phase (hp <= 25%): opening boulder_roll (2 s yellow-glow pause, invulnerable, then 3 unbreakable ground-hugging boulders 1.5 s apart), then stone_toss / stone_rain as before. phase_tints is white so the generic pastel hue drift does not tint the stone.",
+  "phase_tints": [
+   16777215,
+   16777215
+  ],
+  "walk_speed": 35
  }
 ]

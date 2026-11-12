@@ -27,8 +27,10 @@ const Extras = {
       const ref = kids[i] && kids[i].ref;
       if (!ref || !ref.def) continue;
       if (RUN.hard) {
-        ref.hp = Math.round(ref.hp * 1.2);
-        ref.maxHp = Math.round(ref.maxHp * 1.2);
+        if (!(ref.params && ref.params.fixed_hp)) {
+          ref.hp = Math.round(ref.hp * 1.2);
+          ref.maxHp = Math.round(ref.maxHp * 1.2);
+        }
         if (ref.dmgMult != null) ref.dmgMult *= 1.1;
       }
       if (n >= 6 && !GAME_DATA.bosses[ref.def.id]) {
@@ -37,7 +39,7 @@ const Extras = {
     }
     // treasure chests removed (user 2026-10-12: 取消寶箱); _makeChest / _openChest stay unused: [2, 4, 7, 9, 12, 14, 17, 19] were the chest levels
     // blue ground puddle (the healing fountain) removed (user 2026-10-12: 地面陷阱(一灘藍色的?)取消); _makeFountain stays unused: [3, 6, 8, 11, 13, 16, 18] were the fountain levels
-    if (n >= 6) Extras._makeSpikes(scene, lvl);
+    // flat ground spike traps removed (user 2026-11-09: 地面尖刺(不是坑洞的)陷阱取消); _makeSpikes stays unused (it only ran on levels 6+); the spikes at the bottom of pits are separate and untouched
   },
 
   update(scene, time, delta) {
@@ -164,8 +166,10 @@ const Extras = {
 
   _makeElite(scene, ref) {
     ref.elite = true;
-    ref.hp = Math.round(ref.hp * 1.5);
-    ref.maxHp = Math.round(ref.maxHp * 1.5);
+    if (!(ref.params && ref.params.fixed_hp)) {
+      ref.hp = Math.round(ref.hp * 1.5);
+      ref.maxHp = Math.round(ref.maxHp * 1.5);
+    }
     if (ref.dmgMult != null) ref.dmgMult *= 1.2;
     if (ref.sprite && ref.sprite.setTint) ref.sprite.setTint(0xffd24a);
     const g = scene.add.circle(ref.sprite.x, ref.sprite.y, 30, 0xffd24a, 0.35).setDepth(-1);

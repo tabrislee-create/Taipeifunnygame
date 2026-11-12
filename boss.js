@@ -45,6 +45,7 @@ class Boss {
     this._laserRect = null;
     this._laserBand = null;
     this._laserDir = 1;
+    this._smokeImgs = [];
     this._burnDps = 0;
     this._burnTimer = 0;
     this._burnAcc = 0;
@@ -62,6 +63,10 @@ class Boss {
     this._rain = null; this._rainStripes = []; this._rainPuddles = []; this._rainGlow = []; this._rainG = null;   // rainbow_sky_rain state
     this._glints = []; this._pools = []; this._glintAcc = 0;       // code-drawn light effects (no flares baked into the art)
     this._afx = 1; this._afy = 1; this._hitSquashUntil = 0; this._flashUntil = 0; this._landSquashT = -1e9;   // procedural squash & stretch
+    this._dormant = !!def.wake;
+    this._wakeOpenMs = (def.wake && def.wake.open_ms) || 600;
+    this._stones = []; this._stoneJobs = [];   // stone_toss / stone_rain: live stones and pending launches
+    this._boulders = []; this._boulderJobs = []; this._boulderGlow = false; this._boulderInv = false; this._boulderHalo = null;   // boulder_roll state
     this._phase = this._computePhase();
     this._freezeUntil = 0; this._seq = null; this._initSeq();   // skill selection (see _nextPattern)
     this._buildSprite(x, y);
@@ -194,6 +199,8 @@ class Boss {
       this._clearTelegraph();
       this._clearWave();
       this._clearLaser();
+      this._clearStones();
+      this._clearBoulders();
       this._rainGlowOff();
       this._useCount = new Map();   // pattern max_uses is counted per phase (user 2026-10-13: the minion summon, twice in phase 1 and in phase 2)
       this._initSeq();
@@ -216,11 +223,13 @@ class Boss {
   _clearLaser() {
     if (this._laserRect) { this._laserRect.destroy(); this._laserRect = null; }
     if (this._laserBand) { this._laserBand.destroy(); this._laserBand = null; }
+    for (const im of this._smokeImgs) im.destroy(); this._smokeImgs = [];
     this._laserActive = false;
   }
 
   _groundY() {
-    const lvl = this.scene.lvl;
+    const sc = this.scene, lvl = sc.lvl;
+    if (sc.surfaceYAt && this.sprite) return sc.surfaceYAt(this.sprite.x);   // stepped rocks (level 15 boss stage)
     if (lvl && lvl.y_ground != null) return lvl.y_ground;
     return 400;
   }
@@ -320,7 +329,7 @@ class Boss {
       const cx = (x0 + x1) / 2;
       const w = Math.abs(x1 - x0);
       this._telegraphObjs.push(FX.telegraphRect(scene, cx, gy - 30, w, 60, tm));
-    } else if (pr === 'projectile_fan') {
+    } else if (pr === 'projectile_fan' || pr === 'stone_toss' || pr === 'stone_rain') {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 0.6, 40, tm));
     } else if (pr === 'jump_slam') {
       const px = Math.max(this._minX(), (scene.player && scene.player.sprite) ? scene.player.sprite.x : s.x);   // landing spot is clamped like the jump itself
@@ -335,7 +344,14 @@ class Boss {
     } else if (pr === 'green_terrain_aoe') {
       const pl = scene.player && scene.player.sprite;
       this._aoeX = Math.max(b.left + 40, Math.min(b.right - 40, pl ? pl.x : s.x));   // aimed where the player stood when the telegraph began
-      this._telegraphObjs.push(FX.telegraphCircle(scene, this._aoeX, gy - 10, p.radius || 150, tm));
+      this._aoeXs = this._poolXs(p, this._aoeX);   // params.count pools at once (kiln pool: 2, user 2026-10-28): the first where the player stood, the others beside it
+      for (const ax of this._aoeXs) {
+        if (this.def.aoe_telegraph === 'kiln') {
+          this._telegraphObjs.push(FX.telegraphKiln(scene, ax, gy - 10, p.radius || 150, tm));
+        } else {
+          this._telegraphObjs.push(FX.telegraphCircle(scene, ax, gy - 10, p.radius || 150, tm));
+        }
+      }
     } else if (pr === 'rainbow_homing_projectile') {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 0.6, 40, tm));
     } else if (pr === 'rainbow_sky_rain') {
@@ -345,13 +361,21 @@ class Boss {
     } else if (pr === 'summon_adds') {
       this._slotCache = this._summonSlots(p);   // the minions appear exactly where the warning circles are
       for (const sl of this._slotCache) this._telegraphObjs.push(FX.telegraphCircle(scene, sl.x, gy - 20, 30, tm));
+    } else if (pr === 'boulder_roll') {   // 2 s yellow-glow pause, invulnerable from the start of the warning
+      this._boulderGlow = true; this._boulderInv = true;
+      const halo = scene.add.circle(s.x, s.y - this._dispH * 0.5, this._dispH * 0.7, 0xffe45a, 0.3).setDepth(4);
+      scene.tweens.add({ targets: halo, alpha: 0.08, duration: 250, yoyo: true, repeat: -1 });
+      this._boulderHalo = halo;
     } else if (pr === 'laser_sweep') {
-      const dir = (this._dashDir >= 0) ? 1 : -1;
-      const x0 = s.x;
-      const x1 = dir > 0 ? b.right : b.left;
-      const cx = (x0 + x1) / 2;
-      const w = Math.abs(x1 - x0);
-      this._telegraphObjs.push(FX.telegraphRect(scene, cx, gy - 18, w, 36, tm));
+      const fcT = (this.def.fx_colors || {}), bmT = fcT.beam;
+      if (!bmT) {
+        const dir = (this._dashDir >= 0) ? 1 : -1;
+        const x0 = s.x;
+        const x1 = dir > 0 ? b.right : b.left;
+        const cx = (x0 + x1) / 2;
+        const w = Math.abs(x1 - x0);
+        this._telegraphObjs.push(FX.telegraphRect(scene, cx, gy - 18, w, 36, tm));
+      }
     }
   }
 
@@ -405,7 +429,9 @@ class Boss {
     } else if (pr === 'green_terrain_aoe') {
       this._state = 'cooldown';
       this._stateTimer = 0;
-      this._spawnPool(this._aoeX != null ? this._aoeX : s.x, p);
+      const xs = this._aoeXs && this._aoeXs.length ? this._aoeXs : [this._aoeX != null ? this._aoeX : s.x];
+      this._aoeXs = null;
+      for (const ax of xs) this._spawnPool(ax, p);
     } else if (pr === 'rainbow_homing_projectile') {
       this._state = 'cooldown';
       this._stateTimer = 0;
@@ -424,6 +450,40 @@ class Boss {
       this._laserTimer = 0;
       this._laserDamage = (p.damage || 12) * this._am;
       this._laserHitTimer = 0;
+      this._laserStage = 1; this._laserScale = 1; this._laserRest = 0;   // two stages (user 2026-10-28): jet, 0.5 s rest, then a jet with x2 reach / thickness and x2 duration
+      this._laserBaseDuration = this._laserDuration;
+      this._spawnLaserRects(1);
+    } else if (pr === 'boulder_roll') { this._state = 'cooldown'; this._stateTimer = 0; this._queueBoulders(p);
+    } else if (pr === 'stone_toss') {
+      this._state = 'cooldown';
+      this._stateTimer = 0;
+      this._queueStones('toss', p);
+    } else if (pr === 'stone_rain') {
+      this._state = 'cooldown';
+      this._stateTimer = 0;
+      this._queueStones('rain', p);
+    } else {
+      this._state = 'cooldown';
+      this._stateTimer = 0;
+    }
+  }
+
+  // The jet's hit area (and, without fx colours, its plain visual); K scales length and thickness (stage 2 = 2).
+  _spawnLaserRects(K) {
+    const scene = this.scene, s = this.sprite, dir = this._laserDir, gy = this._groundY(), b = this._worldBounds();
+    const fc = (this.def.fx_colors || {}), bm = fc.beam;
+    if (bm) {
+      const mx = s.x + dir * this._dispW * 0.5;
+      const my = s.y - this._dispH * 0.6;
+      const rect = scene.add.rectangle(mx + dir * 80 * K, my, 160 * K, 40 * K, bm.fill, 0.55);
+      rect.setDepth(7);
+      rect.setAlpha(0);
+      this._laserRect = rect;
+      const band = scene.add.rectangle(mx + dir * 80 * K, my, 160 * K, 40 * K, bm.band, 0.25);
+      band.setDepth(8);
+      band.setAlpha(0);
+      this._laserBand = band;
+    } else {
       const x0 = s.x;
       const x1 = dir > 0 ? b.right : b.left;
       const cx = (x0 + x1) / 2;
@@ -435,10 +495,298 @@ class Boss {
       band.setDepth(8);
       this._laserBand = band;
       scene.tweens.add({ targets: band, alpha: 0.05, duration: 120, yoyo: true, repeat: -1 });
-    } else {
-      this._state = 'cooldown';
-      this._stateTimer = 0;
     }
+  }
+
+  _groundYAt(x) { const sc = this.scene; return sc.surfaceYAt ? sc.surfaceYAt(x) : this._groundY(); }   // surface height at x (stepped rocks on level 15's boss stage; flat elsewhere)
+
+  _boulderEnd() {
+    this._boulderGlow = false; this._boulderInv = false;
+    if (this._boulderHalo) {
+      // the halo breathes with a repeat:-1 tween (see _doTelegraph boulder_roll): stop it before
+      // destroying the object, same as FX.telegraphCircle's pulse (user 2026-11-10 review round 1)
+      this.scene.tweens.killTweensOf(this._boulderHalo);
+      this._boulderHalo.destroy(); this._boulderHalo = null;
+    }
+  }
+
+  _queueBoulders(p) {
+    const now = this.scene.time.now, n = p.count || 3, gap = p.interval_ms || 1500, dir = this._dashDir >= 0 ? 1 : -1;
+    for (let i = 0; i < n; i++) this._boulderJobs.push({ at: now + i * gap, p, dir });
+    if (p.inv_through_rolls === false) this._boulderEnd();
+  }
+
+  _boulderTexture(d) {
+    const key = 'fx_boulder_' + d;
+    if (!this.scene.textures.exists(key)) {
+      const g = this.scene.make.graphics({ x: 0, y: 0, add: false });
+      g.fillStyle(0x8a8478);
+      g.fillCircle(d / 2, d / 2, d / 2 - 3);
+      g.lineStyle(5, 0x4a463e);
+      g.strokeCircle(d / 2, d / 2, d / 2 - 3);
+      
+      const blotches = [[0.30, 0.35], [0.65, 0.28], [0.55, 0.62], [0.25, 0.68], [0.72, 0.55], [0.45, 0.45]];
+      const radii = [0.10, 0.08, 0.09, 0.07, 0.08, 0.09];
+      
+      g.fillStyle(0x6e685c);
+      for (let i = 0; i < blotches.length; i++) {
+        const bx = d * blotches[i][0], by = d * blotches[i][1], br = d * radii[i];
+        g.fillCircle(bx, by, br);
+      }
+
+      g.lineStyle(3, 0x4a463e);
+      for (let i = 0; i < blotches.length; i++) {
+        const bx = d * blotches[i][0], by = d * blotches[i][1];
+        // Draw a short crack line from the blotch center outwards
+        const angle = (i * Math.PI) / 3; 
+        g.lineBetween(bx, by, bx + Math.cos(angle) * d * 0.15, by + Math.sin(angle) * d * 0.15);
+      }
+
+      g.generateTexture(key, d, d);
+      g.destroy();
+    }
+    return key;
+  }
+
+  _launchBoulder(job) {
+    const scene = this.scene, s = this.sprite, p = job.p, d = p.diameter || 200, r = d / 2, dir = job.dir;
+    const x = s.x + dir * (this._dispW * 0.5 + r);
+    const bk = 'rock_boulder_' + (1 + Math.floor(Math.random() * 4));
+    const img = scene.add.image(x, this._groundYAt(x) - r, scene.textures.exists(bk) ? bk : this._boulderTexture(d)).setDepth(6);
+    if (scene.textures.exists(bk)) img.setDisplaySize(d, d);
+    img._dir = dir; 
+    img._speed = p.speed || 300; 
+    img._r = r; 
+    img._dmg = (p.damage || 20) * this._am; 
+    img._hit = false; 
+    img._kx = p.knock_x || 650; 
+    img._ky = p.knock_y || -380;
+    this._boulders.push(img);
+    FX.screenShake(scene, 6, 200);
+  }
+
+  _updateBoulders(dt) {
+    const scene = this.scene;
+    
+    // Launch due jobs in schedule order (same shape as _updateStones: scan forward, collect,
+    // then launch). A frame longer than the 1.5 s interval still means the catch-up boulders
+    // spawn on top of each other (they always spawn at the boss's current x) - only the launch
+    // order is fixed here.
+    let launchedCount = 0;
+    const due = [];
+    for (let i = 0; i < this._boulderJobs.length; i++) {
+      if (scene.time.now >= this._boulderJobs[i].at) {
+        due.push(this._boulderJobs.splice(i, 1)[0]);
+        i--;
+      }
+    }
+    for (let i = 0; i < due.length; i++) { this._launchBoulder(due[i]); launchedCount++; }
+    
+    // If we launched something and no jobs remain, end the invulnerability/glow phase
+    if (launchedCount > 0 && this._boulderJobs.length === 0 && this._boulderGlow) {
+      this._boulderEnd();
+    }
+
+    // Keep halo centered on boss
+    if (this._boulderHalo) {
+      this._boulderHalo.setPosition(this.sprite.x, this.sprite.y - this._dispH * 0.5);
+    }
+
+    const bounds = this._worldBounds();
+    const player = scene.player;
+
+    // Update boulders
+    for (let i = this._boulders.length - 1; i >= 0; i--) {
+      const b = this._boulders[i];
+      
+      // Move and roll
+      b.x += b._dir * b._speed * dt;
+      { const want = this._groundYAt(b.x) - b._r;   // climbs a step at once (hugs the surface), drops off an edge by falling
+        if (b.y < want - 1) { b._vy = (b._vy || 0) + 1600 * dt; b.y = Math.min(want, b.y + b._vy * dt); if (b.y >= want) b._vy = 0; } else { b.y = want; b._vy = 0; } }
+      b.rotation += b._dir * b._speed * dt / b._r;
+
+      // Collision with player
+      if (player && !player.dead && !b._hit) {
+        const circle = new Phaser.Geom.Circle(b.x, b.y, b._r * 0.95);
+        const rect = bodyRect(player.sprite);
+        
+        if (Phaser.Geom.Intersects.CircleToRectangle(circle, rect)) {
+          if (player.takeDamage(b._dmg, b.x)) {
+            b._hit = true;
+            player.sprite.body.setVelocity(b._dir * b._kx, b._ky);
+            player._knockUntil = scene.time.now + 600;
+            FX.hitSpark(scene, player.sprite.x, player.sprite.y - 30);
+          }
+        }
+      }
+
+      // Remove if off-screen
+      const outOfBounds = b._dir > 0 ? b.x > bounds.right + b._r : b.x < bounds.left - b._r;
+      if (outOfBounds) {
+        b.destroy();
+        this._boulders.splice(i, 1);
+      }
+    }
+  }
+
+  _clearBoulders() {
+    for (const b of this._boulders) b.destroy();
+    this._boulders = [];
+    this._boulderJobs = [];
+    this._boulderEnd();
+  }
+
+  _queueStones(kind, p) {
+    const now = this.scene.time.now;
+    const n = p.count || (kind === 'toss' ? 3 : 10);
+    const gap = p.interval_ms || (kind === 'toss' ? 400 : 250);
+    for (let i = 0; i < n; i++) this._stoneJobs.push({ at: now + i * gap, kind, p });
+  }
+
+  // small thrown stone: random one of 4 textures sized to the hit diameter (2r); falls back to the drawn circle
+  _stoneShape(x, y, r) {
+    const scene = this.scene, k = 'rock_stone_' + (1 + Math.floor(Math.random() * 4));
+    let st;
+    if (scene.textures.exists(k)) {
+      st = scene.add.image(x, y, k).setDisplaySize(r * 3.6, r * 3.6);
+      st._r = r;
+      st.setRotation(Math.random() * Math.PI * 2);
+    } else {
+      st = scene.add.circle(x, y, r, 0x8a8478, 1);
+      st.setStrokeStyle(3, 0x4a463e);
+    }
+    st.setDepth(6);
+    return st;
+  }
+
+  _launchStone(job) {
+    const scene = this.scene;
+    const s = this.sprite;
+    const p = job.p;
+    let st;
+    if (job.kind === 'toss') {
+      const player = scene.player;
+      let dirToPlayer = 1;
+      if (!player || !player.sprite || player.dead) {
+        dirToPlayer = this._dashDir >= 0 ? 1 : -1; // boss facing fallback (scaleX is always positive: facing is flipX / _dashDir)
+      } else {
+        dirToPlayer = (player.sprite.x >= s.x) ? 1 : -1;
+      }
+      const x0 = s.x + dirToPlayer * 40;
+      const y0 = s.y - this._dispH * 0.8;
+      let tx, ty;
+      if (!player || !player.sprite || player.dead) {
+        tx = x0 + dirToPlayer * 300;
+        ty = y0; // roughly horizontal throw if no target
+      } else {
+        const body = player.sprite.body;
+        tx = body.center.x;
+        ty = body.center.y;
+      }
+      const g = p.gravity || 448;
+      const speed = p.speed || 300;
+      const T = Math.max(0.55, Math.min(1.5, Math.abs(tx - x0) / speed));
+      const vx = (tx - x0) / T;
+      const vy = (ty - y0 - 0.5 * g * T * T) / T;
+      
+      st = this._stoneShape(x0, y0, p.radius || 14);
+      st._kind = 'toss';
+      st._vx = vx;
+      st._vy = vy;
+      st._g = g;
+      st._dmg = (p.damage || 12) * this._am;
+      st._hit = false;
+    } else { // rain
+      const cam = scene.cameras.main.worldView;
+      const b = this._worldBounds();
+      const minX = Math.max(b.left + 40, cam.left + 30);
+      const maxX = Math.min(b.right - 40, cam.right - 30);
+      const x = minX + Math.random() * (maxX - minX);
+      const yStart = cam.top - 40;
+      const vy = 150;
+      const g = 900;
+      const gy = this._groundYAt(x);   // the surface where this stone will land (rock top or flat ground)
+      
+      // Calculate fall time for warning duration
+      // h = v*t + 0.5*g*t^2 => 0.5*g*t^2 + v*t - h = 0
+      // t = (-v + sqrt(v^2 + 2*g*h)) / g
+      const h = gy - yStart;
+      const fallTime = (-vy + Math.sqrt(vy * vy + 2 * g * h)) / g;
+      
+      FX.telegraphCircle(scene, x, gy - 6, 26, Math.round(fallTime * 1000));
+
+      st = this._stoneShape(x, yStart, p.radius || 12);
+      st._kind = 'rain';
+      st._vx = 0;
+      st._vy = vy;
+      st._g = g;
+      st._dmg = (p.damage || 10) * this._am;
+      st._hit = false;
+    }
+    this._stones.push(st);
+  }
+
+  _updateStones(dt) {
+    const now = this.scene.time.now;
+    
+    // Process due jobs in order
+    const dueJobs = [];
+    for (let i = 0; i < this._stoneJobs.length; i++) {
+      if (now >= this._stoneJobs[i].at) {
+        dueJobs.push(this._stoneJobs.splice(i, 1)[0]);
+        i--; // Adjust index after splice
+      }
+    }
+    for (const job of dueJobs) {
+      this._launchStone(job);
+    }
+
+    const player = this.scene.player;
+    const b = this._worldBounds();
+    
+    for (let i = this._stones.length - 1; i >= 0; i--) {
+      const st = this._stones[i];
+      st._vy += st._g * dt;
+      st.x += st._vx * dt;
+      st.y += st._vy * dt;
+      if (st.type === 'Image') st.rotation += (st._vx >= 0 ? 1 : -1) * 6 * dt;
+
+      let remove = false;
+      
+      // Check collision with player
+      if (!st._hit && player && !player.dead) {
+        const stoneBounds = st._r ? new Phaser.Geom.Rectangle(st.x - st._r, st.y - st._r, st._r * 2, st._r * 2) : st.getBounds(); // hit box stays 2r even though the picture is drawn larger
+        const playerRect = bodyRect(player.sprite);
+        if (Phaser.Geom.Intersects.RectangleToRectangle(stoneBounds, playerRect)) {
+          player.takeDamage(st._dmg, st.x);
+          st._hit = true;
+          remove = true; // Stone breaks on contact
+        }
+      }
+
+      // Check ground collision / out of bounds
+      if (!remove) {
+        const gy = this._groundYAt(st.x), sr = st._r || st.radius || 12;
+        // Ground / rock hit: rain always hits, toss only if falling (vy > 0) or already inside a rock (flew into its side), to avoid immediate removal at launch
+        if (st.y + sr >= gy && (st._kind === 'rain' || st._vy > 0 || st.y + sr >= gy + 6)) {
+          remove = true;
+        } else if (st.x < b.left - 100 || st.x > b.right + 100 || st.y > this.scene.lvl.y_ground + 200) {
+          remove = true;
+        }
+      }
+
+      if (remove) {
+        FX.hitSpark(this.scene, st.x, st.y);
+        st.destroy();
+        this._stones.splice(i, 1);
+      }
+    }
+  }
+
+  _clearStones() {
+    for (const st of this._stones) st.destroy();
+    this._stones = [];
+    this._stoneJobs = [];
   }
 
   _fireFan(p) {
@@ -470,21 +818,56 @@ class Boss {
     }
   }
 
-  // Green puddle (same look as the green slime's): hurts once per tick_interval while the player stands in it, fades out at the end.
+  // x positions of the pools of one cast: params.count (default 1); the extra ones sit params.spacing (default 2.3 radii, so they do not overlap) to one side of the first, on the other side when that runs off the arena.
+  _poolXs(p, x0) {
+    const n = Math.max(1, p.count || 1), r = p.radius || 150, gap = p.spacing || r * 2.3, b = this._worldBounds(), lo = b.left + 40, hi = b.right - 40, xs = [x0];
+    let side = Math.random() < 0.5 ? -1 : 1;
+    if (x0 + gap > hi && x0 - gap >= lo) side = -1; else if (x0 - gap < lo && x0 + gap <= hi) side = 1;
+    for (let i = 1; i < n; i++) xs.push(Math.max(lo, Math.min(hi, x0 + side * gap * i)));
+    return xs;
+  }
+
+  // Green puddle / kiln pool: hurts once per tick_interval while the player stands in it, fades out at the end.
   _spawnPool(x, p) {
     const scene = this.scene, self = this, r = p.radius || 150, dur = p.duration || 3000, tick = p.tick_interval || 500, dmg = (p.damage_per_tick || 5) * this._am;
-    const pool = scene.add.ellipse(x, this._groundY() - 10, r * 2, 28, 0x4cd964, 0.8).setStrokeStyle(2, 0x1f8f3a).setDepth(1.9);
+    const isKiln = this.def.aoe_telegraph === 'kiln';
+    const pl = (this.def.fx_colors || {}).pool;
+    const py = this._groundY() - 10;
+    // g3g: kiln bosses have no visible ellipse (the flames + smoke replace it); other green_terrain_aoe bosses keep theirs.
+    let pool;
+    if (isKiln) {
+      pool = { active: true, destroy: function () { this.active = false; }, setAlpha: function () {} };
+    } else {
+      pool = scene.add.ellipse(x, py, r * 2, 28, pl ? pl.fill : 0x4cd964, 0.8).setStrokeStyle(2, pl ? pl.stroke : 0x1f8f3a).setDepth(1.9);
+    }
+    // 20 groups of flame tongues over the pool (g3g: telegraph no longer produces a field, flames grow from the ground)
+    const flames = FX.kilnPoolFlames(scene, x, py, r, dur, null);
     const t0 = scene.time.now;
+    let gone = false;
+    const kill = function () {   // one way out: the duration, the boss dying, or the level ending
+      if (gone) return;
+      gone = true;
+      scene.events.off('update', upd);
+      if (pool.active) pool.destroy();
+      if (flames.active) flames.destroy();   // its 33 ms redraw dies with the container
+    };
     const upd = function () {
-      if (!pool.active) { scene.events.off('update', upd); return; }
+      if (gone) return;
+      if (!pool.active || !flames.active) { kill(); return; }   // _die() already destroyed them
       const now = scene.time.now, left = t0 + dur - now;
-      if (left <= 0) { pool.destroy(); scene.events.off('update', upd); return; }
+      if (left <= 0) { kill(); return; }
       pool.setAlpha(left < 600 ? 0.8 * left / 600 : 0.72 + 0.08 * Math.sin(now / 120));
-      const pl = scene.player;
-      if (pl && !pl.dead && Phaser.Geom.Intersects.RectangleToRectangle(pool.getBounds(), bodyRect(pl.sprite))) pl.applyDot(2000, dmg, tick);   // standing in it (re)starts a 2 s damage-over-time, one tick per tick_interval (user 2026-10-13)
+      const plr = scene.player;
+      // The flat ellipse is only the ground-perspective look; the game is 2D, so the range is the X axis the
+      // character stands on - the same test a pit trap uses (level.js _pitAt: the sprite's x against l/r, no y).
+      if (plr && !plr.dead && plr.sprite && Math.abs(plr.sprite.x - x) <= r) {
+        plr.applyDot(2000, dmg, tick);
+        if (p.stun && !(now < plr.examUntil || now < plr.nanoUntil || now < plr.stirUntil)) plr.applyStun(160);   // burned in the pool (user 2026-10-28): no move, no attack, no skill while it burns; free again when it ends or they are not being burned (invincible)
+      }   // standing in it (re)starts a 2 s damage-over-time, one tick per tick_interval (user 2026-10-13)
     };
     scene.events.on('update', upd);
     this._pools.push(pool);
+    this._pools.push(flames);
   }
 
   // Slowly homing colour orbs (blue / green / yellow / red): fly out upward, then turn toward the player at a limited rate.
@@ -508,7 +891,8 @@ class Boss {
     const sp = this.def.walk_speed, s = this.sprite, scene = this.scene, now = scene.time.now;
     this._moving = false;
     if (!sp || (this._state !== 'idle' && this._state !== 'cooldown') || now < this._freezeUntil) return;
-    const b = this._worldBounds(), lo = this._minX(), hi = b.right - this._dispW * 0.3;
+    const b = this._worldBounds(); let lo = this._minX(), hi = b.right - this._dispW * 0.3;
+    const br = scene._bossRange; if (br) { lo = Math.max(lo, br.l + this._dispW * 0.3); hi = Math.min(hi, br.r - this._dispW * 0.3); }   // stays on the top rock
     if (!this._roamUntil || now >= this._roamUntil) {
       const r = Math.random();
       this._roamUntil = now + 800 + Math.random() * 1700;
@@ -546,11 +930,17 @@ class Boss {
     } else if (st === 'rain' || this._rainCharge()) {   // rainbow_sky_rain (charge + fire): fast hue cycle
       const c = Phaser.Display.Color.HSVToRGB((now / 260) % 1, 0.4, 1);
       s.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+    } else if (this._boulderGlow) {   // boulder_roll: flickering yellow glow
+      s.setTint(Math.floor(now / 120) % 2 ? 0xffe45a : 0xfff3a0);
     } else if (rageP) {   // 狂暴連衝: flickers orange
       s.setTint(Math.floor(now / 70) % 2 ? 0xff8a1a : 0xffc890);
     } else if (now >= this._flashUntil) {   // slow pastel hue drift = light flowing through the body
-      const h = (now / 5200) % 1, c = Phaser.Display.Color.HSVToRGB(h, 0.16, 1);
-      s.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+      if (Array.isArray(this.def.phase_tints)) {
+        s.setTint(this.def.phase_tints[Math.min(this._phaseIndex, this.def.phase_tints.length - 1)]);
+      } else {
+        const h = (now / 5200) % 1, c = Phaser.Display.Color.HSVToRGB(h, 0.16, 1);
+        s.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+      }
     }
   }
 
@@ -634,6 +1024,136 @@ class Boss {
       for (let i = 0; i < 6; i++) { const a = now / 300 + i * Math.PI / 3; g.fillStyle(RAIN_COLS[i], 0.55); g.fillCircle(hx + Math.cos(a) * R * 0.5, hy + Math.sin(a) * R * 0.3, R * 0.55); }
       g.fillStyle(0xffffff, 0.2 + 0.5 * p); g.fillCircle(hx, hy, R * 0.4);
     }
+    const fcB = (this.def.fx_colors || {}), bmB = fcB.beam;
+    if (bmB && st === 'telegraph' && pr === 'laser_sweep') {   // kiln-fire glow gathering outside the chest
+      const dir = this._dashDir >= 0 ? 1 : -1;
+      const mx = s.x + dir * this._dispW * 0.5;
+      const my = s.y - this._dispH * 0.6;
+      const T = this._telegraphMs || 1;
+      const t = this._stateTimer;
+      let R, a, p;
+      if (t < T - 500) {
+        p = t / (T - 500);
+        R = 8 + 30 * p;
+        a = 1;
+      } else {
+        p = 1;
+        R = 38;
+        a = Math.max(0, 1 - (t - (T - 500)) / 500);
+      }
+      const cx = mx + dir * R;
+      const fl = 1 + 0.08 * Math.sin(now / 70);
+      g.fillStyle(bmB.glow, 0.25 * a * fl); g.fillCircle(cx, my, R * 1.35);
+      g.fillStyle(bmB.fill, 0.45 * a * fl); g.fillCircle(cx, my, R * 0.85);
+      g.fillStyle(bmB.core, (0.35 + 0.5 * Math.min(1, p)) * a * fl); g.fillCircle(cx, my, R * 0.45);
+    }
+    if (bmB && st === 'laser' && !(this._laserRest > 0)) {   // irregular kiln-fire column from the chest (not drawn in the rest between the two stages)
+      const dir = this._laserDir >= 0 ? 1 : -1;
+      const mx = s.x + dir * this._dispW * 0.5;
+      const my = s.y - this._dispH * 0.6;
+      const K = this._laserScale || 1;   // stage 2 = 2: twice as long and as thick
+      const el = this._laserTimer, D = this._laserDuration, L = 160 * K;
+      const grow = Math.min(1, el / 150);
+      const fade = (el >= D - 250) ? Math.max(0, (D - el) / 250) : 1;
+      const N = 64;
+      const Leff = L * grow * (0.95 + 0.05 * Math.sin(now / 80));
+      const base = (u) => {
+        let b = 4 + 15 * Math.sin(Math.min(1, u / 0.75) * Math.PI / 2);
+        if (u > 0.8) b *= 1 - 0.75 * Math.pow((u - 0.8) / 0.2, 2);
+        return b * K;
+      };
+      const jag = (i, phase) => 0.55 * Math.sin(now / 70 + i * 0.55 + phase) + 0.3 * Math.sin(now / 45 + i * 1.1 + phase * 1.7) + 0.15 * Math.sin(now / 28 + i * 2.3 + phase * 0.6);
+      const ax = (u) => mx + dir * u * Leff;
+      const ay = (u) => my + Math.sin(now / 130 + u * 5) * 2;
+      const hwTop = (i, u) => Math.max(0.5, base(u) * (1 + 0.28 * jag(i, 0)));
+      const hwBot = (i, u) => Math.max(0.5, base(u) * (1 + 0.28 * jag(i, 3.1)));
+      const mix = (c1, c2, t) => {
+        const r = Math.round((c1 >> 16 & 255) + ((c2 >> 16 & 255) - (c1 >> 16 & 255)) * t);
+        const gg = Math.round((c1 >> 8 & 255) + ((c2 >> 8 & 255) - (c1 >> 8 & 255)) * t);
+        const b = Math.round((c1 & 255) + ((c2 & 255) - (c1 & 255)) * t);
+        return (r << 16) | (gg << 8) | b;
+      };
+      const layer = (u0, u1, scale, color, alpha) => {
+        const pts = [];
+        const i0 = Math.round(u0 * (N - 1)), i1 = Math.round(u1 * (N - 1));
+        const span = (u1 - u0) || 1;
+        for (let i = i0; i <= i1; i++) {
+          const u = i / (N - 1);
+          const t = (u - u0) / span;
+          const env = Math.pow(Math.min(1, t / 0.18), 0.6) * Math.pow(Math.min(1, (1 - t) / 0.18), 0.6);
+          pts.push({ x: ax(u), y: ay(u) - hwTop(i, u) * scale * env });
+        }
+        for (let i = i1; i >= i0; i--) {
+          const u = i / (N - 1);
+          const t = (u - u0) / span;
+          const env = Math.pow(Math.min(1, t / 0.18), 0.6) * Math.pow(Math.min(1, (1 - t) / 0.18), 0.6);
+          pts.push({ x: ax(u), y: ay(u) + hwBot(i, u) * scale * env });
+        }
+        g.fillStyle(color, alpha);
+        g.fillPoints(pts, true);
+      };
+      if (!this.scene.textures.exists('fx_smoke3')) {   // big soft cloud puff texture
+        const sg = this.scene.make.graphics({ x: 0, y: 0, add: false });
+        for (let i = 0; i < 16; i++) {
+          const r = 32 - i * 1.9;
+          sg.fillStyle(0xffffff, 0.12);
+          sg.fillCircle(32, 32, r);
+        }
+        sg.generateTexture('fx_smoke3', 64, 64); sg.destroy();
+      }
+      const SM = 36;
+      if (this._smokeImgs.length === 0) {
+        for (let j = 0; j < SM; j++) {
+          const im = this.scene.add.image(0, 0, 'fx_smoke3');
+          im.setVisible(false);
+          im.setDepth(j % 2 === 0 ? 5.4 : 5.6);   // even behind the column, odd in front
+          this._smokeImgs.push(im);
+        }
+      }
+      const hs = (a, b) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
+      const mixc = (c1, c2, t) => ((Math.round((c1 >> 16 & 255) + ((c2 >> 16 & 255) - (c1 >> 16 & 255)) * t) << 16) | (Math.round((c1 >> 8 & 255) + ((c2 >> 8 & 255) - (c1 >> 8 & 255)) * t) << 8) | Math.round((c1 & 255) + ((c2 & 255) - (c1 & 255)) * t));
+      for (let j = 0; j < SM; j++) {
+        const im = this._smokeImgs[j];
+        const r1 = hs(j, 1), r2 = hs(j, 2), r3 = hs(j, 3);
+        const delay = r2 * 250;
+        const P = 900 + (j % 7) * 40;
+        const t = el - delay;
+        if (t < 0 || t >= P) { im.setVisible(false); continue; }   // one-shot puff, no loop
+        const ph = t / P;
+        im.setVisible(true);
+        const u = 0.3 + 0.7 * r1;
+        const x0 = ax(u);
+        const y0 = ay(u) + (r2 - 0.5) * 12;
+        const rise = 30 + 40 * r3;
+        const py = y0 - rise * (1 - Math.pow(1 - ph, 1.4));
+        const px = x0 + dir * (6 + 14 * r2) * ph + Math.sin(ph * 4 + j) * 4;
+        const sz = (0.38 + 0.52 * ph) * (0.75 + 0.5 * r3);   // round billowing cloud, not stretched
+        im.setScale(sz, sz * 0.9);
+        const a = 0.8 * Math.min(1, ph * 5) * Math.pow(1 - ph, 0.9) * fade * Math.min(1, grow);
+        im.setAlpha(a);
+        im.setTint(mixc(0x2e241c, 0xa08c78, ph));
+        im.setPosition(px, py);
+      }
+      layer(0, 1, 1.45, bmB.fill, 0.1 * fade); // faint outer halo
+      layer(0, 1, 1.0, bmB.fill, 0.32 * fade);
+      layer(0.03, 0.97, 0.82, bmB.fill, 0.38 * fade);
+      layer(0.06, 0.93, 0.66, mix(bmB.fill, bmB.glow, 0.5), 0.45 * fade);
+      layer(0.09, 0.9, 0.52, bmB.glow, 0.55 * fade);
+      layer(0.12, 0.86, 0.4, bmB.glow, 0.65 * fade);
+      layer(0.16, 0.8, 0.28, mix(bmB.glow, bmB.core, 0.5), 0.78 * fade);
+      layer(0.2, 0.72, 0.16, bmB.core, 0.92 * fade);
+      if (grow >= 1) {
+        const ayTip = ay(1);
+        for (let i = 0; i < 5; i++) {
+          const ph = (now / 200 + i * 0.37) % 1;
+          const x = mx + dir * (Leff + 4 + 6 * i);
+          const y = ayTip + Math.sin(now / 110 + i * 2.1) * 7;
+          g.fillStyle(i % 2 ? bmB.core : bmB.fill, (1 - ph) * 0.8 * fade);
+          g.fillCircle(x, y, 2);
+        }
+      }
+      g.fillStyle(bmB.core, 0.7 * fade); g.fillCircle(mx, my, 7);
+    }
     const sinceLand = now - this._landSquashT;
     if ((st === 'telegraph' && pr === 'jump_slam') || st === 'jump' || (sinceLand >= 0 && sinceLand < 380 && pr === 'jump_slam')) {
       const bx = s.x, by = s.body ? s.body.bottom : s.y, W = this._dispW * 1.4, flash = sinceLand >= 0 && sinceLand < 380 ? 1 + 0.7 * (1 - sinceLand / 380) : 1;
@@ -651,7 +1171,23 @@ class Boss {
   // A strip hurts once (params.damage) if it touches the player in flight or splashes within 45 px of where it lands; the puddle it leaves is visual only.
   // Rainbow sky: invulnerable for the whole skill, the 2 s charge included (user 2026-10-13).
   _rainCharge() { return this._state === 'telegraph' && !!this._activePattern && this._activePattern.primitive === 'rainbow_sky_rain'; }
-  _skillInv() { return this._state === 'rain' || this._state === 'jump' || this._rainCharge(); }   // also the whole flight of 黃色跳壓 (user 2026-10-13)
+  _skillInv() { return this._dormant || this._boulderInv || this._state === 'rain' || this._state === 'jump' || this._rainCharge(); }   // also the whole flight of 黃色跳壓 (user 2026-10-13)
+
+  _checkWake(player) {
+    if (!this._dormant) return;
+    if (!player || player.dead || !player.sprite) return;
+    const w = this.def.wake;
+    const s = this.sprite;
+    const ps = player.sprite;
+    if (Math.abs(ps.x - s.x) <= (w.distance || 400) && Math.abs(ps.body.bottom - s.body.bottom) <= (w.y_tol || 120)) {
+      this._dormant = false;
+      if (this.scene.textures.exists(this.id + '_open')) s.setTexture(this.id + '_open');
+      this._freezeUntil = this.scene.time.now + this._wakeOpenMs;
+      this._stateTimer = 0;
+      FX.hitSpark(this.scene, s.x, s.y - this._dispH * 0.75);
+      this.scene.cameras.main.shake(250, 0.004);
+    }
+  }
 
   _startRain(p) {
     this._state = 'rain';
@@ -769,14 +1305,15 @@ class Boss {
   _spawnSwing(p, dir) {
     // Shape (user's red-line sketch, 2026-10-13): a slim sickle riding the swing path, convex edge leading along the direction of travel, both tips trailing back, sharp points.
     // Gradient: layers share the outer arc and the tips and get thinner and lighter, so it runs from deep navy on the concave side to a near-white razor edge on the convex side.
-    const scene = this.scene, s = this.sprite, A0 = 75, SZ = 0.7, R = this._dispH * SZ / (2 * Math.sin(A0 * Math.PI / 180)), key = 'bluecrescent5_' + Math.round(this._dispH);   // tip-to-tip height = 0.7 x the boss's height (user 2026-10-13, was 0.85)
+    const fc = (this.def.fx_colors || {}), sw = fc.swing;
+    const scene = this.scene, s = this.sprite, A0 = 75, SZ = 0.7, R = this._dispH * SZ / (2 * Math.sin(A0 * Math.PI / 180)), key = 'bluecrescent5_' + Math.round(this._dispH) + (sw ? '_' + this.def.id : '');   // tip-to-tip height = 0.7 x the boss's height (user 2026-10-13, was 0.85)
     const tw = Math.ceil(R * 2.6), th = Math.ceil(this._dispH * 1.5), ox = R * 1.2;
     if (!scene.textures.exists(key)) {
       const g = scene.add.graphics(), cy = th / 2;
-      this._crescent(g, ox, cy, R * 1.1, 1, A0, 1.5, 0xa8dcff, 0.18);
-      this._crescent(g, ox, cy, R * 1.05, 1, A0, 1.5, 0x7cc4ff, 0.3);
+      this._crescent(g, ox, cy, R * 1.1, 1, A0, 1.5, sw ? sw.glow[0] : 0xa8dcff, 0.18);
+      this._crescent(g, ox, cy, R * 1.05, 1, A0, 1.5, sw ? sw.glow[1] : 0x7cc4ff, 0.3);
       const L = [[1.5, 0x061a66], [1.4, 0x0b2a8c], [1.3, 0x1647c4], [1.2, 0x2f78e6], [1.13, 0x6fb8ff], [1.07, 0xd8f2ff]];
-      for (const l of L) this._crescent(g, ox, cy, R, 1, A0, l[0], l[1], 1);
+      for (let i = 0; i < L.length; i++) this._crescent(g, ox, cy, R, 1, A0, L[i][0], sw ? sw.layers[i] : L[i][1], 1);
       // white cross glints on the blade (convex edge): one big near the middle, one small toward the upper tip
       const glint = (ang, len, wd) => {
         const gx = ox + R * Math.cos(ang * Math.PI / 180), gy = cy + R * Math.sin(ang * Math.PI / 180);
@@ -805,7 +1342,7 @@ class Boss {
       w.img.setPosition(cx, cy).setRotation(al).setAlpha(now - w.t0 > w.ms ? Math.max(0, 1 - (now - w.t0 - w.ms) / 150) : 1);
       if (!w.last || now - w.last >= 45) {   // afterimage: a fading copy of the sickle left behind every 45 ms along the path
         w.last = now;
-        const gh = scene.add.image(cx, cy, w.img.texture.key).setOrigin(w.img.originX, w.img.originY).setRotation(al).setDepth(5.9).setAlpha(0.4).setTint(0x7cc4ff);
+        const gh = scene.add.image(cx, cy, w.img.texture.key).setOrigin(w.img.originX, w.img.originY).setRotation(al).setDepth(5.9).setAlpha(0.4).setTint((this.def.fx_colors && this.def.fx_colors.swing) ? this.def.fx_colors.swing.trail : 0x7cc4ff);
         scene.tweens.add({ targets: gh, alpha: 0, duration: 320, onComplete: () => gh.destroy() });
       }
       if (!w.hit && k >= 0.05 && now - w.t0 <= w.ms + 60 && player && !player.dead) {
@@ -895,16 +1432,26 @@ class Boss {
   _updateLaser(dt) {
     const scene = this.scene;
     const player = scene.player;
-    this._laserTimer += dt * 1000;
-    this._laserHitTimer += dt * 1000;
+    if (!(this._laserRest > 0)) { this._laserTimer += dt * 1000; this._laserHitTimer += dt * 1000; }
     if (player && !player.dead && this._laserRect && this._laserHitTimer >= 500) {
       if (Phaser.Geom.Intersects.RectangleToRectangle(this._laserRect.getBounds(), bodyRect(player.sprite))) {
         player.takeDamage(this._laserDamage, this.sprite.x);
         this._laserHitTimer = 0;
       }
     }
+    if (this._laserRest > 0) {   // the 0.5 s breather between the two stages: no jet, nothing hurts
+      this._laserRest -= dt * 1000;
+      if (this._laserRest <= 0) {
+        this._laserRest = 0; this._laserStage = 2; this._laserScale = 2;
+        this._laserDuration = this._laserBaseDuration * 2; this._laserTimer = 0; this._laserHitTimer = 0;
+        this._laserActive = true;
+        this._spawnLaserRects(2);
+      }
+      return;
+    }
     if (this._laserTimer >= this._laserDuration) {
       this._clearLaser();
+      if (this._laserStage === 1) { this._laserRest = 500; return; }
       this._state = 'cooldown';
       this._stateTimer = 0;
     }
@@ -1005,6 +1552,8 @@ class Boss {
     this._clearRain();
     for (const proj of this._projectiles) proj.destroy();
     this._projectiles = [];
+    this._clearStones();
+    this._clearBoulders();
     for (const w of this._swings) w.img.destroy();
     this._swings = [];
     this._clearGlints();
@@ -1056,6 +1605,7 @@ class Boss {
   update(time, delta, player) {
     if (this.dead) return;
     if (this._entering) { this._updateEntrance(); this._drawPhaseBar(); return; }
+    if (this._dormant) { this._checkWake(player); return; }   // eyes closed: no walking, no skills, no contact damage until woken
     const dt = delta / 1000;
     if (this._hitCd > 0) this._hitCd -= dt;
     if (this._invuln > 0) this._invuln -= dt;
@@ -1074,6 +1624,8 @@ class Boss {
       this._dashDir = (player.sprite.x >= this.sprite.x) ? 1 : -1;
     }
     this._updateProjectiles(dt);
+    this._updateStones(dt);
+    this._updateBoulders(dt);
     this._updateSwings();
     this._applyPushGuard();
     this._updateRain(dt, this.scene.time.now);

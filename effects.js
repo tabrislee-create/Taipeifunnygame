@@ -1368,6 +1368,176 @@ var FX = (function () {
     scene.tweens.add({ targets: g, alpha: 0, duration: 400, onUpdate: function (tw, tg, p) { g.clear(); g.lineStyle(5, 0xff8800, 1 - p); g.strokeCircle(x, y, 8 + p * (radius || 60)); }, onComplete: function () { kill(g); } });
   }
 
+  function mirrorReflect(scene, x, y) {
+    var flash = scene.add.graphics().setDepth(DEPTH);
+    flash.fillStyle(0xfff0c8, 1); flash.fillCircle(x, y, 14);
+    scene.tweens.add({ targets: flash, alpha: 0, scaleX: 1.8, scaleY: 1.8, duration: 160, onComplete: function () { kill(flash); } });
+
+    var r1 = scene.add.graphics().setDepth(DEPTH);
+    r1.lineStyle(4, 0xe0a050, 1); r1.strokeCircle(x, y, 8);
+    scene.tweens.add({ targets: r1, alpha: 0, duration: 320, onUpdate: function (tw, tg, p) { r1.clear(); r1.lineStyle(4, 0xe0a050, 1 - p); r1.strokeCircle(x, y, 8 + p * 38); }, onComplete: function () { kill(r1); } });
+
+    var r2 = scene.add.graphics().setDepth(DEPTH);
+    r2.lineStyle(4, 0xfff0c8, 1); r2.strokeCircle(x, y, 8);
+    scene.tweens.add({ targets: r2, alpha: 0, duration: 320, delay: 80, onUpdate: function (tw, tg, p) { r2.clear(); r2.lineStyle(4, 0xfff0c8, 1 - p); r2.strokeCircle(x, y, 8 + p * 38); }, onComplete: function () { kill(r2); } });
+
+    var glint = scene.add.graphics().setDepth(DEPTH);
+    var a = -35 * Math.PI / 180, len = 60;
+    glint.lineStyle(3, 0xffffff, 1);
+    glint.beginPath();
+    glint.moveTo(x - Math.cos(a) * len / 2, y - Math.sin(a) * len / 2);
+    glint.lineTo(x + Math.cos(a) * len / 2, y + Math.sin(a) * len / 2);
+    glint.strokePath();
+    scene.tweens.add({ targets: glint, alpha: 0, duration: 220, onComplete: function () { kill(glint); } });
+
+    for (var i = 0; i < 6; i++) {
+      var sh = scene.add.graphics().setDepth(DEPTH);
+      var col = (i % 2 === 0) ? 0xe0a050 : 0xfff0c8;
+      sh.fillStyle(col, 1); sh.fillCircle(0, 0, 3);
+      sh.x = x; sh.y = y;
+      var ang = Math.random() * Math.PI * 2;
+      var dist = 20 + Math.random() * 30;
+      scene.tweens.add({ targets: sh, x: x + Math.cos(ang) * dist, y: y + Math.sin(ang) * dist, alpha: 0, duration: 280, onComplete: function () { kill(sh); } });
+    }
+  }
+
+  function mirrorSpill(scene, x, y, dir) {
+    for (var i = 0; i < 3; i++) {
+      var g = scene.add.graphics().setDepth(DEPTH);
+      var cols = [0x0a7a3c, 0x20c060, 0xb8ffd0];
+      var alphas = [0.25, 0.4, 0.6];
+      var radii = [30, 20, 10];
+      g.fillStyle(cols[i], alphas[i]); g.fillCircle(x, y, radii[i]);
+      scene.tweens.add({ targets: g, alpha: 0, scaleX: 1.8, scaleY: 1.8, duration: 300, onComplete: function () { kill(g); } });
+    }
+
+    for (var j = 0; j < 5; j++) {
+      var e = scene.add.graphics().setDepth(DEPTH);
+      var w = 70 + Math.random() * 50;
+      var h = 14 + Math.random() * 12;
+      var col = (j % 2 === 0) ? 0x20c060 : 0x7dffb0;
+      e.fillStyle(col, 0.5);
+      e.fillEllipse(0, 0, w, h);
+      e.x = x; e.y = y;
+      var offY = (Math.random() * 36) - 18;
+      var dist = 90 + Math.random() * 60;
+      scene.tweens.add({ targets: e, x: x + dir * dist, y: y + offY, alpha: 0, duration: 350 + Math.random() * 100, onComplete: function () { kill(e); } });
+    }
+
+    for (var k = 0; k < 8; k++) {
+      var s = scene.add.graphics().setDepth(DEPTH);
+      s.fillStyle(0xb8ffd0, 1); s.fillCircle(0, 0, 2.5);
+      s.x = x; s.y = y;
+      var spread = (Math.random() * 40) - 20;
+      var d = 60 + Math.random() * 70;
+      scene.tweens.add({ targets: s, x: x + dir * d, y: y + spread, alpha: 0, duration: 300, onComplete: function () { kill(s); } });
+    }
+  }
+
+  // Bronze mirror soaking up a normal attack (user 2026-10-28): a dazzling green flash, two expanding rings and sparks that fly out all round; no direction (nothing is thrown back).
+  function mirrorAbsorb(scene, x, y) {
+    var core = scene.add.graphics().setDepth(DEPTH);
+    core.fillStyle(0x7dffb0, 0.55); core.fillCircle(x, y, 40);
+    core.fillStyle(0xb8ffd0, 0.9); core.fillCircle(x, y, 24);
+    core.fillStyle(0xffffff, 1); core.fillCircle(x, y, 11);
+    scene.tweens.add({ targets: core, alpha: 0, scaleX: 1.9, scaleY: 1.9, duration: 380, onUpdate: function () { core.x = x - x * core.scaleX; core.y = y - y * core.scaleY; }, onComplete: function () { kill(core); } });
+    for (let r = 0; r < 2; r++) {   // let: each callback needs its own ring / colour
+      let ring = scene.add.graphics().setDepth(DEPTH);
+      let col = r === 0 ? 0x20c060 : 0xb8ffd0;
+      scene.tweens.add({ targets: ring, alpha: 0, delay: r * 90, duration: 380, onUpdate: function (tw, tg, p) { var rr = 14 + 46 * tw.progress; ring.clear(); ring.lineStyle(5, col, 1 - tw.progress); ring.strokeCircle(x, y, rr); }, onComplete: function () { kill(ring); } });
+    }
+    for (let k = 0; k < 10; k++) {
+      let sp = scene.add.graphics().setDepth(DEPTH);
+      sp.fillStyle(k % 2 ? 0xb8ffd0 : 0x20c060, 1); sp.fillCircle(0, 0, 3);
+      sp.x = x; sp.y = y;
+      let ang = (k / 10) * Math.PI * 2 + Math.random() * 0.4, d = 34 + Math.random() * 30;
+      scene.tweens.add({ targets: sp, x: x + Math.cos(ang) * d, y: y + Math.sin(ang) * d, alpha: 0, duration: 340, onComplete: function () { kill(sp); } });
+    }
+  }
+
+  function mirrorBeam(scene, x, y, dir, len) {
+    var g = scene.add.graphics().setDepth(DEPTH);
+    var seg = len / 12;
+    for (var i = 0; i < 12; i++) {
+      var t = i / 11;
+      var col = Phaser.Display.Color.Interpolate.ColorWithColor(
+        Phaser.Display.Color.ValueToColor(0x20c060),
+        Phaser.Display.Color.ValueToColor(0xd8ffe8),
+        11, i
+      );
+      var c = Phaser.Display.Color.GetColor(col.r, col.g, col.b);
+      var h = 16 - (10 * t);
+      var a = 0.9 - (0.85 * t);
+      g.fillStyle(c, a);
+      g.fillRect(x + dir * seg * i, y - h / 2, seg, h);
+    }
+    scene.tweens.add({ targets: g, alpha: 0, duration: 450, onComplete: function () { kill(g); } });
+  }
+
+  // Small mirror bar beam: a thick green rectangle from (x,y) toward angleRad, width=thick, length=len. Fades out in 450ms.
+  // Returns the Graphics: destroying it (a mirror that died) clears the beam at once - see Enemy._stopMirrorWave.
+  function mirrorBarBeam(scene, x, y, angleRad, len, thick) {
+    var g = scene.add.graphics().setDepth(DEPTH);
+    var segs = 10;
+    for (var i = 0; i < segs; i++) {
+      var t = i / (segs - 1);
+      var col = Phaser.Display.Color.Interpolate.ColorWithColor(
+        Phaser.Display.Color.ValueToColor(0x20c060),
+        Phaser.Display.Color.ValueToColor(0xd8ffe8),
+        segs - 1, i
+      );
+      var c = Phaser.Display.Color.GetColor(col.r, col.g, col.b);
+      var a = 0.9 - 0.8 * t;
+      g.fillStyle(c, a);
+      g.fillRect((len / segs) * i, -thick / 2, len / segs + 1, thick);
+    }
+    g.x = x; g.y = y;
+    g.angle = -angleRad * (180 / Math.PI);
+    var tw = scene.tweens.add({ targets: g, alpha: 0, duration: 450, onComplete: function () { kill(g); } });
+    g.once('destroy', function () { tw.stop(); });   // cleared early by the caller: do not leave the fade tween behind
+    return g;
+  }
+
+  // Big mirror arc wave: expanding upper-semicircle ring (green, rainbow-like), radius 0 to maxR over ms.
+  // onStep(currentR) is called every frame for the caller's hit detection.
+  // Returns the Graphics: destroying it (a mirror that died mid-wave) stops the expansion at once and clears it.
+  function mirrorArcWave(scene, x, y, maxR, thick, ms, onStep) {
+    var g = scene.add.graphics().setDepth(DEPTH);
+    var layers = 3;
+    var dead = false;   // true once the wave is over (fading or cleared) - no drawing, no onStep, no second fade
+    var fadeTw = null;  // kept so a caller that destroys the wave mid-fade can stop that tween too (same as mirrorBarBeam)
+    var fade = function () {
+      if (dead) return;
+      dead = true;
+      g.clear();
+      fadeTw = scene.tweens.add({ targets: g, alpha: 0, duration: 150, onComplete: function () { kill(g); } });
+    };
+    var counter = scene.tweens.addCounter({
+      from: 0, to: maxR, duration: ms, ease: 'Cubic.easeOut',
+      onUpdate: function (tw) {
+        if (dead) return;
+        var r = tw.value;
+        if (r === undefined) r = maxR * tw.progress;
+        g.clear();
+        for (var L = 0; L < layers; L++) {
+          var frac = L / layers;
+          var rr = r - frac * thick;
+          if (rr <= 0) continue;
+          var col = [0x20c060, 0x60ff80, 0xb8ffd0][L] || 0x20c060;
+          var alpha = 0.9 - frac * 0.5;
+          g.lineStyle(Math.max(2, thick / layers), col, alpha);
+          g.beginPath();
+          g.arc(x, y, rr, Math.PI, Math.PI * 2, false);
+          g.strokePath();
+        }
+        if (onStep) onStep(r);
+      },
+      onComplete: fade
+    });
+    g.once('destroy', function () { dead = true; counter.stop(); if (fadeTw) fadeTw.stop(); });   // caller clears the wave: stop expanding, drop the tween
+    return g;
+  }
+
   function healGlow(scene, x, y) {
     var g = scene.add.graphics().setDepth(DEPTH);
     g.fillStyle(0x60ff80, 0.5); g.fillCircle(x, y, 12);
@@ -1479,10 +1649,272 @@ var FX = (function () {
     return g;
   }
 
-  function telegraphRect(scene, x, y, w, h, ms) {
+  // ---------- kiln flame field (shared by telegraphKiln and the kiln pool) ----------
+  // Designer 2026-10-26: 20 groups of 4-6 tongues anywhere inside the flat ellipse (not just on the rim);
+  // a tongue lives 1-1.5 s, fades out and re-spawns somewhere else, so the field always holds 20 groups.
+  var KF = {
+    GROUPS: 20, MIN: 4, MAX: 6,     // 20 groups x 4-6 tongues = 80-120 tongues on screen
+    LIFE0: 1000, LIFE1: 1500,       // tongue lifetime (designer: 1~1.5 秒)
+    FADE: 150, GROW: 200,           // fade-out / grow-in from the ground
+    H: [90, 120, 150],              // tongue height: one of three, picked per tongue（x3，使用者 2026-11-12）
+    // Designer 2026-10-26 (g3e): 火苗要收斂到扁橢圓範圍 - the field is the kiln pool's own ellipse now, not a
+    // fatter one. boss.js _spawnPool draws scene.add.ellipse(x, groundY-10, r*2, 28), so the half-height is 14 px
+    // for ANY radius (it used to be r*0.35 = 52 px, which is why the roots spilled onto the stairs and the wall).
+    RY: 14,                         // half-height of the flame field on screen = the pool ellipse's 28 / 2
+    GAP: 14, PATCH: 12,             // min px between group centres / scatter inside a group - both ON SCREEN now (see freeSpot)
+    TW: 13,                         // tongue base width (same as the old rim ring)
+    HAZE: 14                        // heat-haze wisps (was 5 for 10 tongues)
+  };
+  // Layers copied verbatim from fire-pit trap (level.js)
+  var KF_LAY = [[1.35,1.12,0xff2a00,0.22],[1.0,1.0,0xff5a00,0.78],[0.72,0.8,0xff9500,0.8],[0.45,0.55,0xffd23a,0.85],[0.22,0.28,0xfff4c0,0.9]];
+
+  // The flame field: pure state + drawing, no display objects and no timer of its own, so the telegraph
+  // can hand the very same field to the pool (the flames keep the spots they had in the warning).
+  function kilnField(scene, radius) {
+    var groups = [];
+    // The field IS the pool's ellipse: 2r wide, KF.RY*2 (=28) tall, same centre (boss.js draws both at groundY-10).
+    var ry = Math.min(KF.RY, radius);
+    var sq = ry / radius;          // this field's vertical squash (was the constant 0.35 = 52 px at r=150)
+    function hash(n) { var v = Math.sin(n * 12.9898) * 43758.5453; return v - Math.floor(v); }   // fixed pseudo-random 0..1
+    // Group centres keep KF.GAP apart - measured ON SCREEN now. The old metric divided dy by the squash factor to get
+    // back to the ground plane, which with a 14 px half-height asks for 20 points 42 px apart inside a 300x28 band:
+    // impossible, so every group took its 30th try and the gap did nothing. Measured with the new sampling (20000
+    // fields x 20 groups, r=150): GAP 14 -> 2.1% of the groups have to take a crowded spot after 30 tries (16 -> 10.5%,
+    // 18 -> 22%). A crowded spot is still inside the ellipse, just nearer to a neighbour, so 20 groups are guaranteed.
+    function freeSpot(cx, cy) {
+      for (var i = 0; i < groups.length; i++) {
+        var dx = groups[i].x - cx, dy = groups[i].y - cy;
+        if (dx * dx + dy * dy < KF.GAP * KF.GAP) return false;
+      }
+      return true;
+    }
+    function fill(gr, now, pb) {  // re-spawn one group: new spot inside the ellipse, new tongues, new lifetime
+      var cx = 0, cy = 0;
+      for (var a = 0; a < 30; a++) {   // after 30 tries take the spot anyway: the field must always hold 20 groups
+        var ang = Math.random() * 6.2832, rr = Math.sqrt(Math.random());
+        // centre sampled in the ellipse shrunk by the tongues' scatter, so a group near the rim does not push its
+        // tongues over the edge (the clamp below is the hard guarantee, this only keeps them from piling on it)
+        cx = Math.cos(ang) * (radius - KF.PATCH) * rr;
+        cy = Math.sin(ang) * (ry - KF.PATCH * sq) * rr;
+        if (freeSpot(cx, cy)) break;
+      }
+      gr.x = cx; gr.y = cy; gr.born = now; gr.pb = pb;
+      gr.life = KF.LIFE0 + Math.random() * (KF.LIFE1 - KF.LIFE0);
+      gr.n = KF.MIN + Math.floor(Math.random() * (KF.MAX - KF.MIN + 1));
+      for (var i = 0; i < gr.n; i++) {
+        var t = gr.t[i] || (gr.t[i] = {});
+        var d = Math.random() * 6.2832, q = Math.sqrt(Math.random()) * KF.PATCH;
+        var ax = cx + Math.cos(d) * q, ay = cy + Math.sin(d) * q * sq;
+        var e = (ax * ax) / (radius * radius) + (ay * ay) / (ry * ry);   // the root must be inside the ellipse
+        if (e > 1) { var k = 1 / Math.sqrt(e); ax *= k; ay *= k; }       // ...so pull it back onto the rim
+        t.dx = ax - cx; t.dy = ay - cy;
+        t.h = KF.H[Math.floor(Math.random() * KF.H.length)];
+        t.ph = Math.random() * 6.2832;
+      }
+    }
+    for (var i = 0; i < KF.GROUPS; i++) { var gr0 = { t: [] }; fill(gr0, scene.time.now, 0); groups.push(gr0); }
+
+    var f = {
+      groups: groups,
+      radius: radius,    // the field's own ellipse (2*radius x 2*ry), for the glow and for diagnostics
+      ry: ry,
+      minPb: 0,        // floor for a group's birth-progress height factor (the pool sets 1: the fire is here now)
+      update: function (now, p) {
+        for (var i = 0; i < groups.length; i++) {
+          var gr = groups[i];
+          if (now - gr.born > gr.life + KF.FADE) fill(gr, now, p);
+        }
+      },
+      // p = 0..1 countdown progress (1 = the fire is fully here), aMul = extra alpha multiplier
+      draw: function (g, now, p, aMul) {
+        var ts = now / 1000, hS = p * p, list = [], n = 0;
+        for (var i = 0; i < groups.length; i++) {
+          var gr = groups[i], age = now - gr.born;
+          if (age > gr.life + KF.FADE) continue;                       // update() re-fills it on the next tick
+          var ge = age < KF.GROW ? age / KF.GROW : 1;                  // grow in from the ground
+          var fe = age > gr.life ? 1 - (age - gr.life) / KF.FADE : 1;  // fade out
+          if (fe <= 0) continue;
+          var hs = hS * (0.5 + 0.5 * Math.max(gr.pb, f.minPb)) * ge;   // taller as the warning fills up; a group reborn late is taller than one reborn early
+          if (hs <= 0.01) continue;
+          for (var j = 0; j < gr.n; j++) {
+            var t = gr.t[j];
+            list.push({ x: gr.x + t.dx, y: gr.y + t.dy, h: t.h, ph: t.ph, hs: hs, a: fe * aMul });
+          }
+        }
+        list.sort(function (a, b) { return a.y - b.y; });   // back to front: a nearer tongue covers the further one
+        for (var k = 0; k < list.length; k++) {
+          var it = list[k];
+          var kf = 0.86 + 0.09 * Math.sin(ts * 9.3 + it.ph) + 0.06 * Math.sin(ts * 15.1 + it.ph * 2.3);
+          var lean = 5 * Math.sin(ts * 0.9 + it.ph);
+          for (var li = 0; li < KF_LAY.length; li++) {
+            var L = KF_LAY[li];
+            var hh = it.h * kf * L[1] * it.hs;
+            var ww = KF.TW * L[0];
+            if (hh < 1) continue;
+            var right = [], left = [];
+            for (var q = 0; q <= 6; q++) {
+              var u = q / 6;
+              var dx = lean * u * u + 8 * Math.pow(u, 1.4) * Math.sin(ts * 6.2 + it.ph - u * 3.2) + 2.5 * u * Math.sin(ts * 11 + it.ph * 1.7);
+              var hw = ww / 2 * Math.pow(1 - u, 0.85) * (u < 0.18 ? 0.8 + u * 1.1 : 1);
+              right.push({ x: it.x + dx + hw, y: it.y - hh * u });
+              left.unshift({ x: it.x + dx - hw, y: it.y - hh * u });
+            }
+            g.fillStyle(L[2], L[3] * it.a);
+            g.fillPoints(right.concat(left.slice(1)), true);
+          }
+          n++;
+        }
+        return n;
+      },
+      // heat haze: translucent ellipses drifting up out of the field; each rise cycle picks a new spot (stateless, so a frozen clock is stable)
+      drawHaze: function (g, now, p) {
+        var ts = now / 1000;
+        for (var i = 0; i < KF.HAZE; i++) {
+          var cyc = Math.floor(ts / 2.2 + i * 0.41), u = (ts / 2.2 + i * 0.41) % 1;
+          var a = hash(i * 7.1 + cyc * 3.7) * 6.2832, rr = Math.sqrt(hash(i * 3.3 + cyc * 5.9)) * radius * 0.85;
+          var wx = Math.cos(a) * rr + Math.sin(ts * 1.1 + i) * 7;
+          var wy = Math.sin(a) * rr * sq - u * 55;   // base inside the same flat ellipse, then it drifts up
+          var wa = (1 - u * 0.9) * 0.14 * p;
+          if (wa < 0.01) continue;
+          g.fillStyle(0xff9500, wa);
+          g.fillEllipse(wx, wy - 12, 5 + (i % 4) * 2, (5 + (i % 4) * 2) * 1.7);
+        }
+      },
+      // black smoke (g3g): 16 puffs rising from the ellipse, like the fire-pit trap in level.js but without
+      // perspective or masks. Dual-layer: grey glow + near-black core. Fast fade-in, quadratic fade-out.
+      drawSmoke: function (g, now, aMul) {
+        var t = now;
+        for (var si = 0; si < 16; si++) {
+          var life = 1300 + 700 * hash(si * 3.3 + 1);
+          var u = ((t + life * hash(si * 5.1 + 2)) % life) / life;
+          var baseX = (hash(si * 4.3 + 5) * 2 - 1) * radius * 0.9;   // spread across the ellipse width
+          var baseY = 0;   // the ellipse centre (container is already at groundY-10)
+          var sx = baseX + (8 + 14 * hash(si * 1.7)) * u + 6 * Math.sin(t / 380 + si);
+          var sy = baseY - (24 + 180 * (1 - Math.pow(1 - u, 1.4)));   // rise ~204 px max (was ~119; x3 = 357 covered the HUD, user 2026-11-12 asked to lower it)
+          var rad = 5 + 9 * u;   // 5 -> 14
+          var al = 0.8 * Math.min(1, u * 8) * (1 - u * u) * aMul;
+          if (al < 0.01) continue;
+          g.fillStyle(0x4a4541, al * 0.5); g.fillCircle(sx, sy, rad * 1.3);
+          g.fillStyle(0x16130f, al); g.fillCircle(sx, sy, rad);
+        }
+      }
+    };
+    return f;
+  }
+
+  // The warning (g3g redesign): a pit-style warning board + a solid yellow ellipse expanding from the centre,
+  // both drawn BEHIND the player (depth 1 < player depth 2). No flames, no glow, no haze, no smoke.
+  // Blinks 0.5 s on / 0.5 s off (3 full cycles in 3 s). Countdown: 3s / 2s / 1s / 0s.
+  function telegraphKiln(scene, x, y, radius, ms) {
+    var container = scene.add.container(x, y).setDepth(1);
+
+    var boardG = scene.add.graphics();
+    var ellG = scene.add.graphics();
+    var txt = scene.add.text(0, 0, '', { fontFamily: FONT, fontSize: '18px', fontStyle: 'bold', color: '#15181c' }).setOrigin(0.5, 0.5);
+    container.add(ellG);
+    container.add(boardG);
+    container.add(txt);
+
+    var t0 = scene.time.now;
+    var BW = 128, BH = 58;   // board size in board-units (1:1 with the pit warning board in level.js)
+
+    var draw = function () {
+      var now = scene.time.now, el = now - t0;
+      var p = Math.min(1, el / ms);
+      var blink = ((el % 1000) < 500);   // ON for 500 ms, OFF for 500 ms
+
+      boardG.clear();
+      ellG.clear();
+
+      if (!blink) {
+        txt.setVisible(false);
+        return;
+      }
+
+      // --- countdown text: 3s (0-750ms), 2s (750-1500ms), 1s (1500-2250ms), 0s (2250-3000ms) ---
+      var sec = el < 750 ? '3s' : el < 1500 ? '2s' : el < 2250 ? '1s' : '0s';
+
+      // --- flat yellow ellipse expanding from centre to full radius*2 x 28 ---
+      var eScale = p;   // 0 at start, 1 at end
+      var ew = radius * 2 * eScale, eh = 28 * eScale;
+      if (ew > 1 && eh > 1) {
+        ellG.fillStyle(0xffd21f, 1); ellG.fillEllipse(0, 0, ew, eh);
+        ellG.lineStyle(3, 0x15181c, 1); ellG.strokeEllipse(0, 0, ew, eh);
+      }
+
+      // --- warning board (128x58), positioned above the ellipse ---
+      var bx = -BW / 2, by = -BH - 20;   // centred horizontally, bottom edge 20 px above the ellipse centre
+      // black frame
+      boardG.fillStyle(0x15181c, 1); boardG.fillRect(bx, by, BW, BH);
+      // yellow inner
+      boardG.fillStyle(0xffd21f, 1); boardG.fillRect(bx + 3, by + 3, BW - 6, BH - 6);
+      // warning triangle (left side)
+      boardG.fillStyle(0x15181c, 1);
+      boardG.fillPoints([
+        { x: bx + 14, y: by + BH - 14 },
+        { x: bx + 40, y: by + BH - 14 },
+        { x: bx + 27, y: by + 12 }
+      ], true);
+      // exclamation mark inside triangle (two small yellow bars)
+      boardG.fillStyle(0xffd21f, 1);
+      boardG.fillRect(bx + 25.5, by + 20, 3, 12);
+      boardG.fillRect(bx + 25.5, by + 35, 3, 3);
+
+      // text: "Warning" + countdown
+      txt.setText('Warning ' + sec);
+      txt.setPosition(bx + 82, by + BH / 2);
+      txt.setVisible(true);
+    };
+
+    draw();
+    var ev = scene.time.addEvent({ delay: 33, callback: draw, loop: true });
+    container.once('destroy', function () { ev.remove(); txt.destroy(); });
+
+    return container;
+  }
+
+  // The kiln pool's own flames: the same field at full opacity for the pool's whole life, plus black smoke
+  // (g3g: designer wants smoke like the fire-pit trap). boss.js _spawnPool creates it and destroys it with
+  // the pool; the 33 ms timer dies with the container.
+  function kilnPoolFlames(scene, x, y, radius, ms, field) {
+    var container = scene.add.container(x, y).setDepth(DEPTH);
+    var flameG = scene.add.graphics();
+    var hazeG = scene.add.graphics();
+    var smokeG = scene.add.graphics();
+    container.add(flameG);
+    container.add(hazeG);
+    container.add(smokeG);
+
+    var f = field || kilnField(scene, radius);
+    f.minPb = 1;   // the fire is here now: every tongue is drawn at its own full height
+    var t0 = scene.time.now;
+
+    var draw = function () {
+      var now = scene.time.now, el = now - t0;
+      if (el > ms) return;   // boss.js destroys the pool (and with it this) when the duration runs out
+      var aMul = ms - el < 600 ? (ms - el) / 600 : 1;   // fade out with the pool's own last-600 ms fade
+      flameG.clear();
+      hazeG.clear();
+      smokeG.clear();
+      f.update(now, 1);
+      f.draw(flameG, now, 1, aMul);
+      f.drawHaze(hazeG, now, 1);
+      f.drawSmoke(smokeG, now, aMul);
+    };
+
+    draw();
+    var ev = scene.time.addEvent({ delay: 33, callback: draw, loop: true });
+    container.once('destroy', function () { ev.remove(); });
+    container.kilnField = f;   // same handle as telegraphKiln exposes (diagnostics / the next hand-over)
+
+    return container;
+  }
+
+  function telegraphRect(scene, x, y, w, h, ms, color) {
+    var c = (color === undefined) ? 0xff3030 : color;
     var g = scene.add.graphics().setDepth(DEPTH);
     var pulse = scene.tweens.add({ targets: g, alpha: 0.7, duration: 120, yoyo: true, repeat: -1 });
-    var draw = function () { g.clear(); g.fillStyle(0xff3030, 0.25); g.fillRect(x - w / 2, y, w, h); g.lineStyle(3, 0xff3030, 0.8); g.strokeRect(x - w / 2, y, w, h); };
+    var draw = function () { g.clear(); g.fillStyle(c, 0.25); g.fillRect(x - w / 2, y, w, h); g.lineStyle(3, c, 0.8); g.strokeRect(x - w / 2, y, w, h); };
     draw();
     var t = scene.tweens.addCounter({ from: 0, to: 1, duration: ms, onComplete: function () { pulse.stop(); kill(g); } });
     g.once('destroy', function () { pulse.stop(); t.stop(); });
@@ -1512,6 +1944,286 @@ var FX = (function () {
   function burnFlame(scene, x, y) {
     var c = scene.add.circle(x, y, 4, 0xff6600, 1).setDepth(DEPTH);
     scene.tweens.add({ targets: c, y: y - 18, alpha: 0, scaleX: 0.3, scaleY: 1.4, duration: 400, onComplete: function () { kill(c); } });
+  }
+
+  // Big fire flare in the style of the vendor's wok flame: 7 tongues, three layers each, flicker then fade.
+  // One long kiln-style flame rising from the lamp base (layered tongues, flicker/sway).
+  // opts: { height, width, duration_ms, fade_ms, flicker }
+  function lampFlame(scene, x, y, opts) {
+    opts = opts || {};
+    var height = opts.height != null ? opts.height : 120;
+    var width = opts.width != null ? opts.width : 26;
+    var duration = opts.duration_ms != null ? opts.duration_ms : 800;
+    var fadeMs = opts.fade_ms != null ? opts.fade_ms : 250;
+    var flicker = opts.flicker !== false;
+
+    var container = scene.add.container(x, y).setDepth(DEPTH);
+    var glowG = scene.add.graphics();
+    var flameG = scene.add.graphics();
+    container.add(glowG);
+    container.add(flameG);
+
+    // Same layer idea/colours as telegraphKiln
+    var LAY = [[1.35,1.12,0xff2a00,0.22],[1.0,1.0,0xff5a00,0.78],[0.72,0.8,0xff9500,0.8],[0.45,0.55,0xffd23a,0.85],[0.22,0.28,0xfff4c0,0.9]];
+
+    var t0 = scene.time.now;
+    var alive = true;
+
+    var draw = function () {
+      if (!alive || !container.active) return;
+      var el = scene.time.now - t0;
+      var ts = el / 1000;
+      var fade = el > duration - fadeMs ? Math.max(0, (duration - el) / fadeMs) : 1;
+      var grow = Math.min(1, el / 120);   // quick rise-in
+
+      glowG.clear();
+      flameG.clear();
+
+      // soft glow at the lamp base
+      var ga = 0.16 * fade;
+      glowG.fillStyle(0xff5a00, ga * 0.6); glowG.fillCircle(0, 0, width * 0.9);
+      glowG.fillStyle(0xffd23a, ga);       glowG.fillCircle(0, 0, width * 0.35);
+
+      // ONE long flame: stacked tongues along the vertical axis
+      var tongues = 3;
+      for (var t = 0; t < tongues; t++) {
+        var seg = t / tongues;
+        var segH = height * (1 - seg * 0.35) * grow;
+        var segW = width * (1 - seg * 0.35);
+        var baseY = -seg * height * 0.55;
+        var ph = t * 1.7;
+        var kf = flicker ? (0.9 + 0.08 * Math.sin(ts * 9.3 + ph) + 0.05 * Math.sin(ts * 15.1 + ph * 2.3)) : 1;
+        var lean = flicker ? 4 * Math.sin(ts * 1.6 + ph) : 0;
+
+        for (var li = 0; li < LAY.length; li++) {
+          var L = LAY[li];
+          var hh = segH * L[1] * kf;
+          var ww = segW * L[0];
+          if (hh < 1) continue;
+          var right = [], left = [];
+          for (var q = 0; q <= 6; q++) {
+            var u = q / 6;
+            var dx = lean * u * u + (flicker ? 4 * Math.pow(u, 1.4) * Math.sin(ts * 6.2 + ph - u * 3.2) : 0);
+            var hw = ww / 2 * Math.pow(1 - u, 0.85) * (u < 0.18 ? 0.8 + u * 1.1 : 1);
+            right.push({ x: dx + hw, y: baseY - hh * u });
+            left.unshift({ x: dx - hw, y: baseY - hh * u });
+          }
+          flameG.fillStyle(L[2], L[3] * fade);
+          flameG.fillPoints(right.concat(left.slice(1)), true);
+        }
+      }
+    };
+
+    draw();
+    var timer = scene.time.addEvent({ delay: 40, loop: true, callback: draw });
+    scene.time.delayedCall(duration, function () {
+      alive = false;
+      if (timer) timer.remove(false);
+      if (container && container.active) container.destroy();
+    });
+  }
+
+  function commandRing(scene, x, y) {
+    var g = scene.add.graphics().setDepth(DEPTH);
+    g.lineStyle(4, 0xe0a050, 1); g.strokeCircle(x, y, 10);
+    scene.tweens.add({ targets: g, alpha: 0, duration: 420, onUpdate: function (tw, tg, p) { g.clear(); g.lineStyle(4, 0xe0a050, 1 - p); g.strokeCircle(x, y, 10 + p * 80); }, onComplete: function () { kill(g); } });
+    var g2 = scene.add.graphics().setDepth(DEPTH);
+    g2.lineStyle(4, 0xfff0c8, 1); g2.strokeCircle(x, y, 10);
+    scene.tweens.add({ targets: g2, alpha: 0, duration: 420, delay: 90, onUpdate: function (tw, tg, p) { g2.clear(); g2.lineStyle(4, 0xfff0c8, 1 - p); g2.strokeCircle(x, y, 10 + p * 80); }, onComplete: function () { kill(g2); } });
+    for (var i = 0; i < 8; i++) {
+      var angle = i * Math.PI / 4;
+      var len = 30 + Math.random() * 30;
+      var line = scene.add.graphics().setDepth(DEPTH);
+      line.lineStyle(2, 0xfff0c8, 1);
+      line.lineBetween(x, y, x + Math.cos(angle) * len, y + Math.sin(angle) * len);
+      scene.tweens.add({ targets: line, alpha: 0, x: Math.cos(angle) * 40, y: Math.sin(angle) * 40, duration: 320, onComplete: function () { kill(line); } });
+    }
+    var flash = scene.add.graphics().setDepth(DEPTH);
+    flash.fillStyle(0xfff0c8, 1); flash.fillCircle(x, y, 18);
+    scene.tweens.add({ targets: flash, alpha: 0, scaleX: 1.8, scaleY: 1.8, duration: 180, onComplete: function () { kill(flash); } });
+  }
+
+  function summonRise(scene, x, groundY) {
+    for (var i = 0; i < 10; i++) {
+      var r = 5 + Math.random() * 4;
+      var col = Math.random() > 0.5 ? 0xc8935a : 0xe8cfa0;
+      var puff = scene.add.graphics().setDepth(DEPTH);
+      puff.fillStyle(col, 0.7); puff.fillCircle(x, groundY, r);
+      var dx = (Math.random() > 0.5 ? 1 : -1) * (40 + Math.random() * 50);
+      var dy = -10 - Math.random() * 20;
+      scene.tweens.add({ targets: puff, x: x + dx, y: groundY + dy, alpha: 0, scaleX: 1.5, scaleY: 1.5, duration: 450, onComplete: function () { kill(puff); } });
+    }
+    for (var j = 0; j < 8; j++) {
+      var sCol = Math.random() > 0.5 ? 0xc8935a : 0x6b4423;
+      var sSize = 4 + Math.random() * 5;
+      var shard = scene.add.graphics().setDepth(DEPTH);
+      shard.fillStyle(sCol, 1);
+      shard.beginPath();
+      shard.moveTo(x, groundY);
+      shard.lineTo(x + sSize, groundY - sSize);
+      shard.lineTo(x - sSize, groundY - sSize);
+      shard.closePath();
+      shard.fillPath();
+      var vy = -140 - Math.random() * 120;
+      scene.tweens.add({ targets: shard, y: groundY + vy * 0.6 + 350, alpha: 0, duration: 600, onComplete: function () { kill(shard); } });
+    }
+    var col = scene.add.rectangle(x, groundY, 36, 110, 0x20c060, 0.35).setOrigin(0.5, 1).setDepth(DEPTH);
+    col.scaleY = 0.2;
+    scene.tweens.add({ targets: col, scaleY: 1, alpha: 0, duration: 380, onComplete: function () { kill(col); } });
+  }
+
+  function telegraphHalo(scene, x, y, radius, ms) {
+    var container = scene.add.container(x, y).setDepth(DEPTH);
+    
+    // Soft halo
+    var haloG = scene.add.graphics();
+    haloG.fillStyle(0xff2020, 0.08); haloG.fillCircle(0, 0, radius * 1.25);
+    haloG.fillStyle(0xff2020, 0.14); haloG.fillCircle(0, 0, radius * 1.05);
+    haloG.fillStyle(0xff2020, 0.2);  haloG.fillCircle(0, 0, radius * 0.85);
+    haloG.fillStyle(0xff2020, 0.28); haloG.fillCircle(0, 0, radius * 0.6);
+    container.add(haloG);
+
+    // Progress ring
+    var ringG = scene.add.graphics();
+    var drawRing = function (p) {
+      ringG.clear();
+      // Static outline
+      ringG.lineStyle(1, 0xff4040, 0.35);
+      ringG.strokeCircle(0, 0, radius);
+      // Progress ring
+      if (p > 0) {
+        ringG.lineStyle(3, 0xff4040, 0.9);
+        ringG.strokeCircle(0, 0, radius * p);
+      }
+    };
+    drawRing(0);
+    container.add(ringG);
+
+    // Text
+    var txt = scene.add.text(0, radius + 16, 'Warning', {
+      fontFamily: 'Arial, sans-serif',
+      fontSize: '15px',
+      fontStyle: 'bold',
+      color: '#ff4444',
+      stroke: '#2a0000',
+      strokeThickness: 3
+    }).setOrigin(0.5);
+    container.add(txt);
+
+    // Breathing tween on container
+    var breathe = scene.tweens.add({
+      targets: container,
+      scaleX: 1.06,
+      scaleY: 1.06,
+      alpha: 1.0,
+      duration: 520,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      onStart: function () {
+        container.setScale(0.94);
+        container.setAlpha(0.65);
+      }
+    });
+
+    // Blinking tween on text
+    var blink = scene.tweens.add({
+      targets: txt,
+      alpha: 1.0,
+      duration: 520,
+      yoyo: true,
+      repeat: -1,
+      ease: 'Sine.easeInOut',
+      onStart: function () {
+        txt.setAlpha(0.45);
+      }
+    });
+
+    // Progress counter
+    var counter = scene.tweens.addCounter({
+      from: 0,
+      to: 1,
+      duration: ms,
+      onUpdate: function (tw) {
+        drawRing(tw.getValue());
+      },
+      onComplete: function () {
+        breathe.stop();
+        blink.stop();
+        kill(container);
+      }
+    });
+
+    container.once('destroy', function () {
+      breathe.stop();
+      blink.stop();
+      counter.stop();
+    });
+
+    return container;
+  }
+
+  function flameBurst(scene, x, y, radius) {
+    var parts = [];
+    var baseY = y + radius * 0.3;
+    var spread = radius * 1.6;
+    var layers = [
+      { color: 0xff3a10, alpha: 0.55, scale: 1.0 },
+      { color: 0xff8a1a, alpha: 0.8, scale: 0.7 },
+      { color: 0xffe070, alpha: 0.9, scale: 0.45 }
+    ];
+    for (var i = 0; i < 7; i++) {
+      var t = (i / 6) - 0.5;
+      var tx = x + t * spread;
+      var h = radius * (1.2 + Math.random() * 0.6);
+      var w = radius * 0.28;
+      for (var L = 0; L < layers.length; L++) {
+        var lay = layers[L];
+        var hh = h * lay.scale, ww = w * lay.scale;
+        var g = scene.add.graphics().setDepth(DEPTH);
+        g.fillStyle(lay.color, lay.alpha);
+        g.fillPoints([
+          { x: tx - ww, y: baseY },
+          { x: tx - ww * 0.5, y: baseY - hh * 0.55 },
+          { x: tx, y: baseY - hh },
+          { x: tx + ww * 0.5, y: baseY - hh * 0.55 },
+          { x: tx + ww, y: baseY }
+        ], true);
+        parts.push(g);
+        scene.tweens.add({
+          targets: g,
+          scaleY: { from: 1, to: 1.25 },
+          alpha: { from: lay.alpha, to: lay.alpha * 0.6 },
+          duration: 120 + Math.random() * 80,
+          yoyo: true,
+          repeat: 3
+        });
+      }
+    }
+    var flash = scene.add.circle(x, baseY, radius * 0.6, 0xffaa33, 0.85).setDepth(DEPTH);
+    parts.push(flash);
+    scene.tweens.add({ targets: flash, scale: 1.6, alpha: 0, duration: 250, onComplete: function () { kill(flash); } });
+    for (var k = 0; k < 10; k++) {
+      var ex = x + (Math.random() - 0.5) * spread;
+      var ey = baseY;
+      var em = scene.add.circle(ex, ey, 2 + Math.random() * 2, 0xffcc55, 1).setDepth(DEPTH);
+      parts.push(em);
+      scene.tweens.add({
+        targets: em,
+        x: ex + (Math.random() - 0.5) * 40,
+        y: ey - radius * (0.8 + Math.random() * 1.2),
+        alpha: 0,
+        duration: 400 + Math.random() * 200,
+        onComplete: function () { kill(em); }
+      });
+    }
+    scene.time.delayedCall(500, function () {
+      for (var p = 0; p < parts.length; p++) {
+        var obj = parts[p];
+        if (!obj || !obj.active) continue;
+        scene.tweens.add({ targets: obj, alpha: 0, duration: 250, onComplete: function () { kill(obj); } });
+      }
+    });
   }
 
   function hitStop(scene, ms) {
@@ -2030,9 +2742,10 @@ var FX = (function () {
 
   return {
     hitSpark: hitSpark, slashArc: slashArc, examMax: examMax, nanoProcess: nanoProcess, nanoBurst: nanoBurst, damageNumber: damageNumber, deathPoof: deathPoof,
-    explosionRing: explosionRing, healGlow: healGlow, dashTrail: dashTrail, telegraphCircle: telegraphCircle,
+    explosionRing: explosionRing, healGlow: healGlow, dashTrail: dashTrail, telegraphCircle: telegraphCircle, telegraphHalo: telegraphHalo, telegraphKiln: telegraphKiln, kilnPoolFlames: kilnPoolFlames, lampFlame: lampFlame,
     telegraphRect: telegraphRect, simLayout: simLayout, simSignal: simSignal, screenShake: screenShake, levelClearFlash: levelClearFlash, shieldRing: shieldRing,
-    burnFlame: burnFlame, hitStop: hitStop, slowMo: slowMo, flashSprite: flashSprite, squash: squash,
+    commandRing: commandRing, summonRise: summonRise,
+    burnFlame: burnFlame, flameBurst: flameBurst, mirrorReflect: mirrorReflect, mirrorSpill: mirrorSpill, mirrorAbsorb: mirrorAbsorb, mirrorBeam: mirrorBeam, mirrorBarBeam: mirrorBarBeam, mirrorArcWave: mirrorArcWave, hitStop: hitStop, slowMo: slowMo, flashSprite: flashSprite, squash: squash,
     hitEnemy: hitEnemy, hitBurst: hitBurst, shakeSprite: shakeSprite, killEnemy: killEnemy, hurtPlayer: hurtPlayer, healPlayer: healPlayer,
     shieldHit: shieldHit, bossPhase: bossPhase, lowHpBorder: lowHpBorder, deathSequence: deathSequence,
     stirFry: stirFry,

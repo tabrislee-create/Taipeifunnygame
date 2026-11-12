@@ -116,6 +116,7 @@ var Hooks = {
       if (h.effect === 'damage_bonus') {
         ref.takeHit(params.value || 0, p.sprite.x, false, { proc: true });
       } else if (h.effect === 'status_effect' && params.effect === 'burn') {
+        if (ref.def && typeof GAME_DATA !== 'undefined' && GAME_DATA.bosses && GAME_DATA.bosses[ref.def.id]) continue;   // bosses are immune to a hit's status effects (user 2026-10-28)
         ref.applyBurn(params.dps || 0, params.duration || 0);
       }
     }

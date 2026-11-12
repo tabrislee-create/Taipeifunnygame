@@ -153,6 +153,11 @@ class BootScene extends Phaser.Scene {
     for (var k = 0; k < bo.length; k++) {
       this.load.image(bo[k], 'assets/' + bo[k] + '.png');
     }
+    this.load.image('boss_rock_golem_open', 'assets/boss_rock_golem_open.png'); // golem's eyes-open picture
+    for (let i = 1; i <= 4; i++) { this.load.image('rock_stone_' + i, 'assets/rock_stone_' + i + '.png'); this.load.image('rock_boulder_' + i, 'assets/rock_boulder_' + i + '.png'); } // golem's thrown stones / rolling boulder: 4 variants each, picked at random
+    this.load.image('rock_road', 'assets/rock_road.png'); // level-15 boss stage: one painted continuous rock trail
+    for (let i = 1; i <= 4; i++) this.load.image('rock_block_' + i, 'assets/rock_block_' + i + '.png'); // level-15 boss-stage rock blocks (cropped, never stretched, see level.js _buildRocks)
+    this.load.image('thorn_spike','assets/thorn_spike.png'); this.load.image('thorn_mound', 'assets/thorn_mound.png'); // bramble's ground thorn: dirt mound first, then the spike
     var th = Object.keys(D.themes);
     for (var m = 0; m < th.length; m++) {
       this.load.image('ground_' + th[m], 'assets/ground_' + th[m] + '.png');
@@ -170,6 +175,7 @@ class BootScene extends Phaser.Scene {
       var skKey = 'lv' + (skLv < 10 ? '0' : '') + skLv;
       this.load.image('backdrop_' + skKey + '_sky', 'assets/backdrop_' + skKey + '_sky.png');
     }
+    this.load.image('backdrop_lv15b_sky', 'assets/backdrop_lv15b_sky.png'); this.load.image('ground_lv15b', 'assets/ground_lv15b.png');   // level 15 boss stage (Qixing main peak, level.js _swapBossStage)
     this.load.image('fg_lv03_lane', 'assets/fg_lv03_lane.png');   // level 3: the lane dashes are their own layer (level.js)
     this.load.image('fg_lv05_rail', 'assets/fg_lv05_rail.png');   // level 5: the railing is its own scrolling layer (level.js), one seamless post-to-post tile
     this.load.image('underview_lv04', 'assets/underview_lv04.png');   // level 4 glass floor: the view straight down on Taipei (level.js _drawGlassFloor)

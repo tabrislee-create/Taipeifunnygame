@@ -11,9 +11,10 @@ const THEME_COLORS = {
 
 const MAX_PLATFORM_H = 130;
 // The floating touch pad (200 wide, clamped to x 8..208 at the far left) must not cover the character, so the player starts to its right.
+const INTRO_MS = 500, NEAREST_ENEMY_DIST = 220;   // level start (user 2026-11-09): player and enemies blink and cannot act for the first 0.5 s; the nearest minion starts 220 px from the player
 const PLAYER_SPAWN_X = 310;   // was 230; moved right 80px so the level-1 touch hint (far left) does not overlap the player
 
-// Perspective ground (levels 1-6, user 2026-10-12): numbers are in the backdrop's own picture rows (3168 px wide source), made by art_eval/persp/make_persp_assets.py.
+// Perspective ground (levels 1-6, user 2026-10-12; level 10 added 2026-10-26): numbers are in the backdrop's own picture rows (3168 px wide source), made by art_eval/persp/make_persp_assets.py.
 // bottom = source row at the picture's bottom edge, band = rows of walkable ground at the bottom, vpy = source row of the horizon, vpx = vanishing point as a fraction of the picture width,
 // base / pave = lit / typical colour of the band's paving in the picture (raw, before any colour look): the walls and floor of the hole are shades of base, the coping stones use pave;
 // _drawPitsPersp runs both through the current weather look (WX.skyLook: saturation / brightness) so they follow the backdrop in every weather.
@@ -23,7 +24,17 @@ const PERSP = {
   3: { bottom: 1215, band: 70, vpy: 1040, vpx: 0.5, base: [108, 91, 96], pave: [81, 70, 80], frontMax: 528 },
   4: { bottom: 1250, band: 60, vpy: 1100, vpx: 0.5781, base: [42, 57, 133], pave: [32, 42, 121], glass: true },   // glass: the rim of a hole is the bright teal glass edge (like the cross-section's top rows), with red warning lamps
   5: { bottom: 1312, band: 67, vpy: 1157, vpx: 0.5, base: [157, 137, 126], pave: [145, 128, 120] },   // level 5 (user 2026-10-12): perspective floor like levels 1-4; no pits on this level, so only the band / cross-section are used
-  6: { bottom: 1135, band: 76, vpy: 980, vpx: 0.5, base: [198, 135, 77], pave: [153, 103, 67], frontMax: 528 },   // level 6 (user 2026-10-12, night market): picture cut at the street band in front of the shops; same frontMax as level 3 (same y_ground)
+  6: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [80, 96, 122], pave: [74, 93, 121], frontMax: 528 },   // level 6 (user 2026-11-09, 陶瓷博物館 uw): numbers from art_eval/lv_shinkai/v3/out/L06m_uw_s3101_persp.json
+  7: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [154, 141, 136], pave: [142, 135, 136], frontMax: 528 },   // level 7 (user 2026-11-09, 十三行博物館 uw): numbers from art_eval/lv_shinkai/v3/out/L07m_uw_s3101_persp.json
+  8: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [76, 105, 131], pave: [66, 100, 130], frontMax: 528 },   // level 8 (user 2026-11-09, 黃金博物館 std): numbers from art_eval/lv_shinkai/v3/out/L08m_std_s3101_persp.json
+  9: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [167, 154, 151], pave: [159, 149, 148], frontMax: 528 },   // level 9 (user 2026-11-09, 台灣博物館 uw): numbers from art_eval/lv_shinkai/v3/out/L09m_uw_s3101_persp.json
+  10: { bottom: 1566, band: 55, vpy: 1455, vpx: 0.5, base: [244, 213, 191], pave: [237, 205, 183], frontMax: 528 },   // level 10 (user 2026-10-26, 故宮博物院): the plaza in front of the stairs; bottom = the picture's last row (949 x 3168 / 1920 = 1565.8), band = the plaza rows under the bottom step's riser (picture rows 894..948), vpy = the horizon the plaza's own joints converge to (the steps' far edge: fitted over its 133 picture columns, row 881.8 of the 1920-wide picture x 1.65 = 1455, residual 1.6 px, so the vanishing point sits far above the cut and the hole's side walls lean almost vertically), base / pave = the plaza paving's lit / typical colour (raw picture colours)
+  11: { bottom: 1254, band: 76, vpy: 1099, vpx: 0.5, base: [171, 154, 130], pave: [156, 141, 119], frontMax: 528 },   // level 11 (user 2026-11-09, 貓空 std seed 3201; picture cut at row 1254 = the front edge of the stone walkway so the band / cross-section take the walkway's material, user: 地面區就是欄杆的步道面，剖面和步道面材質一致): numbers from art_eval/lv_shinkai/v3/out/L11m_std_s3201_persp.json
+  12: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [135, 109, 83], pave: [68, 60, 64], frontMax: 528 },   // level 12 (user 2026-11-10, hiking 二子坪 std): numbers from art_eval/lv_shinkai/v3/out/L12h_std_s4101_persp.json
+  13: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [49, 84, 51], pave: [24, 68, 52], frontMax: 528 },   // level 13 (user 2026-11-10, hiking 擎天崗 std (pano outpaint)): numbers from art_eval/lv_shinkai/v3/out/L13h_std_s4101_persp.json
+  14: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [172, 153, 138], pave: [148, 134, 125], frontMax: 528 },   // level 14 (user 2026-11-11, hiking 竹子湖 uw, front footpath added, s4204z): numbers from art_eval/lv_shinkai/v3/out/L14h_uw_s4204z_persp.json
+  15: { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [210, 187, 167], pave: [205, 182, 165], frontMax: 528 },   // level 15 (user 2026-11-10, hiking 小油坑 uw (stage 1; 七星山 = assets backdrop_lv15b_sky/ground_lv15b, not wired)): numbers from art_eval/lv_shinkai/v3/out/L15ah_uw_s4101_persp.json
+  '15b': { bottom: 1312, band: 76, vpy: 1157, vpx: 0.5, base: [139, 111, 93], pave: [134, 107, 89], frontMax: 528 },   // level 15 boss stage (user 2026-11-10, 七星山 L15dh_mid_s4105v4): numbers from art_eval/lv_shinkai/v3/out/L15dh_mid_s4105v4_persp.json (not previewed)
   18: { bottom: 1312, band: 76, vpy: 990, vpx: 0.5, base: [125, 114, 113], pave: [112, 103, 106], frontMax: 528 }   // level 18 (user 2026-10-13, Ximending wide panorama pano45_s2101): numbers from art_eval/lv_shinkai/v3/out/L18v3_pano45p_s2105_persp.json (2026-10-13: 2105p + TAIPEI painted by add_taipei_text.py, no grey band; replaced 2101p, backup art_eval/persp/prev2101p_*) (vpy 899 measured from the crossing stripe edges 2026-10-13, was the pipeline default 1157)
 };
 // Pebble pit (level data pit_kind: 'pebble', user 2026-10-12: Taiwan's pebble health-walk path at the bottom of a pit): the player on the pebbles walks slower and every step hurts a little. Values are first guesses.
@@ -35,7 +46,9 @@ const POISON_DMG = 1, POISON_TICK_MS = 500, POISON_LINGER_MS = 8000;
 const PIT_WARN = { spikes: ['很尖', '救人喔!'], pebble: ['健康?', '我踩!'], fire: ['燒A!', '五分熟'], poison: ['有毒!', '別喝!', '毒你喔', '快閃!', '不是珍奶'] };
 const LANE_BOTTOM = 941, LANE_X0 = 33;   // level 3 lane layer: texture row under the tile, texture column of tile column 0 (make_lv03_lane.py)
 const RAIL_H_SRC = 150, RAIL_FOOT = 1203, RAIL_PAR = 0.7;   // level 5 railing layer: height in source-picture px, foot row on the parapet, share of the camera scroll it moves (the feet plane = 1)
-const BACKDROP_PARALLAX = { 5: 0.12 };   // per-level override of the default 0.03 (user 2026-10-13: level 5's railing / distant view looked frozen while walking); a larger value scales the picture up
+const BACKDROP_PARALLAX = { 5: 0.12, 10: 0.08 };   // per-level override of the default 0.03 (user 2026-10-13: level 5's railing / distant view looked frozen while walking); a larger value scales the picture up
+const ROCK_PICS = 4, ROCK_PIC_SCALE = 0.45;   // painted rock pictures (assets/rock_block_N.png) and their display scale (source px -> game px)
+const ROCK_H = [40, 70, 100, 125, 150];   // level-15 boss stage rock heights (px above the ground line); jump apex is ~140, each step is <= 30 higher than the one before
 const FLOOD_SLOW = 0.5;   // flood (user 2026-10-13): walking speed x0.5 (the jump is x1/sqrt2 = half the height, in player.js)
 const PERSP_FACE_DY = 12;   // the cross-section's top edge sits this far below the ground line (= the picture's bottom edge)
 
@@ -101,9 +114,13 @@ class LevelScene extends Phaser.Scene {
     // level 1 is a far view: the picture ends at the foot of the building, so sit its bottom edge on the ground line (the plaza tile is drawn by the program)
     this._persp = isCustomArt ? PERSP[RUN.level] : null;   // levels 1-4: perspective ground (the picture's bottom strip is the walkable band, see _drawPitsPersp)
     this._lvKey = lvKey;
-    if ((RUN.level <= 6 || RUN.level === 18) && isCustomArt) { bd.setOrigin(0.5, 1); bd.y = lvl.y_ground + (this._persp ? PERSP_FACE_DY : 8); }
+    if ((RUN.level <= 15 || RUN.level === 18) && isCustomArt) { bd.setOrigin(0.5, 1); bd.y = lvl.y_ground + (this._persp ? PERSP_FACE_DY : 8); }
 
     this.backdrop = bd;
+
+    // Level 15 fumaroles (user 2026-11-10: the Xiaoyoukeng steam must move): levels.json smoke_vents [{u, v}] = vent position as a fraction of the backdrop picture; puffs are drawn every frame, tied to the picture (they follow its parallax).
+    this._vents = (lvl.smoke_vents && isCustomArt) ? lvl.smoke_vents : null;
+    this._ventG = this._vents ? this.add.graphics().setScrollFactor(0).setDepth(-19.8) : null;
 
     // Level 5 (user 2026-10-13): the railing is a separate layer that scrolls faster than the distant view. One post-to-post tile (fg_lv05_rail, art_eval/sky_cut/make_lv05_split.py) repeats along the walkway,
     // standing on the picture's own stone parapet (src row RAIL_FOOT of the 3168 x 1312 picture); it takes the same colour look as the backdrop (weather.js).
@@ -123,6 +140,12 @@ class LevelScene extends Phaser.Scene {
       const ln = this.add.tileSprite(0, bd.y - (960 - LANE_BOTTOM) * s, GAME_W, tex.height * s, 'fg_lv03_lane').setOrigin(0, 1).setScrollFactor(0).setDepth(-19.9);
       ln.setTileScale(s, s); ln._sc = s; ln._x0 = GAME_W / 2 - 960 * s + LANE_X0 * s;   // screen x of the first dash at scroll 0
       this.laneFg = ln;
+    }
+
+    // Level 10 plaza paving joints (user 2026-10-28): the backdrop's own joints scrolled at 0.03x and looked detached from the feet plane; the backdrop is now joint-free and the joints are drawn in perspective at feet-plane speed (see _drawGroundJoints)
+    this._joints = null;
+    if (RUN.level === 10 && isCustomArt && typeof GroundJoints !== 'undefined' && typeof PLAZA_TOP_LV10 !== 'undefined') {
+      this._joints = this.add.graphics().setDepth(-19.5);
     }
 
     // Level 4 glass floor (user 2026-10-12): the walkable band of the backdrop is semi-transparent glass; the strip behind the backdrop (the view straight down on Taipei) shows through it (see _drawGlassFloor)
@@ -194,6 +217,7 @@ class LevelScene extends Phaser.Scene {
 
     // Enemies group (before player)
     this.enemies = this.physics.add.group();
+    this._introAt = null; this._introAlpha = null;   // set on the first update (scene.time.now is stale inside create)
 
     // Player
     this.player = new Player(this, PLAYER_SPAWN_X, lvl.y_ground - 100);
@@ -221,16 +245,29 @@ class LevelScene extends Phaser.Scene {
     this.physics.add.collider(this.enemies, this.platformGroup, null, oneWay);
 
     // Spawns
+    // Entrance distance (user 2026-11-09): the nearest minion starts exactly NEAREST_ENEMY_DIST px from the player (on the right if that spot is on solid ground, otherwise on the left);
+    // any other minion closer than that is pushed out beyond it. Bosses and the pending boss are left where the level data puts them. The level data itself is not changed (copies only).
+    const spList = lvl.spawns.map((x) => Object.assign({}, x)), minions = spList.filter((x) => !GAME_DATA.bosses[x.type] && GAME_DATA.enemies[x.type]);
+    if (minions.length) {
+      for (const m of minions) m.x = this._clearOfPits(m.x, 48);   // addEnemy does this anyway (a spawn over a pit is moved to its edge): measure the distance from the final spot
+      minions.sort((a, b) => Math.abs(a.x - PLAYER_SPAWN_X) - Math.abs(b.x - PLAYER_SPAWN_X));
+      const R = PLAYER_SPAWN_X + NEAREST_ENEMY_DIST, Lf = PLAYER_SPAWN_X - NEAREST_ENEMY_DIST, ok = (x) => this._clearOfPits(x, 48) === x && x > 40 && x < lvl.width - 80;
+      if (ok(R)) { minions[0].x = R; } else if (ok(Lf)) { minions[0].x = Lf; minions[0]._left = true; }
+      let k = 0;
+      for (let i = 1; i < minions.length; i++) {
+        if (Math.abs(minions[i].x - PLAYER_SPAWN_X) < NEAREST_ENEMY_DIST) { k++; let x = Math.max(R, minions[0].x) + 70 * k; while (x < lvl.width - 80 && !ok(x)) x += 30; minions[i].x = Math.min(lvl.width - 80, x); }   // first spot beyond the nearest one that is on solid ground (the pit margin must not pull it back inside the distance)
+      }
+    }
     const hasMinions = lvl.spawns.some((x) => !GAME_DATA.bosses[x.type]);
     // Hard mode (user 2026-10-13): minions x1.5-2, drawn once each time the level starts; that many extra copies go to randomly chosen minion spawn points (one extra per point at most)
-    const minionSps = lvl.spawns.filter((x) => !GAME_DATA.bosses[x.type] && GAME_DATA.enemies[x.type]), doubled = new Set();
+    const minionSps = spList.filter((x) => !GAME_DATA.bosses[x.type] && GAME_DATA.enemies[x.type]), doubled = new Set();
     this._hardMinionMult = RUN.hard ? 1.5 + Math.random() * 0.5 : 1;
     if (RUN.hard) {
       const idx = minionSps.map((x, i) => i), extra = Math.min(minionSps.length, Math.round(minionSps.length * (this._hardMinionMult - 1)));
       for (let i = idx.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [idx[i], idx[j]] = [idx[j], idx[i]]; }
       idx.slice(0, extra).forEach((i) => doubled.add(minionSps[i]));
     }
-    for (const sp of lvl.spawns) {
+    for (const sp of spList) {
       if (GAME_DATA.bosses[sp.type] && hasMinions) {
         this._pendingBoss = sp; // level 5: the boss only appears after every minion is dead (_startBossEntrance)
       } else if (GAME_DATA.bosses[sp.type]) {
@@ -242,7 +279,7 @@ class LevelScene extends Phaser.Scene {
         const def = GAME_DATA.enemies[sp.type];
         if (def) {
           this.addEnemy(def, sp.x, sp.y_hint);
-          if (doubled.has(sp)) this.addEnemy(def, Math.min(this.lvl.width - 80, sp.x + 56), sp.y_hint);   // hard mode extra copy (see above)
+          if (doubled.has(sp)) this.addEnemy(def, sp._left ? sp.x - 56 : Math.min(this.lvl.width - 80, sp.x + 56), sp.y_hint);   // hard mode extra copy (see above)
         }
       }
     }
@@ -271,6 +308,7 @@ class LevelScene extends Phaser.Scene {
     // HUD
     this.hud = new HUD(this);
     this._showIntro(lvl);
+    this.time.delayedCall(600, () => this._showEnemyHints());
 
     // Keys
     const K = this.input.keyboard.addKeys('LEFT,RIGHT,UP,A,D,W,SPACE,J,K');
@@ -368,8 +406,10 @@ class LevelScene extends Phaser.Scene {
 
     // Backdrop parallax
     if (this.backdrop) this.backdrop.x = GAME_W / 2 - this.cameras.main.scrollX * this._bdPar;
+    if (this._vents) this._drawVents(time);
     if (this.laneFg) this.laneFg.tilePositionX = (this.cameras.main.scrollX - this.laneFg._x0) / this.laneFg._sc;
     if (this.railFg) this.railFg.tilePositionX = this.cameras.main.scrollX * RAIL_PAR / this.railFg._sc;
+    if (this._joints) this._drawGroundJoints();
     if (this._pitG) this._drawPitsPersp();
     if (this._glassUV) this._drawGlassFloor();
 
@@ -378,8 +418,22 @@ class LevelScene extends Phaser.Scene {
     this.player.update(time, delta, this.keys);
 
     // Enemies update
+    // Level-start freeze (user 2026-11-09): for INTRO_MS after the level starts the player (locked in Player._updateSpawn via _spawnHoldUntil) and every enemy blink and cannot act
+    const nowT = this.time.now;
+    if (this._introAt === null) { this._introAt = nowT; this._introAlpha = new Map(); if (this.player) this.player._spawnHoldUntil = nowT + INTRO_MS; }
+    const intro = this._introAlpha !== null && nowT - this._introAt < INTRO_MS;
+    if (!intro && this._introAlpha !== null && this._introAlpha.size) {   // intro over: put every alpha back
+      for (const [sp, al] of this._introAlpha) if (sp && sp.active) sp.setAlpha(al);
+      this._introAlpha.clear();
+    }
     for (const s of this.enemies.getChildren()) {
       const r = s.ref;
+      if (r && !r.dead && intro) {
+        if (!this._introAlpha.has(s)) this._introAlpha.set(s, s.alpha);
+        s.setAlpha(Math.floor((nowT - this._introAt) / 90) % 2 ? 0.25 : 0.65);
+        if (s.body) s.body.setVelocityX(0);
+        continue;
+      }
       if (r && !r.dead) {
         r.update(time, delta, this.player);
         // Flood (user 2026-10-13): ground enemies walk at half speed (same per-frame scaling as the pebble pit below; flyers and knockback are left alone)
@@ -542,6 +596,32 @@ class LevelScene extends Phaser.Scene {
   }
 
   // Level entrance caption: place name + one short sentence, fades in, holds, fades out (data: levels.json name_zh / intro_text_zh).
+  // One-time hint banners for special enemies present in this level (data: enemies.json params.intro_hint_zh).
+  _showEnemyHints() {
+    if (!this.sys || !this.sys.isActive()) return;
+    const spawns = (this.lvl && this.lvl.spawns) || [];
+    const ids = [];
+    for (const s of spawns) {
+      const t = s && s.type;
+      if (!t || ids.indexOf(t) !== -1) continue;
+      if (GAME_DATA.bosses && GAME_DATA.bosses[t]) continue;
+      const def = GAME_DATA.enemies && GAME_DATA.enemies[t];
+      if (def && def.params && def.params.intro_hint_zh) ids.push(t);
+    }
+    RUN._hintsShown = RUN._hintsShown || {};
+    const F = 'Microsoft JhengHei, PingFang TC, sans-serif', cx = GAME_W / 2;
+    let index = 0;
+    for (const id of ids) {
+      if (RUN._hintsShown[id]) continue;
+      RUN._hintsShown[id] = true;
+      const hint = GAME_DATA.enemies[id].params.intro_hint_zh;
+      const txt = this.add.text(cx, 150 + 34 * index, hint, { fontFamily: F, fontSize: '22px', color: '#ffd966', stroke: '#1a1a1a', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 780), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(100).setAlpha(0);
+      this.tweens.add({ targets: txt, alpha: 1, duration: 300, ease: 'Sine.Out' });
+      this.tweens.add({ targets: txt, alpha: 0, delay: 3500, duration: 600, onComplete: () => txt.destroy() });
+      index++;
+    }
+  }
+
   _showIntro(lvl) {
     if (!lvl.intro_text_zh) return;
     const F = 'Microsoft JhengHei, PingFang TC, sans-serif', cx = GAME_W / 2;
@@ -549,9 +629,10 @@ class LevelScene extends Phaser.Scene {
     const t2 = this.add.text(0, 18, lvl.intro_text_zh, { fontFamily: F, fontSize: '21px', color: '#fff6d8', stroke: '#1a1a1a', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 780), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
     const parts = [t1, t2]; let extra = 0;
     const ct = GAME_DATA.condText && GAME_DATA.condText[RUN.level], line = ct && this.cond && ct[this.cond.time] && ct[this.cond.time][this.cond.wx || 'none'];   // levels 1-5: one sentence for this level x time x weather (data/level_condition_text.json, written by IQ4)
-    const lineText = line || (this.weatherId === 'typhoon' ? '颱風天戶外活動請注意：強風會吹偏空中的你，小心腳下的尖刺坑！' : null);   // other levels keep the old typhoon safety line
+    const l15 = RUN.level === 15 ? '你已經來到台北市的最高峰，風很大！' : null;   // level 15 (user 2026-11-12): it always has strong wind (weather.js FORCED_WIND_LEVELS), so one fixed line replaces the typhoon-only safety line
+    const lineText = l15 || line || (this.weatherId === 'typhoon' ? '颱風天戶外活動請注意：強風會吹偏空中的你，小心腳下的尖刺坑！' : null);   // other levels keep the old typhoon safety line
     if (lineText) {
-      const t3 = this.add.text(0, 18 + t2.height + 10, lineText, { fontFamily: F, fontSize: '21px', fontStyle: 'bold', color: line ? '#9fe3ff' : '#ffb347', stroke: '#1a1a1a', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 780), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
+      const t3 = this.add.text(0, 18 + t2.height + 10, lineText, { fontFamily: F, fontSize: '21px', fontStyle: 'bold', color: (line || l15) ? '#9fe3ff' : '#ffb347', stroke: '#1a1a1a', strokeThickness: 4, wordWrap: { width: Math.min(GAME_W - 80, 780), useAdvancedWrap: true }, align: 'center' }).setOrigin(0.5, 0);
       parts.push(t3); extra = t3.height + 10;
     }
     const w = Math.max(t1.width, t2.width, parts.length > 2 ? parts[2].width : 0) + 56, h = 40 + t2.height + 22 + extra;
@@ -637,6 +718,38 @@ class LevelScene extends Phaser.Scene {
       this.groundGroup.add(r);
       gp.body = r;
     }
+  }
+
+  // Level 10 plaza paving joints: perspective lines on the feet plane, same projection as _drawPitsPersp, clipped to the plaza's top edge (the lion pedestals bite into it, so the edge varies with x).
+  _drawGroundJoints() {
+    const g = this._joints; g.clear();
+    const bd = this.backdrop, cf = this._persp, sx = this.cameras.main.scrollX, dw = bd.displayWidth;
+    const ppr = bd.scaleY * bd.width / 3168;
+    const YB = bd.y, VPY = YB - (cf.bottom - cf.vpy) * ppr, VPX = bd.x + (cf.vpx - 0.5) * dw + sx;
+    const yg = this.lvl.y_ground, SP = (yg - VPY) / (YB - VPY);
+    const yTop = YB - (PLAZA_TOP_LV10.h - 894) * bd.scaleY;   // highest plaza top row (894) in screen y
+    const topAt = (wx) => {   // screen y of the plaza top edge at world x (linear interp over the polyline)
+      const px = (wx - sx - bd.x) / bd.scaleX + PLAZA_TOP_LV10.w / 2;
+      const tp = PLAZA_TOP_LV10.top;
+      let y;
+      if (px <= tp[0][0]) y = tp[0][1];
+      else if (px >= tp[tp.length - 1][0]) y = tp[tp.length - 1][1];
+      else {
+        let lo = 0, hi = tp.length - 1;
+        while (hi - lo > 1) { const m = (lo + hi) >> 1; if (tp[m][0] <= px) lo = m; else hi = m; }
+        const a = tp[lo], b = tp[hi], t = (px - a[0]) / (b[0] - a[0]);
+        y = a[1] + (b[1] - a[1]) * t;
+      }
+      return YB - (PLAZA_TOP_LV10.h - y) * bd.scaleY;
+    };
+    const L = GroundJoints.lines({ sx, gameW: GAME_W, YB, VPY, VPX, SP, yTop, spacing: 80, topAt });
+    const lk = this._look || (this._look = WX.skyLook(this.cond));
+    const tone = (c) => { const gr = 0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]; return c.map((v) => Math.max(0, Math.min(255, (gr + (v - gr) * (1 + lk.sat)) * lk.bri))); };
+    const pv = tone(cf.pave);
+    const col = (Math.round(pv[0] * 0.78) << 16) | (Math.round(pv[1] * 0.78) << 8) | Math.round(pv[2] * 0.78);
+    g.lineStyle(1, col, 0.5);
+    for (const s of L.vert) g.lineBetween(s[0], s[1], s[2], s[3]);
+    for (const s of L.cross) g.lineBetween(s[0], s[1], s[2], s[3]);
   }
 
   // Perspective hole (levels 1-4, PERSP): the vanishing point is a point of the backdrop picture (joints vertical at the picture centre, leaning more toward the edges), so it moves with the
@@ -927,23 +1040,39 @@ class LevelScene extends Phaser.Scene {
   }
 
   // All enemies dead: normally open the exit; if a boss is waiting (level 5) bring it in instead.
+  _bossClearsLevel() {
+    return !!this.boss && ((this.boss.def.id === 'boss_slime_king' && RUN.level === 5) || this.boss.def.clear_on_death);
+  }
+
   _afterClear() {
     if (this._pendingBoss) {
       this._startBossEntrance();
-    } else if (this.boss && this.boss.dead && this.boss.def.id === 'boss_slime_king' && RUN.level === 5) {
+    } else if (this.boss && this.boss.dead && this._bossClearsLevel()) {
       this._bossDefeatCutscene();
     } else {
       this.openExit();
     }
   }
 
+  _surrenderMinions() {
+    for (const sprite of this.enemies.getChildren()) {
+      const ref = sprite.ref;
+      if (!ref || ref.dead || ref === this.boss) continue;
+      ref.surrendered = true;
+      sprite.setTint(0x8c8c8c);
+      sprite.body.setVelocity(0, 0);
+    }
+  }
+
   _bossDefeatCutscene() {
     if (this._defeatCutscene || this.deathStarted || this.finished) return;
     this._defeatCutscene = true;
+    if (this.boss && this.boss.def.clear_on_death) this._surrenderMinions();
     
     // Freeze the frame at the moment of the final hit (user 2026-10-13): physics, update() (finished makes it return), running tweens and sprite animations all stop; the cover tween below is created afterwards so it still runs
     this.physics.pause();
     this.finished = true;
+    if (this.hud && this.hud._destroyBossBar) this.hud._destroyBossBar();   // update() (and with it the HUD) stops here, so the boss bar would stay on screen for the whole cutscene (user 2026-11-09)
     this.tweens.getTweens().forEach((t) => t.pause());   // not tweens.pauseAll(): that pauses the whole manager, including the cover tween created below
     this.anims.pauseAll();
     
@@ -955,7 +1084,8 @@ class LevelScene extends Phaser.Scene {
         '喲,小鬼頭,你想要當我的徒弟嗎?',
         '我把魔王的稱號讓給你吧!'
       ];
-      const textStr = phrases[Math.floor(Math.random() * phrases.length)];
+      const lines = (this.boss && this.boss.def.defeat_lines && this.boss.def.defeat_lines.length) ? this.boss.def.defeat_lines : phrases;
+      const textStr = lines[Math.floor(Math.random() * lines.length)];
       
       this.add.text(GAME_W / 2, 270, textStr, {
         fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif',
@@ -982,6 +1112,76 @@ class LevelScene extends Phaser.Scene {
     } });
   }
 
+  // Steam puffs rising from each vent: deterministic from the clock (phase per puff), white, growing, drifting right a little, fading at both ends of the life.
+  _drawVents(time) {
+    const g = this._ventG, bd = this.backdrop; if (!g || !bd) return;
+    g.clear();
+    const dw = bd.displayWidth, dh = bd.displayHeight, left = bd.x - dw / 2, top = bd.y - dh, N = 18, LIFE = 5200;
+    this._vents.forEach((v, vi) => {
+      const vx = left + v.u * dw, vy = top + v.v * dh, rise = (v.rise || 190) * (dh / 960);
+      for (let k = 0; k < N; k++) {
+        const ph = ((time + vi * 1300) / LIFE + k / N) % 1, wob = Math.sin((time / 700) + k * 2.1 + vi) * 7;
+        const a = 0.42 * Math.sin(Math.PI * Math.min(1, ph * 1.15));
+        if (a <= 0.01) continue;
+        const px = vx + ph * 80 + wob, py = vy - ph * rise, r = (14 + 62 * ph) * (dh / 960);
+        for (let j = 0; j < 3; j++) { g.fillStyle(0xf6f6f0, a * (0.38 + 0.2 * j)); g.fillCircle(px, py, r * (1 - 0.28 * j)); }   // soft edge: three nested discs, the outer one faintest
+      }
+    });
+  }
+
+  // Level 15 (user 2026-11-10): minion stage = Xiaoyoukeng, boss stage = Qixing main peak. levels.json boss_stage {backdrop: 'lv15b'} -> swap the backdrop picture, the ground tiles and the perspective numbers (called in the dark moment of _startBossEntrance).
+  _swapBossStage(bs) {
+    const k = bs.backdrop, bk = 'backdrop_' + k + '_sky', gk = 'ground_' + k;
+    if (!this.textures.exists(bk) || !this.textures.exists(gk)) return;
+    this.backdrop.setTexture(bk);
+    this._vents = null; if (this._ventG) this._ventG.clear();   // the steam belongs to the Xiaoyoukeng picture only
+    for (const gp of this._groundParts) gp.ts.setTexture(gk);
+    this._lvKey = k;
+    if (PERSP[k]) this._persp = PERSP[k];
+    this._buildRocks(bs);
+  }
+
+  // Stepped rock terrain (user 2026-11-11, plan/lv15_stepped_terrain_plan.md): boss_stage.rocks [{x, w, lv 1-5}] = solid blocks standing on the flat ground, heights ROCK_H[lv-1]. Left low, right high; the boss stands on the top one.
+  // Chunk 1: collision + a plain placeholder look (the painted rocks come in chunk 2).
+  _buildRocks(bs) {
+    this._rocks = []; this._bossRange = null;
+    if (!bs.rocks || !bs.rocks.length) return;
+    const yg = this.lvl.y_ground, g = this.add.graphics().setDepth(-0.15);
+    // One painted continuous rocky trail (user picked s1302, 2026-11-11): strip drawn from road_guide.json origin (world x 1380, y 251, 1 source px = 0.5 game px), scrolls 1:1 with the world; the rect bodies below stay the collision.
+    const road = this.textures.exists('rock_road');
+    if (road) this.add.image(1380, 251, 'rock_road').setOrigin(0, 0).setScale(0.5).setDepth(-0.15);
+    for (let i = 0; i < bs.rocks.length; i++) {
+      const r = bs.rocks[i];
+      const h = ROCK_H[Math.max(1, Math.min(5, r.lv)) - 1], top = yg - h;
+      const body = this.add.rectangle(r.x + r.w / 2, top + (h + 20) / 2, r.w, h + 20, 0x000000, 0);
+      this.physics.add.existing(body, true); this.groundGroup.add(body);
+      if (!road && !this._rockPic(r, top, h, i)) { g.fillStyle(0x8b6f5d, 1); g.fillRect(r.x, top, r.w, h); g.lineStyle(3, 0x4a3a30, 1); g.strokeRect(r.x, top, r.w, h); }   // plain block if the pictures are missing
+      this._rocks.push({ l: r.x, r: r.x + r.w, top: top, lv: r.lv });
+    }
+    this._rockG = g;
+    const hi = this._rocks.reduce((a, b) => (b.top < a.top ? b : a));
+    this._bossRange = { l: hi.l, r: hi.r };
+  }
+
+  // Painted rock: one of ROCK_PICS pictures at a fixed scale, a window of the rock's own size cropped from it (top-anchored: the picture's flat top = the rock top, a low rock shows only the top strip). Neighbours use different pictures.
+  _rockPic(r, top, h, i) {
+    const key = 'rock_block_' + (1 + (i * 3 + Math.floor(r.x / 7)) % ROCK_PICS);
+    if (!this.textures.exists(key)) return false;
+    const src = this.textures.get(key).getSourceImage(), S = ROCK_PIC_SCALE, sw = r.w / S, sh = h / S;
+    if (src.width < sw || src.height < sh) return false;
+    const cx = Math.floor(((r.x * 13 + i * 37) % 100) / 100 * (src.width - sw)), cy = 0;
+    const im = this.add.image(r.x - cx * S, top - cy * S, key).setOrigin(0, 0).setScale(S).setDepth(-0.15);
+    im.setCrop(cx, cy, sw, sh);
+    return true;
+  }
+
+  // Surface height at x: the top of the rock there, else the flat ground line.
+  surfaceYAt(x) {
+    let y = this.lvl.y_ground;
+    if (this._rocks) for (const r of this._rocks) if (x >= r.l && x <= r.r && r.top < y) y = r.top;
+    return y;
+  }
+
   // Player goes back to the level start (blink in + drop, controls locked until landed) and the boss blinks in above its spot and drops.
   _startBossEntrance() {
     const sp = this._pendingBoss; this._pendingBoss = null;
@@ -993,8 +1193,10 @@ class LevelScene extends Phaser.Scene {
       const lvl = this.lvl;
       this.player.beginSpawn(PLAYER_SPAWN_X, lvl.y_ground);
       cam.centerOn(this.player.sprite.x, this.player.sprite.y);   // jump the camera with the player instead of letting it pan across the level
-      const boss = new Boss(this, GAME_DATA.bosses[sp.type], sp.x, lvl.y_ground - 20);
-      boss.beginEntrance(lvl.y_ground);
+      if (lvl.boss_stage) this._swapBossStage(lvl.boss_stage);   // two-stage level (15): new backdrop + ground while the screen is dark
+      const bx = (lvl.boss_stage && lvl.boss_stage.boss_x != null) ? lvl.boss_stage.boss_x : sp.x, by = this.surfaceYAt(bx);
+      const boss = new Boss(this, GAME_DATA.bosses[sp.type], bx, by - 20);
+      boss.beginEntrance(by);
       this.enemies.add(boss.sprite);
       this.boss = boss;
       this.enemiesRemaining++;
@@ -1025,7 +1227,7 @@ class LevelScene extends Phaser.Scene {
       // Forward on_kill hooks handled by player or hooks module externally
       if (this.player.onKill) this.player.onKill(data.x, data.y);
     }
-    if (RUN.level === 5 && this.boss && data && data.ref === this.boss && this.boss.def.id === 'boss_slime_king' && !this.exitOpen) {   // level 5 (user 2026-10-14): beating the boss clears the level whatever minions are left
+    if (this.boss && data && data.ref === this.boss && this._bossClearsLevel() && !this.exitOpen) {   // level 5 (user 2026-10-14): beating the boss clears the level whatever minions are left
       this._bossDefeatCutscene();
     } else if (this.enemiesRemaining <= 0 && !this.exitOpen) {
       this._afterClear();

@@ -213,6 +213,8 @@ var WX = (function () {
   var RAIN_LAND_MIN = 446, RAIN_LAND_MAX = 472;
   // Indoor levels (user 2026-10-13: level 4 is indoors): no wet floor / reflection / slippery footing / floor splashes.
   var INDOOR_LEVELS = { 4: true };
+  // Level 15 (Seven-Star Mountain boss level, user 2026-11-12): forced strong wind in every weather / time of day, and never flooded (even on thunder / typhoon).
+  var NO_FLOOD_LEVELS = { 15: true }, FORCED_WIND_LEVELS = { 15: true };
   // Indoors the rain is only visible on the window glass, not on the frames (screen rects of the glass panes; level 4's observation-deck windows, measured from a screenshot: 3 panes wide x 2 rows,
   // mullions at x 421-433 / 803-816, transom at y 110-123, top frame to y 55, sill from y 434; the backdrop only drifts a few px).
   var INDOOR_WINDOW = { 4: [ [178, 58, 419, 108], [435, 58, 801, 108], [818, 58, 960, 108], [178, 125, 419, 432], [435, 125, 801, 432], [818, 125, 960, 432] ] };
@@ -399,7 +401,7 @@ var WX = (function () {
   var FLOOD_H = 38, FLOOD_COLOR = { day: 0x4d7088, dusk: 0x5b6079, night: 0x1c2a48 };
   function isFlood(cond, level) {
     var c = normCond(cond);
-    return (c.wx === 'thunder' || c.wx === 'typhoon') && !INDOOR_LEVELS[level] && MOUNTAIN.indexOf(level) < 0;
+    return (c.wx === 'thunder' || c.wx === 'typhoon') && !INDOOR_LEVELS[level] && !NO_FLOOD_LEVELS[level] && MOUNTAIN.indexOf(level) < 0;
   }
   function floodSplash(ctx, x, y, n, power) {
     for (var i = 0; i < n; i++) ctx.drops.push({ x: x + rand(-10, 10), y: y, vx: rand(-60, 60) * power, vy: -rand(110, 230) * power, r: rand(1.6, 3.4), life: 0, max: rand(0.35, 0.6) });
@@ -1091,7 +1093,7 @@ var WX = (function () {
   function updateWeather(ctx, dt, time) {
     var i, r;
     if (ctx.fogUpd) ctx.fogUpd(time, dt);
-    if (ctx.typhoon) {
+    if (ctx.typhoon || ctx.forceWind) {   // level 15 forces the same gust cycle on every weather (user 2026-11-12); strengths / timings unchanged
       ctx.windTimer -= dt;
       if (ctx.windTimer <= 0) {                    // new gust: rain slants first (0.6s), the push on the player follows 0.7s later
         var gt = rand(40, 90) * (Math.random() < 0.5 ? -1 : 1);
@@ -1182,7 +1184,7 @@ var WX = (function () {
     var ctx = {
       scene: scene, themeId: themeId, weatherId: weatherId, cond: cond,
       parts: [], clouds: [], rain: [], glints: [], rays: [],
-      wind: 0, windTarget: 0, windTimer: 0,
+      wind: 0, windTarget: 0, windTimer: 0, forceWind: false,
       gustTimer: 0, gustActive: false, gustLeft: 0,
       lava: null, overlay: null, splashes: [], splashG: null, wetG: null, indoorWin: null, wet: 0, wetStreaks: [], reflImg: null, reflKey: null, windG: null, windLines: [],
       floodY: (scene.flood && scene.scene.key === 'Level' && scene.lvl) ? scene.lvl.y_ground - FLOOD_H : null,
@@ -1217,6 +1219,10 @@ var WX = (function () {
       });
 
     }
+
+    // Forced wind (user 2026-11-12): level 15 has gusts in every weather / time; the first gust comes 1.5 s in (set right below, the typhoon branch of buildWeather() sets the same value).
+    ctx.forceWind = scene.scene.key === 'Level' && !!FORCED_WIND_LEVELS[RUN.level];
+    if (ctx.forceWind) ctx.windTimer = 1.5;   // first gust after 1.5 s on every weather, same as the typhoon branch (user 2026-11-12)
 
     scene.windX = 0;
     buildTheme(scene, themeId, ctx);
@@ -1281,7 +1287,7 @@ var WX = (function () {
       ctx.floodG = scene.add.graphics().setScrollFactor(0).setDepth(3);   // screen space (the water spans the screen); the bubble / splash layer below is in world space like the characters
        ctx.bubbleG = scene.add.graphics().setDepth(3.1); ctx.bubbles = []; ctx.drops = []; ctx.rings = [];
     }
-    if (ctx.typhoon && scene.scene.key === 'Level' && !indoor) {
+    if ((ctx.typhoon || ctx.forceWind) && scene.scene.key === 'Level' && !indoor) {
       ctx.windG = scene.add.graphics().setScrollFactor(0).setDepth(58);
       for (var wi = 0; wi < 28; wi++) {
         ctx.windLines.push({

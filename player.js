@@ -45,6 +45,7 @@ class Player {
     this._prevSkill = false;
     this._hookCd = {};
     this._projectiles = [];
+    this._reflected = [];
     this._breathPhase = 0;
     // Breathing keeps the FEET fixed (user 2026-10-10): the sprite scales around its centre, so after Arcade has moved it for the frame (postupdate) it is lifted by
     // half of the extra height, and put back before the next physics step (preupdate); the body and the collisions never see the lift (setOrigin / body.offset tricks
@@ -97,7 +98,7 @@ class Player {
       if (now - this._spawnAt < SPAWN_HOVER_MS) return;
       this._spawnDropAt = now; b.allowGravity = true; return;
     }
-    if (now - this._spawnDropAt > 60 && (b.blocked.down || b.touching.down)) {   // 60ms: ignore a stale blocked.down left over from before the reset
+    if (now - this._spawnDropAt > 60 && (b.blocked.down || b.touching.down) && !(this._spawnHoldUntil && now < this._spawnHoldUntil)) {   // _spawnHoldUntil: set by the level at its start so the lock lasts at least INTRO_MS (user 2026-11-09)   // 60ms: ignore a stale blocked.down left over from before the reset
       this.spawning = false; this.invUntil = now; s.setAlpha(1);
       this.playAnim('land');
     }
@@ -182,7 +183,7 @@ class Player {
       this._jumpBufferAt = -9999;
       Hooks.onJump(this);
     }
-    if (!up && b.velocity.y < 0 && this._jumpUsed && !this._jumpCut) {
+    if (!up && b.velocity.y < 0 && this._jumpUsed && !this._jumpCut && !knock) { // no jump cut while a knock-back owns the velocity (boulder fling etc., user 2026-11-10)
       b.setVelocityY(b.velocity.y * 0.5);
       this._jumpCut = true;
     }
@@ -211,7 +212,9 @@ class Player {
     Hooks.periodic(this, now);   // periodic hooks compare against interval * 1000, i.e. scene time in ms (passing dt never fired: grok review 2026-10-11)
 
     this.updateProjectiles(now);
+    this.updateReflected(now);
 
+    this._checkFlameGuard(now);
     this.checkStomp(now);
 
     // Fell out of the level: centre below 620, or lying on the world's bottom edge (a tall character such as the geek rests there with its centre at ~605-620,
@@ -397,14 +400,15 @@ class Player {
         const es = kids[i];
         if (es.ref && !es.ref.dead && Phaser.Geom.Intersects.RectangleToRectangle(rect, bodyRect(es))) {
           const er = bodyRect(es);   // taken before the hit: a killing blow can destroy the sprite at once (es.body undefined -> TypeError stopped the game loop, vendor L5 boss 10-11)
-          this.hitEnemy(es.ref);
-          if (RUN.char === 'auntie' && !es.ref.dead && es.ref.nudge) {   // small pop along the normal of her swing loop (centre of the loop -> enemy), ground enemies only
+          this.hitEnemy(es.ref, { normal: true });
+          const soaked = !!(es.ref.params && es.ref.params.absorb) || !!(es.ref.def && GAME_DATA.bosses[es.ref.def.id]);   // bronze mirror and every boss: a normal attack's own effects (pop, fire) do not apply (user 2026-10-28)
+          if (RUN.char === 'auntie' && !soaked && !es.ref.dead && es.ref.nudge) {   // small pop along the normal of her swing loop (centre of the loop -> enemy), ground enemies only
             const A = FX.AUNTIE_ATK, sc = Math.min(A.scMax, range / A.baseRange);
             const lx = s.x + this.facing * A.ellCx * sc, ly = s.y + A.ellCy * sc;
             let nx = er.centerX - lx, ny = er.centerY - ly; const nl = Math.hypot(nx, ny) || 1; nx /= nl; ny /= nl;
             es.ref.nudge(nx * AUNTIE_POP_SPEED, Math.min(ny * AUNTIE_POP_SPEED, -AUNTIE_POP_MIN_UP));
           }
-          if (vend && es.ref.ignite) es.ref.ignite(now);   // vendor: set on fire (red 1 s, 2 ticks of 5 HP, no stacking)
+          if (vend && !soaked && es.ref.ignite) es.ref.ignite(now);   // vendor: set on fire (red 1 s, 2 ticks of 5 HP, no stacking)
           if (fx && fx.markHit) fx.markHit(er);
         }
       }
@@ -446,6 +450,14 @@ class Player {
     }
     if (now < this.streakUntil) dmg *= 1.1;
     dmg = Math.round(dmg);
+    if (opts && opts.normal && ref.params && ref.params.absorb) {   // bronze mirror: soaks the hit, no damage either way (stomp only)
+      ref.onMirrorHit();
+      return;
+    }
+    if (opts && opts.normal && ref.params && ref.params.reflect) {
+      this._reflectMelee(ref, dmg);
+      return;
+    }
     ref.takeHit(dmg, this.sprite.x, isCrit, opts || {});
     this.afterHit(ref, dmg, isCrit);
   }
@@ -481,6 +493,51 @@ class Player {
     check();
   }
 
+  // Enemies with params.stomp_flame = { damage, burn_ms, burn_dmg, burn_interval } cannot be stomped: when the player lands on them they flare up,
+  // shove the player away and set them alight (contact damage, knock-back via takeDamage, then a burn DOT).
+  _stompFlame(ref, now) {
+    const sf = ref.params.stomp_flame, s = this.sprite, scene = this.scene;
+    ref._stompGrace = now + 700;                                   // no stacked contact damage right after the burst
+    const fl = (sf.flame) || {};
+    const sp = ref.sprite;
+    const fg = ref.params.flame_glow;
+    let fx = sp.x, fy = sp.y - 10;
+    if (fg) {
+      fx = sp.x + ((sp.flipX ? 1 - fg.x : fg.x) - 0.5) * sp.displayWidth;
+      fy = sp.y + (fg.y - 0.5) * sp.displayHeight;
+    }
+    FX.lampFlame(scene, fx, fy, fl);
+    const landed = this.takeDamage(sf.damage || 6, ref.sprite.x);
+    if (!landed) {                                                 // still invulnerable: shove away anyway, no burn
+      s.body.setVelocity((s.x < ref.sprite.x ? -1 : 1) * 450, -300);
+      return;
+    }
+    s.body.setVelocity((s.x < ref.sprite.x ? -1 : 1) * 480, -380);
+    this.sprite.setTint(0x222222);
+    scene.time.delayedCall(1500, () => { if (this.sprite && this.sprite.active) this.sprite.clearTint(); });
+    this.applyDot(sf.burn_ms || 2000, sf.burn_dmg || 2, sf.burn_interval || 500);
+    FX.burnFlame(scene, s.x, s.y - 10);
+  }
+
+  // Flare the lamp-bearer up a moment BEFORE contact: falling player whose feet are just above the enemy's head.
+  _checkFlameGuard(now) {
+    const s = this.sprite, b = s.body;
+    if (!b) return;   // rising counts too (user 2026-10-28: a jump toward its head is cut off by the flame, not only a fall)
+    const list = this.scene.enemies.getChildren();
+    for (let i = 0; i < list.length; i++) {
+      const es = list[i], ref = es.ref;   // (es.getData('ref') was never set, so this guard never fired)
+      if (!ref || !ref.params || !ref.params.stomp_flame) continue;
+      if (ref._stompGrace > now) continue;
+      const eb = es.body;
+      if (!eb) continue;
+      if (Math.abs(s.x - es.x) >= (b.halfWidth + eb.halfWidth + 8)) continue;
+      if (b.bottom >= eb.top - 70 && b.bottom <= eb.top + 12) {
+        this._stompFlame(ref, now);
+        return;
+      }
+    }
+  }
+
   checkStomp(now) {
     const s = this.sprite, b = s.body;
     const prevBottom = this._prevBottom === undefined ? b.bottom : this._prevBottom;   // feet last frame: independent of frame rate / closing speed
@@ -497,8 +554,10 @@ class Player {
       if ((b.velocity.y - es.body.velocity.y) <= 60) continue;    // closing from above (relative speed: a rising slime counts)
       const lim = es.body.top + es.body.height * 0.5;
       if (b.bottom > lim && prevBottom > lim) continue;            // feet in the upper half now, or were above it last frame
+      if (ref.params && ref.params.stomp_flame) { this._stompFlame(ref, now); continue; }   // cannot be stomped: it bursts into flame instead
       ref._stompGrace = now + 300;                          // enemy.js skips its contact damage while this is in the future
-      this.hitEnemy(ref);                                   // same damage / crit / hooks as a sword hit
+      if (ref.params && ref.params.stomp_shatter) ref.die();   // stomp-shatter: instant kill, skip damage calc (die() is idempotent)
+      else this.hitEnemy(ref, { stomp: true });             // same damage / crit / hooks as a sword hit
       b.setVelocityY(-420);                                 // bounce (overwritten if multiple enemies hit in same frame)
     }
   }
@@ -555,6 +614,68 @@ class Player {
     });
   }
 
+  _absorbFx(ref) {
+    if (ref.flashAbsorb) ref.flashAbsorb();
+    FX.mirrorAbsorb(this.scene, ref.sprite.x, ref.sprite.y - 10);
+    if (typeof Extras !== 'undefined' && Extras._float) {
+      Extras._float(this.scene, ref.sprite.x, ref.sprite.y - 50, '吸收!', '#b8ffd0', 20);
+    }
+  }
+
+  _reflectFx(ref) {
+    if (ref.flashReflect) ref.flashReflect();
+    FX.mirrorSpill(this.scene, ref.sprite.x, ref.sprite.y - 10, this.sprite.x < ref.sprite.x ? -1 : 1);
+    this.scene.time.delayedCall(120, function () {
+      if (ref.sprite && ref.sprite.active) ref.sprite.clearTint();
+    });
+    if (typeof Extras !== 'undefined' && Extras._float) {
+      Extras._float(this.scene, ref.sprite.x, ref.sprite.y - 50, '反彈!', '#bfefff', 20);
+    }
+  }
+
+  _reflectMelee(ref, dmg) {
+    const r = ref.params.reflect;
+    const pct = r.min_pct + Math.random() * (r.max_pct - r.min_pct);
+    this.takeDamage(Math.round(dmg * pct), ref.sprite.x, true);
+    this._reflectFx(ref);
+  }
+
+  _reflectProjectile(pr, o, ref) {
+    const r = ref.params.reflect;
+    const pct = r.min_pct + Math.random() * (r.max_pct - r.min_pct);
+    const halo = this.scene.add.circle(o.x, o.y, 13, 0x20c060, 0.45);
+    halo.setDepth((o.depth || 0) - 1);
+    const c = this.scene.add.circle(o.x, o.y, o.radius, o.fillColor);
+    this.scene.physics.add.existing(c);
+    c.body.setAllowGravity(false);
+    c.body.velocity.x = -o.body.velocity.x;
+    c.body.velocity.y = -o.body.velocity.y;
+    this._reflected.push({ obj: c, halo: halo, startX: o.x, startY: o.y, maxDist: pr.maxDist, dmg: Math.round(pr.dmg * pct) });
+    this._reflectFx(ref);
+  }
+
+  updateReflected(now) {
+    for (let i = this._reflected.length - 1; i >= 0; i--) {
+      const e = this._reflected[i];
+      const o = e.obj;
+      if (!o.active) { if (e.halo) e.halo.destroy(); this._reflected.splice(i, 1); continue; }
+      if (e.halo) { e.halo.x = o.x; e.halo.y = o.y; }
+      if (Math.hypot(o.x - e.startX, o.y - e.startY) > e.maxDist) {
+        o.destroy();
+        if (e.halo) e.halo.destroy();
+        this._reflected.splice(i, 1);
+        continue;
+      }
+      if (!this.dead && Phaser.Geom.Intersects.RectangleToRectangle(o.getBounds(), bodyRect(this.sprite))) {
+        this.takeDamage(e.dmg, o.x, true);
+        FX.hitSpark(this.scene, o.x, o.y);
+        o.destroy();
+        if (e.halo) e.halo.destroy();
+        this._reflected.splice(i, 1);
+      }
+    }
+  }
+
   updateProjectiles(now) {
     const scene = this.scene;
     const kids = scene.enemies.getChildren();
@@ -568,6 +689,18 @@ class Player {
         if (es.ref && !es.ref.dead && pr.hit.indexOf(es.ref) === -1 &&
             Phaser.Geom.Intersects.RectangleToRectangle(o.getBounds(), bodyRect(es))) {
           pr.hit.push(es.ref);
+          if (es.ref.params && es.ref.params.absorb) {   // bronze mirror: the shot is swallowed
+            es.ref.onMirrorHit();
+            o.destroy();
+            this._projectiles.splice(i, 1);
+            break;
+          }
+          if (es.ref.params && es.ref.params.reflect) {
+            this._reflectProjectile(pr, o, es.ref);
+            o.destroy();
+            this._projectiles.splice(i, 1);
+            break;
+          }
           es.ref.takeHit(pr.dmg, o.x, false, { noKnockback: true });   // mid-range: no knockback
           this.afterHit(es.ref, pr.dmg, false);
           if (pr.hit.length >= pr.pierce) { o.destroy(); this._projectiles.splice(i, 1); break; }
@@ -605,6 +738,7 @@ class Player {
     const dir = this.sprite.x < srcX ? -1 : 1;
     this.sprite.body.setVelocity(dir * 550, -200);
     this._knockUntil = now + 350;
+    this._jumpCut = true;  // prevent stale jump-cut from halving knock velocity after knock expires (grok P1)
     scene.tweens.add({ targets: this.sprite, alpha: 0.3, duration: 100, yoyo: true, repeat: 3 });
     Hooks.onDamaged(this);
     if (RUN.hp <= 0) {

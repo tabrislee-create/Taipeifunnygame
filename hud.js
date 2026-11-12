@@ -59,7 +59,8 @@ class HUD {
     this.levelText = T(18, '#ffffff').setOrigin(0, 0.5).setText(lvl.name_zh);
     this.weatherLabel = T(14, '#9fb4d0').setOrigin(0, 0.5).setText('天氣');
     this.weatherText = T(18, '#ffffff').setOrigin(0, 0.5).setText(WX.name(s.cond));
-    this.windText = (s.cond && s.cond.wx === 'typhoon') ? T(16, '#ffffff').setOrigin(0.5).setVisible(false) : null;   // typhoon only: arrow + wind scale under the weather pill
+    const forcedWind = s.scene.key === 'Level' && RUN.level === 15;   // level 15: wind in every weather (weather.js FORCED_WIND_LEVELS)
+    this.windText = ((s.cond && s.cond.wx === 'typhoon') || forcedWind) ? T(16, '#ffffff').setOrigin(0.5).setVisible(false) : null;   // typhoon / level 15: arrow + wind scale under the weather pill
     this.enemyLabel = T(14, '#9fb4d0').setOrigin(0, 0.5).setText('敵人');
     this.enemyText = T(18, '#ffffff').setOrigin(0, 0.5);
     this._setHpText(hp, maxHp);
@@ -285,16 +286,24 @@ class HUD {
     this.warnText = s.add.text(GAME_W / 2, 270, '警告：魔王來襲', { fontFamily: HUD_FONT, fontSize: '44px', color: '#ff3030', stroke: '#000000', strokeThickness: 6 }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
     this.warnText.setAlpha(0);
     
-    // Sub-text for Level 5 boss entrance
+    // Sub-text for boss entrance
     this.warnSubText = null;
+    let subPhrase = null;
     if (RUN.level === 5) {
       const phrases = [
         '讓本大王給你點顏色瞧瞧!',
         '小心~別踩到我的腳~',
         '凡人~見證魔王的誕生吧!'
       ];
-      const randomPhrase = phrases[Math.floor(Math.random() * phrases.length)];
-      this.warnSubText = s.add.text(GAME_W / 2, 310, randomPhrase, { fontFamily: HUD_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+      subPhrase = phrases[Math.floor(Math.random() * phrases.length)];
+    } else {
+      const bossDef = Object.values(GAME_DATA.bosses).find(b => b.level === RUN.level);
+      if (bossDef && Array.isArray(bossDef.warn_lines) && bossDef.warn_lines.length > 0) {
+        subPhrase = bossDef.warn_lines[Math.floor(Math.random() * bossDef.warn_lines.length)];
+      }
+    }
+    if (subPhrase) {
+      this.warnSubText = s.add.text(GAME_W / 2, 310, subPhrase, { fontFamily: HUD_FONT, fontSize: '24px', color: '#ffffff', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
       this.warnSubText.setAlpha(0);
     }
     // Fixed rule line for every boss entrance (user 2026-10-13): stops players from trying to stomp the boss
