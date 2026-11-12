@@ -1,7 +1,7 @@
 var GAME_DATA = null;
 // Trial build (user 2026-10-12): open the game with ?demo=1 -> two characters (vendor, auntie), levels 1-5 only, the same weather / time of day as the full game (user 2026-10-13).
 window.DEMO = true;
-var SKY_CUT_LEVELS = [1, 2, 3, 4, 5]; // Levels with transparent-sky backdrops (assets/backdrop_lvNN_sky.png)
+var SKY_CUT_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]; // Levels with transparent-sky backdrops (assets/backdrop_lvNN_sky.png)
 
 function loadJson(url) {
   return fetch(url).then(function(r) { return r.json(); });
@@ -39,7 +39,7 @@ function bootGame() {
   if (window.DEMO) {   // trial build: keep two characters and the first five levels (every 'N / total' text and the last-level victory follow GAME_DATA.levels.length)
     GAME_DATA.charOrder = Object.keys(GAME_DATA.characters); GAME_DATA.lockedChars = {};   // the other two characters are shown greyed out as 開發中 (start / loading / select screens) but cannot be played
     Object.keys(GAME_DATA.characters).forEach(function (k) { if (k !== 'vendor' && k !== 'auntie') { var c0 = GAME_DATA.characters[k]; GAME_DATA.lockedChars[k] = { id: k, name_zh: c0.name_zh, concept_zh: c0.concept_zh }; delete GAME_DATA.characters[k]; } });
-    GAME_DATA.levels = GAME_DATA.levels.slice(0, 5);
+    GAME_DATA.levels = GAME_DATA.levels.slice(0, 15);
   }
   // Player now starts at x=310 (level.js PLAYER_SPAWN_X): push ground enemies that start (or patrol: range up to 200) near it out to x=560 (same 250px gap as the old 230/480).
   GAME_DATA.levels.forEach(function (lv) { (lv.spawns || []).forEach(function (sp) { if (sp.y_hint != null && sp.y_hint >= 300 && sp.x < 560) sp.x = 560; }); });
@@ -164,7 +164,7 @@ class BootScene extends Phaser.Scene {
       this.load.image('backdrop_' + th[m], 'assets/backdrop_' + th[m] + '.jpg');
     }
     // per-level backdrop + ground art (assets/backdrop_lvNN.jpg, ground_lvNN.png; missing files are ignored, see level.js)
-    for (var lv = 1; lv <= 5; lv++) {
+    for (var lv = 1; lv <= 15; lv++) {
       var lk = 'lv' + (lv < 10 ? '0' : '') + lv;
       this.load.image('backdrop_' + lk, 'assets/backdrop_' + lk + '.jpg');
       this.load.image('ground_' + lk, 'assets/ground_' + lk + '.png');

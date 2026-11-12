@@ -1,7 +1,7 @@
 # 台北好好玩（試玩版）
 Taipei Funny Game — Demo
 
-以台北各地景點為背景的橫向動作小遊戲。這是試玩版：2 位角色（火旺伯、發財嫂）、第 1–5 關、一位魔王（幻彩史萊姆王）。
+以台北各地景點為背景的橫向動作小遊戲。這是試玩版：2 位角色（火旺伯、發財嫂）、第 1–15 關、三位魔王（幻彩史萊姆王、將軍俑、岩石怪）。
 
 ▶ **線上遊玩：https://tabrislee-create.github.io/Taipeifunnygame/**
 
@@ -33,6 +33,6 @@ Taipei Funny Game — Demo
 ---
 
 # English summary
-A side-scrolling action game set in Taipei landmarks (demo: 2 characters, levels 1–5, 1 boss). Free to play in the browser: https://tabrislee-create.github.io/Taipeifunnygame/
+A side-scrolling action game set in Taipei landmarks (demo: 2 characters, levels 1–15, 3 bosses). Free to play in the browser: https://tabrislee-create.github.io/Taipeifunnygame/
 Author: tabrislee-create. Art is largely AI-generated (Qwen-Image) and curated by the author; code and design were AI-assisted (Claude, local Qwen models) and reviewed by the author.
 License: CC BY-NC-ND 4.0 (attribution, non-commercial, no derivatives). Phaser 3 is MIT-licensed. No data is collected.

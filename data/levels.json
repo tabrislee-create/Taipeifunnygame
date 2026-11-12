@@ -464,5 +464,1322 @@
   "exit_x": 1900,
   "intro_text_zh": "爬完階梯回頭看，111和台北市區全都在腳下。",
   "y_ground": 400
+ },
+ {
+  "n": 6,
+  "name_zh": "鶯歌陶瓷博物館",
+  "theme": "orchard",
+  "width": 3600,
+  "ground": [
+   {
+    "x": 0,
+    "w": 800,
+    "y": 400
+   },
+   {
+    "x": 950,
+    "w": 600,
+    "y": 400
+   },
+   {
+    "x": 1700,
+    "w": 700,
+    "y": 400
+   },
+   {
+    "x": 2550,
+    "w": 1050,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 300,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 1200,
+    "y": 300,
+    "w": 100
+   },
+   {
+    "x": 2000,
+    "y": 260,
+    "w": 150
+   },
+   {
+    "x": 2800,
+    "y": 290,
+    "w": 120
+   }
+  ],
+  "spawns": [
+   {
+    "type": "terracotta_jar",
+    "x": 300,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 600,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 1000,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 1300,
+    "y_hint": 200
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 1550,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 1800,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 2100,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 2400,
+    "y_hint": 220
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 2700,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 3000,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 3300,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3500,
+  "intro_text_zh": "鶯歌是台灣的陶瓷故鄉，清水模與黑磚的館舍裡藏著燒窯的故事。",
+  "y_ground": 400
+ },
+ {
+  "n": 7,
+  "name_zh": "十三行博物館",
+  "theme": "orchard",
+  "width": 3800,
+  "ground": [
+   {
+    "x": 0,
+    "w": 700,
+    "y": 400
+   },
+   {
+    "x": 850,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1500,
+    "w": 600,
+    "y": 400
+   },
+   {
+    "x": 2250,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2900,
+    "w": 900,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 400,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 1000,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 1800,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 2500,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 3200,
+    "y": 260,
+    "w": 100
+   }
+  ],
+  "spawns": [
+   {
+    "type": "terracotta_jar",
+    "x": 300,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 500,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 900,
+    "y_hint": 200
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 1100,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 1600,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 1900,
+    "y_hint": 220
+   },
+   {
+    "type": "terracotta_mirror",
+    "x": 2100,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 2300,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 2600,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 2900,
+    "y_hint": 200
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 3200,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 3500,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3700,
+  "intro_text_zh": "海邊的考古博物館，弧形屋頂與斜塔藏著一千多年前的史前文化。",
+  "y_ground": 400
+ },
+ {
+  "n": 8,
+  "name_zh": "黃金博物館",
+  "theme": "desert",
+  "width": 4000,
+  "ground": [
+   {
+    "x": 0,
+    "w": 600,
+    "y": 400
+   },
+   {
+    "x": 750,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1400,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2050,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2700,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3350,
+    "w": 650,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 300,
+    "y": 260,
+    "w": 100
+   },
+   {
+    "x": 900,
+    "y": 240,
+    "w": 120
+   },
+   {
+    "x": 1600,
+    "y": 280,
+    "w": 100
+   },
+   {
+    "x": 2200,
+    "y": 250,
+    "w": 120
+   },
+   {
+    "x": 2900,
+    "y": 270,
+    "w": 100
+   },
+   {
+    "x": 3500,
+    "y": 240,
+    "w": 120
+   }
+  ],
+  "spawns": [
+   {
+    "type": "terracotta_pig",
+    "x": 400,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_mirror",
+    "x": 800,
+    "y_hint": 200
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 1200,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 1600,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_mirror",
+    "x": 2000,
+    "y_hint": 220
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 2400,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 2800,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_mirror",
+    "x": 3200,
+    "y_hint": 200
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 3600,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3900,
+  "intro_text_zh": "金瓜石的山腰上，木架廠房與金屬網格外牆訴說著採金的歲月。",
+  "y_ground": 400
+ },
+ {
+  "n": 9,
+  "name_zh": "國立台灣博物館",
+  "theme": "night_village",
+  "width": 4200,
+  "ground": [
+   {
+    "x": 0,
+    "w": 515,
+    "y": 400
+   },
+   {
+    "x": 650,
+    "w": 515,
+    "y": 400
+   },
+   {
+    "x": 1300,
+    "w": 515,
+    "y": 400
+   },
+   {
+    "x": 1950,
+    "w": 515,
+    "y": 400
+   },
+   {
+    "x": 2600,
+    "w": 515,
+    "y": 400
+   },
+   {
+    "x": 3250,
+    "w": 515,
+    "y": 400
+   },
+   {
+    "x": 3900,
+    "w": 300,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 200,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 800,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 1400,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 2000,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 2700,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 3300,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 3900,
+    "y": 240,
+    "w": 100
+   }
+  ],
+  "spawns": [
+   {
+    "type": "terracotta_jar",
+    "x": 200,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 400,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_mirror",
+    "x": 700,
+    "y_hint": 200
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 900,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 1400,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 1700,
+    "y_hint": 220
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 2000,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 2300,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_mirror",
+    "x": 2600,
+    "y_hint": 200
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 2900,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_jar",
+    "x": 3284,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 3500,
+    "y_hint": 220
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 3716,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 4100,
+  "intro_text_zh": "白色希臘式圓柱與綠色小圓頂，是台北最古老的博物館。",
+  "y_ground": 400
+ },
+ {
+  "n": 10,
+  "name_zh": "故宮博物院",
+  "theme": "desert",
+  "width": 2200,
+  "ground": [
+   {
+    "x": 0,
+    "w": 2200,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 500,
+    "y": 250,
+    "w": 150
+   },
+   {
+    "x": 1500,
+    "y": 250,
+    "w": 150
+   }
+  ],
+  "spawns": [
+   {
+    "type": "terracotta_jar",
+    "x": 250,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_pig",
+    "x": 400,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_mirror",
+    "x": 550,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_beacon",
+    "x": 700,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 800,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_beacon",
+    "x": 900,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_beacon",
+    "x": 1100,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_archer",
+    "x": 1200,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_beacon",
+    "x": 1300,
+    "y_hint": 380
+   },
+   {
+    "type": "terracotta_beacon",
+    "x": 1500,
+    "y_hint": 380
+   },
+   {
+    "type": "boss_terracotta_general",
+    "x": 1800,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 2100,
+  "intro_text_zh": "收藏無數中華文物的寶庫，翠綠屋瓦在山邊閃閃發亮。",
+  "y_ground": 400
+ },
+ {
+  "n": 11,
+  "name_zh": "貓空",
+  "theme": "cave",
+  "width": 4000,
+  "ground": [
+   {
+    "x": 0,
+    "w": 600,
+    "y": 400
+   },
+   {
+    "x": 750,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1400,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2050,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2700,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3350,
+    "w": 650,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 300,
+    "y": 260,
+    "w": 100
+   },
+   {
+    "x": 900,
+    "y": 240,
+    "w": 120
+   },
+   {
+    "x": 1600,
+    "y": 280,
+    "w": 100
+   },
+   {
+    "x": 2200,
+    "y": 250,
+    "w": 120
+   },
+   {
+    "x": 2900,
+    "y": 270,
+    "w": 100
+   },
+   {
+    "x": 3500,
+    "y": 240,
+    "w": 120
+   }
+  ],
+  "spawns": [
+   {
+    "type": "hike_grub",
+    "x": 900,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 1150,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 1500,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 1650,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 1800,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 2200,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 2450,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 3600,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 3720,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 3840,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 3900,
+  "intro_text_zh": "纜車緩緩滑過山谷，層層茶園的盡頭，遠方可以望見台北111。",
+  "y_ground": 400
+ },
+ {
+  "n": 12,
+  "name_zh": "二子坪",
+  "theme": "cave",
+  "width": 4200,
+  "ground": [
+   {
+    "x": 0,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 650,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1300,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1950,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2600,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3250,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3900,
+    "w": 300,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 200,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 800,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 1400,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 2000,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 2700,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 3300,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 3900,
+    "y": 240,
+    "w": 100
+   }
+  ],
+  "spawns": [
+   {
+    "type": "hike_grub",
+    "x": 800,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 1000,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_sprig",
+    "x": 1450,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_grub",
+    "x": 1600,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 1750,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 2100,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_grub",
+    "x": 2300,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 2750,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_grub",
+    "x": 2900,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 3050,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_grub",
+    "x": 3400,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 3600,
+    "y_hint": 230
+   }
+  ],
+  "exit_x": 4100,
+  "intro_text_zh": "二子坪步道的水池倒映著藍天，木橋與涼亭藏在山谷間的草坡上。",
+  "y_ground": 400
+ },
+ {
+  "n": 13,
+  "name_zh": "擎天崗",
+  "theme": "cave",
+  "width": 4400,
+  "ground": [
+   {
+    "x": 0,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 650,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1300,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1950,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2600,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3250,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3900,
+    "w": 500,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 200,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 800,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 1400,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 2000,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 2700,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 3300,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 3900,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 4200,
+    "y": 260,
+    "w": 100
+   }
+  ],
+  "spawns": [
+   {
+    "type": "hike_grub",
+    "x": 800,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 1000,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 1450,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_bramble",
+    "x": 1650,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 2100,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 2300,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_bramble",
+    "x": 2750,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 2900,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 3050,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_bramble",
+    "x": 3400,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 3550,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 4050,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 4200,
+    "y_hint": 230
+   }
+  ],
+  "exit_x": 4300,
+  "intro_text_zh": "遼闊的擎天崗草原，遠方的牛群悠閒吃草，風一吹整片草海跟著起伏。",
+  "y_ground": 400
+ },
+ {
+  "n": 14,
+  "name_zh": "竹子湖",
+  "theme": "swamp",
+  "width": 4400,
+  "ground": [
+   {
+    "x": 0,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 650,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1300,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 1950,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 2600,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3250,
+    "w": 500,
+    "y": 400
+   },
+   {
+    "x": 3900,
+    "w": 500,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 200,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 800,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 1400,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 2000,
+    "y": 280,
+    "w": 120
+   },
+   {
+    "x": 2700,
+    "y": 250,
+    "w": 100
+   },
+   {
+    "x": 3300,
+    "y": 270,
+    "w": 120
+   },
+   {
+    "x": 3900,
+    "y": 240,
+    "w": 100
+   },
+   {
+    "x": 4200,
+    "y": 260,
+    "w": 100
+   }
+  ],
+  "spawns": [
+   {
+    "type": "hike_grub",
+    "x": 800,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bamblin",
+    "x": 1000,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 1450,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 1650,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_bamblin",
+    "x": 2100,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_grub",
+    "x": 2300,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 2750,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bamblin",
+    "x": 2900,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 3050,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_grub",
+    "x": 3400,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 3550,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bamblin",
+    "x": 4000,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 4150,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 4250,
+    "y_hint": 230
+   }
+  ],
+  "exit_x": 4300,
+  "intro_text_zh": "竹子湖的海芋田一望無際，白色花海鋪滿了陽明山腳下的山谷。",
+  "y_ground": 400
+ },
+ {
+  "n": 15,
+  "name_zh": "小油坑與七星山",
+  "theme": "night_village",
+  "width": 2400,
+  "ground": [
+   {
+    "x": 0,
+    "w": 2400,
+    "y": 400
+   }
+  ],
+  "platforms": [
+   {
+    "x": 600,
+    "y": 250,
+    "w": 150
+   },
+   {
+    "x": 1600,
+    "y": 250,
+    "w": 150
+   }
+  ],
+  "spawns": [
+   {
+    "type": "hike_bramble",
+    "x": 500,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_cinderite",
+    "x": 700,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 900,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_bamblin",
+    "x": 1050,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_cinderite",
+    "x": 1200,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 1350,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_sprig",
+    "x": 1500,
+    "y_hint": 230
+   },
+   {
+    "type": "hike_cinderite",
+    "x": 1650,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bamblin",
+    "x": 1800,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bramble",
+    "x": 1950,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_cinderite",
+    "x": 2100,
+    "y_hint": 380
+   },
+   {
+    "type": "hike_bamblin",
+    "x": 2250,
+    "y_hint": 380
+   },
+   {
+    "type": "boss_rock_golem",
+    "x": 2000,
+    "y_hint": 380
+   }
+  ],
+  "exit_x": 2300,
+  "intro_text_zh": "硫磺的氣味從噴氣孔飄來，再往上爬，就是陽明山的最高峰七星山。",
+  "y_ground": 400,
+  "boss_stage": {
+   "backdrop": "lv15b",
+   "boss_x": 2270,
+   "rocks": [
+    {
+     "x": 1400,
+     "w": 170,
+     "lv": 2
+    },
+    {
+     "x": 1570,
+     "w": 130,
+     "lv": 1
+    },
+    {
+     "x": 1700,
+     "w": 170,
+     "lv": 3
+    },
+    {
+     "x": 1870,
+     "w": 140,
+     "lv": 2
+    },
+    {
+     "x": 2010,
+     "w": 130,
+     "lv": 4
+    },
+    {
+     "x": 2140,
+     "w": 260,
+     "lv": 5
+    }
+   ]
+  },
+  "smoke_vents": [
+   {
+    "u": 0.53,
+    "v": 0.6
+   },
+   {
+    "u": 0.72,
+    "v": 0.7,
+    "rise": 150
+   }
+  ]
  }
 ]
