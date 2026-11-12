@@ -329,33 +329,6 @@
       "id": "summon",
       "seq": 1,
       "once": true
-     },
-     {
-      "primitive": "ground_wave",
-      "params": {
-       "speed": 180,
-       "damage": 18
-      },
-      "telegraph_ms": 900,
-      "cooldown_ms": 1000,
-      "zh_name": "窯裂震波",
-      "zh_desc": "震出窯裂震波。",
-      "id": "kiln_wave",
-      "cd_ms": 4000
-     },
-     {
-      "primitive": "dash",
-      "params": {
-       "swing_ms": 1750,
-       "fx": "shockwave"
-      },
-      "telegraph_ms": 1,
-      "cooldown_ms": 0,
-      "zh_name": "青銅戈劈",
-      "zh_desc": "不預警，青銅戈由上劈下，命中把玩家彈飛，後退可閃。",
-      "id": "crescent",
-      "trigger": "on_hit",
-      "cd_ms": 2500
      }
     ]
    },
@@ -386,43 +359,20 @@
       "immediate": true
      },
      {
-      "primitive": "ground_wave",
+      "primitive": "guard_shield",
       "params": {
-       "speed": 180,
-       "damage": 18
-      },
-      "telegraph_ms": 900,
-      "cooldown_ms": 1000,
-      "zh_name": "窯裂震波",
-      "zh_desc": "震出窯裂震波。",
-      "id": "kiln_wave",
-      "cd_ms": 4000
-     },
-     {
-      "primitive": "dash",
-      "params": {
-       "swing_ms": 1750,
-       "fx": "shockwave"
-      },
-      "telegraph_ms": 1,
-      "cooldown_ms": 0,
-      "zh_name": "青銅戈劈",
-      "zh_desc": "不預警，青銅戈由上劈下，命中把玩家彈飛，後退可閃。",
-      "id": "crescent",
-      "trigger": "on_hit",
-      "cd_ms": 2500
-     },
-     {
-      "primitive": "dash",
-      "params": {
-       "speed": 400,
-       "distance": 300,
+       "duration_ms": 5000,
+       "damage_taken_mult": 0.5,
+       "flames": 12,
+       "ring_rx": 0.62,
+       "ring_ry": 0.34,
+       "flame_h": 0.26,
        "fx": "rage"
       },
       "telegraph_ms": 1200,
       "cooldown_ms": 1500,
       "zh_name": "窯火燃身",
-      "zh_desc": "窯火燃身，猛衝向前。",
+      "zh_desc": "窯火燃身，5 秒內減傷 50%，身邊環繞火焰盾牌。",
       "id": "rage",
       "cd_ms": 8000
      },
@@ -474,43 +424,20 @@
       "immediate": true
      },
      {
-      "primitive": "ground_wave",
+      "primitive": "guard_shield",
       "params": {
-       "speed": 180,
-       "damage": 18
-      },
-      "telegraph_ms": 900,
-      "cooldown_ms": 1000,
-      "zh_name": "窯裂震波",
-      "zh_desc": "震出窯裂震波。",
-      "id": "kiln_wave",
-      "cd_ms": 4000
-     },
-     {
-      "primitive": "dash",
-      "params": {
-       "swing_ms": 1750,
-       "fx": "shockwave"
-      },
-      "telegraph_ms": 1,
-      "cooldown_ms": 0,
-      "zh_name": "青銅戈劈",
-      "zh_desc": "不預警，青銅戈由上劈下，命中把玩家彈飛，後退可閃。",
-      "id": "crescent",
-      "trigger": "on_hit",
-      "cd_ms": 2500
-     },
-     {
-      "primitive": "dash",
-      "params": {
-       "speed": 400,
-       "distance": 300,
+       "duration_ms": 5000,
+       "damage_taken_mult": 0.5,
+       "flames": 12,
+       "ring_rx": 0.62,
+       "ring_ry": 0.34,
+       "flame_h": 0.26,
        "fx": "rage"
       },
       "telegraph_ms": 1200,
       "cooldown_ms": 1500,
       "zh_name": "窯火燃身",
-      "zh_desc": "窯火燃身，猛衝向前。",
+      "zh_desc": "窯火燃身，5 秒內減傷 50%，身邊環繞火焰盾牌。",
       "id": "rage",
       "cd_ms": 8000
      },

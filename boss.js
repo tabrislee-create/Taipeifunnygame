@@ -1,5 +1,8 @@
 const RAIN_COLS = [0x3aa0ff, 0x40d060, 0xffd830, 0xff3a3a, 0xff4fd8, 0xff9a20];   // rainbow_sky_rain strip colours
 const RAIN_G = 900;   // strip gravity (px/s^2)
+// 窯火燃身護身的火焰盾牌 (user 2026-11-13): tongue layers, [width x, height x, colour, alpha] of params.flame_h - wide dark orange outside,
+// narrow pale-yellow core (same warm multi-layer gradient idea as the kiln pool's KF_LAY in effects.js, drawn here so that function stays untouched).
+const GUARD_FLAME = [[0.66, 1.0, 0xff3a00, 0.5], [0.48, 0.84, 0xff8a10, 0.72], [0.32, 0.64, 0xffc83a, 0.82], [0.17, 0.42, 0xfff4c0, 0.95]];
 
 class Boss {
   constructor(scene, def, x, y) {
@@ -61,6 +64,7 @@ class Boss {
     this._swings = [];
     this._waveObj = null;
     this._rain = null; this._rainStripes = []; this._rainPuddles = []; this._rainGlow = []; this._rainG = null;   // rainbow_sky_rain state
+    this._guard = null; this._guardG = null;   // guard_shield (窯火燃身護身, user 2026-11-13): the 5 s window and its single Graphics
     this._glints = []; this._pools = []; this._glintAcc = 0;       // code-drawn light effects (no flares baked into the art)
     this._afx = 1; this._afy = 1; this._hitSquashUntil = 0; this._flashUntil = 0; this._landSquashT = -1e9;   // procedural squash & stretch
     this._dormant = !!def.wake;
@@ -202,6 +206,7 @@ class Boss {
       this._clearStones();
       this._clearBoulders();
       this._rainGlowOff();
+      this._clearGuard();   // 護身 (user 2026-11-13): the new phase resets the state to idle, so the flame shield must go with it
       this._useCount = new Map();   // pattern max_uses is counted per phase (user 2026-10-13: the minion summon, twice in phase 1 and in phase 2)
       this._initSeq();
       const first = this._seq && this._seq[0];
@@ -358,6 +363,8 @@ class Boss {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 1.0 - 20, 70, tm));
       this._rainGlowOn();   // the colour outline starts with the charge (user 2026-11-13: the charge + rain window is no longer invulnerable, it just takes damage_taken_mult of the raw hit — see _dmgTakenMult)
       if (scene.textures.exists('bossskill_rain')) { this._rainTextImg = scene.add.image(s.x, s.y, 'bossskill_rain').setDepth(97).setAlpha(0); this._rainTextImg.setDisplaySize(260, 260 * this._rainTextImg.height / this._rainTextImg.width); this._telegraphObjs.push(this._rainTextImg); }   // brush-calligraphy skill name over the head for the whole charge
+    } else if (pr === 'guard_shield') {   // 窯火燃身 (user 2026-11-13): no dash path to warn - the ring of fire gathers on the body, so the warning circle goes there too (the old 'dash' branch's red floor rectangle would have promised a charge that never comes)
+      this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 0.6, 40, tm));
     } else if (pr === 'summon_adds') {
       this._slotCache = this._summonSlots(p);   // the minions appear exactly where the warning circles are
       for (const sl of this._slotCache) this._telegraphObjs.push(FX.telegraphCircle(scene, sl.x, gy - 20, 30, tm));
@@ -438,6 +445,8 @@ class Boss {
       this._fireHoming(p);
     } else if (pr === 'rainbow_sky_rain') {
       this._startRain(p);
+    } else if (pr === 'guard_shield') {   // 窯火燃身 (user 2026-11-13): stand still behind a flame shield for params.duration_ms, taking params.damage_taken_mult of all damage
+      this._startGuard(p);
     } else if (pr === 'summon_adds') {
       this._state = 'cooldown';
       this._stateTimer = 0;
@@ -917,6 +926,7 @@ class Boss {
     else if (st === 'jump') { const t = this._jumpDuration ? this._jumpElapsed / this._jumpDuration : 0; fx = t < 0.5 ? 0.9 : 0.93; fy = t < 0.5 ? 1.16 : 1.1; }
     else if (st === 'dash') { fx = 1.18 + 0.03 * Math.sin(now / 40); fy = 0.86; }
     else if (st === 'rain' || this._rainCharge()) { fx = 1.1 + 0.03 * Math.sin(now / 60); fy = 0.94; }
+    else if (st === 'guard') { fx = 1.05 + 0.02 * Math.sin(now / 200); fy = 0.96 - 0.02 * Math.sin(now / 200); }   // 護身: a slow breath behind the fire ring
     else if (st === 'wave' || st === 'laser') { fx = 1.05; fy = 0.93; }
     else if (this._moving) { const k = Math.sin(now / 110); fx = 1.06 + 0.06 * k; fy = 0.95 - 0.06 * k; }   // slithering wobble
     const land = (now - this._landSquashT) / 320;
@@ -924,7 +934,7 @@ class Boss {
     const a = Math.min(1, dt * 14);
     this._afx += (fx - this._afx) * a; this._afy += (fy - this._afy) * a;
     if (now >= this._hitSquashUntil) s.setScale(s.baseScaleX * this._afx, s.baseScaleY * this._afy);
-    const rageP = this._activePattern && this._activePattern.params && this._activePattern.params.fx === 'rage' && (st === 'telegraph' || st === 'dash');
+    const rageP = this._activePattern && this._activePattern.params && this._activePattern.params.fx === 'rage' && (st === 'telegraph' || st === 'dash' || st === 'guard');   // 'guard' (user 2026-11-13): 窯火燃身 no longer dashes, the orange flicker keeps the shield readable; 'dash' stays for any boss that still dashes with fx 'rage'
     if (this._scorchEnd > 0) {   // scorched: solid red instead of the hue drift
       s.setTint(0xff3030);
     } else if (st === 'rain' || this._rainCharge()) {   // rainbow_sky_rain (charge + fire): fast hue cycle
@@ -1173,8 +1183,10 @@ class Boss {
   _rainCharge() { return this._state === 'telegraph' && !!this._activePattern && this._activePattern.primitive === 'rainbow_sky_rain'; }
   _skillInv() { return this._dormant || this._boulderInv || this._state === 'jump'; }   // also the whole flight of 黃色跳壓 (user 2026-10-13); 漫天幻彩 is no longer here (user 2026-11-13, see _dmgTakenMult)
   // 漫天幻彩 (user 2026-11-13): while the 2 s charge or the duration rain is up, every hp-damaging path is multiplied by params.damage_taken_mult (data-driven; 1 if missing).
+  // 窯火燃身護身 (user 2026-11-13): the same one mechanism - same params field name, same takeHit / burn / scorch call sites, no second system.
+  // Unlike 漫天幻彩 the 1.2 s telegraph is NOT covered (the user's spec: the reduction starts when the shield comes up), so only state 'guard' counts here.
   _dmgTakenMult() {
-    if (!(this._state === 'rain' || this._rainCharge())) return 1;
+    if (!(this._state === 'rain' || this._rainCharge() || this._state === 'guard')) return 1;
     const p = this._activePattern && this._activePattern.params;
     const m = p && p.damage_taken_mult;
     return (typeof m === 'number' && isFinite(m)) ? m : 1;
@@ -1306,6 +1318,83 @@ class Boss {
     for (const q of this._rainPuddles) q.o.destroy();
     this._rainPuddles = [];
     if (this._rainG) { this._rainG.destroy(); this._rainG = null; }
+  }
+
+  // ==== 窯火燃身 turned into 護身 (user 2026-11-13, level 10 將軍俑) ====
+  // Old skill: dash + fx 'rage' (a charge). New: after the 1.2 s telegraph the boss stands still for params.duration_ms (5 s) behind a ring of fire
+  // and every damage path is multiplied by params.damage_taken_mult (0.5) - the mechanism is the level-5 漫天幻彩 one (_dmgTakenMult / _applyTakenMult),
+  // so takeHit, the burn tick and Vendor's scorch all keep working without a second implementation. It is NOT invulnerable (deliberately not in _skillInv()).
+  // The boss cannot start another skill while it stands: the update() state machine runs exactly one branch, and _updateWalk walks in idle/cooldown only.
+  _startGuard(p) {
+    this._state = 'guard';
+    this._stateTimer = 0;
+    this._guard = { t: 0, dur: p.duration_ms || 5000, p: p, fin: 300, fout: 500 };   // fin: the shield grows in over 0.3 s; fout: it blinks and fades over the last 0.5 s
+    if (!this._guardG) this._guardG = this.scene.add.graphics().setDepth(5.6);   // in front of the body (sprite 5, _fxG 5.5), behind the laser rects (7-8) and the kiln-pool flames (50)
+  }
+
+  _updateGuardState(delta) {
+    const gd = this._guard;
+    if (!gd) { this._state = 'cooldown'; this._stateTimer = 0; return; }   // cleared from outside (phase change / death): fall into the normal cooldown flow instead of sticking in 'guard'
+    gd.t += delta;
+    if (gd.t >= gd.dur) {   // 護身 over: the same ending path as the rain state - cooldown (params cooldown_ms) -> idle -> next skill
+      this._clearGuard();
+      this._state = 'cooldown';
+      this._stateTimer = 0;
+    }
+  }
+
+  _clearGuard() {   // the one and only cleanup: the shield has no tweens and no timers, just this Graphics
+    this._guard = null;
+    if (this._guardG) { this._guardG.destroy(); this._guardG = null; }
+  }
+
+  // The flame shield, redrawn every frame into the single _guardG: params.flames (12) tongues on an ellipse around the body, the ring turning slowly,
+  // each tongue flickering on its own phase, plus a faint outer halo (soft dots between the tongues). Follows the sprite position, its squash & stretch
+  // (scaleX / baseScaleX) and the display size, so it scales with bigger bosses. Nothing is created per frame.
+  _drawGuardShield(now) {
+    const gd = this._guard, g = this._guardG, s = this.sprite;
+    if (!gd || !g || !s || !s.active) return;
+    g.clear();
+    const p = gd.p;
+    let a = Math.min(1, gd.t / gd.fin);
+    let grow = 0.35 + 0.65 * a;   // grows in with the fade
+    const left = gd.dur - gd.t;
+    if (left < gd.fout) { const k = Math.max(0, left / gd.fout); a *= k * (Math.floor(now / 90) % 2 ? 0.45 : 1); grow *= 0.92 + 0.08 * k; }   // last 0.5 s: blink + fade out
+    if (a <= 0.01) return;
+    const cy = s.y - this._dispH * 0.56;   // the ring sits on the torso, not the geometric centre
+    const kx = s.baseScaleX ? s.scaleX / s.baseScaleX : 1, ky = s.baseScaleY ? s.scaleY / s.baseScaleY : 1;
+    const rx = this._dispW * (p.ring_rx || 0.62) * kx * grow, ry = this._dispH * (p.ring_ry || 0.34) * ky * grow;
+    const hf = this._dispH * (p.flame_h || 0.26) * grow;
+    const n = Math.max(6, Math.round(p.flames || 12));
+    const rot = now / 1100;   // ~0.9 rad/s, one turn in ~7 s
+    for (let i = 0; i < 18; i++) {   // the halo: two soft circles each, low alpha, so the ring reads as one faint glow
+      const ang = rot * 0.6 + i * Math.PI / 9, c = Math.cos(ang), sn = Math.sin(ang);
+      const rr = hf * (1.45 + 0.18 * Math.sin(now / 130 + i));
+      const hx = s.x + c * rx, hy = cy + sn * ry;
+      g.fillStyle(0xff6a10, 0.045 * a); g.fillCircle(hx, hy, rr);
+      g.fillStyle(0xffb03a, 0.05 * a); g.fillCircle(hx, hy, rr * 0.55);
+    }
+    for (let i = 0; i < n; i++) {
+      const ang = rot + i * (2 * Math.PI / n);
+      const c = Math.cos(ang), sn = Math.sin(ang);
+      const bx = s.x + c * rx, by = cy + sn * ry;
+      const px = -sn, py = c;   // tangent direction: the flame licks sideways as the ring turns
+      const fl = (0.86 + 0.1 * Math.sin(now / 70 + i * 1.7) + 0.06 * Math.sin(now / 33 + i * 0.9)) * (1 - 0.4 * Math.max(0, sn));   // tongues pointing down are shorter: they must not plough into the floor
+      const lean = 0.16 * Math.sin(now / 260 + i * 1.3);
+      for (let li = 0; li < GUARD_FLAME.length; li++) {
+        const L = GUARD_FLAME[li], hh = hf * fl * L[1], hw = hf * L[0] * 0.5;
+        if (hh < 1) continue;
+        const mx = bx + c * hh * 0.5, my = by + sn * hh * 0.5;
+        g.fillStyle(L[2], L[3] * a);
+        g.fillPoints([
+          { x: bx + px * hw, y: by + py * hw },
+          { x: mx + px * hw * 0.5 - px * lean * hh, y: my + py * hw * 0.5 - py * lean * hh },
+          { x: bx + c * hh + px * lean * hh * 2, y: by + sn * hh + py * lean * hh * 2 },
+          { x: mx - px * hw * 0.5 - px * lean * hh, y: my - py * hw * 0.5 - py * lean * hh },
+          { x: bx - px * hw, y: by - py * hw }
+        ], true);
+      }
+    }
   }
 
   // 藍色衝撞 (user 2026-10-13): a big dark-blue crescent with a pale-blue halo starts straight above the boss's head (90 degrees) and swings down toward the player like a chop; no warning, the swing itself is the cue.
@@ -1559,6 +1648,7 @@ class Boss {
     this._clearWave();
     this._clearLaser();
     this._clearRain();
+    this._clearGuard();   // 護身 (user 2026-11-13): the flame shield must not outlive the boss (the defeat cutscene starts from _die)
     for (const proj of this._projectiles) proj.destroy();
     this._projectiles = [];
     this._clearStones();
@@ -1666,6 +1756,8 @@ class Boss {
       this._updateLaser(dt);
     } else if (this._state === 'rain') {
       this._updateRainState(delta);
+    } else if (this._state === 'guard') {
+      this._updateGuardState(delta);   // 窯火燃身護身 (user 2026-11-13): stands still, cannot start another skill while this branch runs
     } else if (this._state === 'cooldown') {
       this._stateTimer += delta;
       const cdm = this._activePattern ? this._activePattern.cooldown_ms : null;
@@ -1675,6 +1767,7 @@ class Boss {
         this._stateTimer = 0;
       }
     }
+    this._drawGuardShield(this.scene.time.now);   // 護身 (user 2026-11-13): after the state machine, so the shield vanishes on the very frame 護身 ends (or on death / phase change, which clear it)
     if (player && !player.dead && this.sprite.active && this._state !== 'jump') {   // no touch damage during the jump flight: the landing shockwave (and its attack seal) is that skill's hit
       if (Phaser.Geom.Intersects.RectangleToRectangle(bodyRect(this.sprite), bodyRect(player.sprite))) {
         const dmg = this._dashContact ? this.contactDamage * 1.5 : this.contactDamage;
