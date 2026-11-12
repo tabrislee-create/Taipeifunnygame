@@ -356,7 +356,7 @@ class Boss {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 0.6, 40, tm));
     } else if (pr === 'rainbow_sky_rain') {
       this._telegraphObjs.push(FX.telegraphCircle(scene, s.x, s.y - this._dispH * 1.0 - 20, 70, tm));
-      this._rainGlowOn();   // the colour outline starts with the charge (invulnerable from here on)
+      this._rainGlowOn();   // the colour outline starts with the charge (user 2026-11-13: the charge + rain window is no longer invulnerable, it just takes damage_taken_mult of the raw hit — see _dmgTakenMult)
       if (scene.textures.exists('bossskill_rain')) { this._rainTextImg = scene.add.image(s.x, s.y, 'bossskill_rain').setDepth(97).setAlpha(0); this._rainTextImg.setDisplaySize(260, 260 * this._rainTextImg.height / this._rainTextImg.width); this._telegraphObjs.push(this._rainTextImg); }   // brush-calligraphy skill name over the head for the whole charge
     } else if (pr === 'summon_adds') {
       this._slotCache = this._summonSlots(p);   // the minions appear exactly where the warning circles are
@@ -1166,12 +1166,20 @@ class Boss {
     }
   }
 
-  // Rainbow sky (pattern rainbow_sky_rain, user 2026-10-13): after the 2 s charge the boss stands still and INVULNERABLE for params.duration_ms, lobbing params.count coloured strips from its head,
+  // Rainbow sky (pattern rainbow_sky_rain, user 2026-10-13): after the 2 s charge the boss stands still for params.duration_ms, lobbing params.count coloured strips from its head,
   // alternating left / right, landing 100-620 px away (8 shuffled distance bins per side; strips 3 and 7 of each side are aimed at the player when they stand on that side).
   // A strip hurts once (params.damage) if it touches the player in flight or splashes within 45 px of where it lands; the puddle it leaves is visual only.
-  // Rainbow sky: invulnerable for the whole skill, the 2 s charge included (user 2026-10-13).
+  // Damage taken during the skill: user 2026-11-13 — the 2 s charge + duration rain window is no longer invulnerable; every damage path is multiplied by params.damage_taken_mult (0.5) while it is up.
   _rainCharge() { return this._state === 'telegraph' && !!this._activePattern && this._activePattern.primitive === 'rainbow_sky_rain'; }
-  _skillInv() { return this._dormant || this._boulderInv || this._state === 'rain' || this._state === 'jump' || this._rainCharge(); }   // also the whole flight of 黃色跳壓 (user 2026-10-13)
+  _skillInv() { return this._dormant || this._boulderInv || this._state === 'jump'; }   // also the whole flight of 黃色跳壓 (user 2026-10-13); 漫天幻彩 is no longer here (user 2026-11-13, see _dmgTakenMult)
+  // 漫天幻彩 (user 2026-11-13): while the 2 s charge or the duration rain is up, every hp-damaging path is multiplied by params.damage_taken_mult (data-driven; 1 if missing).
+  _dmgTakenMult() {
+    if (!(this._state === 'rain' || this._rainCharge())) return 1;
+    const p = this._activePattern && this._activePattern.params;
+    const m = p && p.damage_taken_mult;
+    return (typeof m === 'number' && isFinite(m)) ? m : 1;
+  }
+  _applyTakenMult(dmg) { const m = this._dmgTakenMult(); return m === 1 ? dmg : Math.max(1, Math.round(dmg * m)); }   // integer, never drops a real hit to 0
 
   _checkWake(player) {
     if (!this._dormant) return;
@@ -1514,8 +1522,9 @@ class Boss {
     while (this._scorchStep < sc.ticks && now >= t0 + (this._scorchStep + 1) * sc.intervalMs) {
       this._scorchStep++;
       if (this._skillInv()) continue;   // invulnerable: that tick is lost, not postponed
-      this.hp -= sc.damage;
-      FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, sc.damage, false, false);
+      const tickDmg = this._applyTakenMult(sc.damage);   // 漫天幻彩 charge/rain: halved (user 2026-11-13)
+      this.hp -= tickDmg;
+      FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, tickDmg, false, false);
       FX.burnFlame(this.scene, this.sprite.x, this.sprite.y - this._dispH * 0.5);
       if (this.hp <= 0) { this.hp = 0; this._die(); return; }
     }
@@ -1526,7 +1535,7 @@ class Boss {
     if (this._skillInv()) return;
     if (this._burnDps > 0 && this._burnTimer > 0) {
       this._burnTimer -= dt;
-      this._burnAcc += this._burnDps * dt;
+      this._burnAcc += this._burnDps * dt * this._dmgTakenMult();   // 漫天幻彩 charge/rain: the burn accumulates at half rate (user 2026-11-13); after the skill ends mult returns to 1, remaining duration ticks at full dps
       this._burnFxTimer -= dt;
       if (this._burnFxTimer <= 0) {
         FX.burnFlame(this.scene, this.sprite.x, this.sprite.y - this._dispH * 0.5);
@@ -1588,7 +1597,8 @@ class Boss {
 
   takeHit(damage, srcX, isCrit, info) {
     if (this.dead || this._entering) return;
-    if (this._invuln > 0 || this._skillInv()) return;   // rainbow_sky_rain: invulnerable
+    if (this._invuln > 0 || this._skillInv()) return;   // skill-level invulnerability (rock golem boulder/dormant, 黃色跳壓). 漫天幻彩 no longer blocks hits here — it takes _applyTakenMult(damage) below (user 2026-11-13).
+    damage = this._applyTakenMult(damage);
     this.hp -= damage;
     FX.hitEnemy(this.scene, this.sprite, isCrit, this.sprite.x, this.sprite.y - this._dispH * 0.5);
     FX.damageNumber(this.scene, this.sprite.x, this.sprite.y - this._dispH, damage, isCrit, false);

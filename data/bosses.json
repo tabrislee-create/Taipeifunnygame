@@ -63,16 +63,17 @@
        "count": 20,
        "interval_ms": 200,
        "duration_ms": 4000,
-       "damage": 10
+       "damage": 10,
+       "damage_taken_mult": 0.5
       },
       "telegraph_ms": 2000,
       "cooldown_ms": 0,
       "zh_name": "漫天幻彩",
-      "zh_desc": "停住集氣2秒，從頭上朝左右兩側拋射多彩長條液體4秒，發射期間無敵，全身邊緣彩光輪替。",
+      "zh_desc": "停住集氣2秒，從頭上朝左右兩側拋射多彩長條液體4秒，發射期間減傷 50%，全身邊緣彩光輪替。",
       "id": "rain",
       "seq": 1,
       "immediate": true,
-      "cd_ms": 10000
+      "cd_ms": 8000
      },
      {
       "primitive": "summon_adds",
