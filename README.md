@@ -15,7 +15,7 @@ Taipei Funny Game — Demo
 
 ## 製作方式（AI 揭露）
 - 美術多半由 AI 生圖工具（Qwen-Image）產生，經作者挑選與後製。
-- 程式與企劃在 AI 輔助下完成（Claude、本機 Qwen 模型），由作者審核與測試。
+- 程式與企劃在 AI 輔助下完成（Claude、本機 Qwen 模型、Grok 審查），美術為 AI 生成（Qwen-Image，背景參考實景照片），由作者審核與測試。
 
 ## 隱私
 遊戲不蒐集任何個人資料，不使用追蹤、分析或廣告；瀏覽器只會載入遊戲本身的檔案。
@@ -34,5 +34,5 @@ Taipei Funny Game — Demo
 
 # English summary
 A side-scrolling action game set in Taipei landmarks (demo: 2 characters, levels 1–15, 3 bosses). Free to play in the browser: https://tabrislee-create.github.io/Taipeifunnygame/
-Author: tabrislee-create. Art is largely AI-generated (Qwen-Image) and curated by the author; code and design were AI-assisted (Claude, local Qwen models) and reviewed by the author.
+Author: tabrislee-create. Art is largely AI-generated (Qwen-Image) and curated by the author; code and design were AI-assisted (Claude, local Qwen models, Grok code review) and reviewed by the author.
 License: CC BY-NC-ND 4.0 (attribution, non-commercial, no derivatives). Phaser 3 is MIT-licensed. No data is collected.

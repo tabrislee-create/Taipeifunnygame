@@ -105,7 +105,8 @@
   "notes": "Level-5 boss, replaces boss_forest_guardian there. Skills drafted by Strata UD-IQ4_XS (plan/slime_boss_skills_a.json); green_terrain_aoe and rainbow_homing_projectile are new primitives implemented in boss.js.",
   "walk_speed": 50,
   "roam_min_x": 1000,
-  "sink": 14
+  "sink": 14,
+  "defeat_teaser": "前面有一整排的博物館，從陶瓷、黃金到故宮，古老的傳說不只是傳說，他們可比我難纏喔！"
  },
  {
   "id": "boss_forest_guardian",
@@ -589,6 +590,38 @@
     "兵俑歸土，爾等好自為之!",
     "敗於烈焰，爾等速速散去!"
   ],
+  "defeat_scene": {
+   "lines": [
+    {
+     "speaker": "將軍俑",
+     "text": "哎呀……窯火怎麼自己熄了？"
+    },
+    {
+     "speaker": "將軍俑",
+     "text": "本將軍守了兩千年，沒被人這樣打過！"
+    },
+    {
+     "speaker": "將軍俑",
+     "text": "罷了罷了，兵俑們，投降，別再丟人現眼！"
+    },
+    {
+     "speaker": "旁白",
+     "text": "陶俑們紛紛放下兵器，乖乖排好隊。",
+     "narration": true
+    },
+    {
+     "speaker": "將軍俑",
+     "text": "出了故宮往山上走，那裡的風可比我的窯火還大。"
+    }
+   ],
+   "line_ms": 1800,
+   "flash_color": 16751162,
+   "shard_colors": [
+    11887901,
+    9198140,
+    14263914
+   ]
+  },
   "art_prompt": "This is an RGBA image with transparency. A chibi cute terracotta army general figurine boss for a 2D platformer game: lamellar armour made of rectangular plates tied with cords, a tall flat headdress, a three-strand beard, one hand holding a bronze halberd, a cracked clay body with ember-orange kiln light glowing in the cracks, a blank deadpan face, thick clean dark outline, three-quarter side view facing left, a single sprite centered. No sparkles, no star glints, no lens flare, no light rays and no glow outside the body outline, nothing but the figurine itself. The image has alpha channel and the background is transparent.",
   "intro_text_zh": "",
   "notes": "Level-10 boss with three color stages; summons two double-size reflecting mirror minions at the start and at each color change.",

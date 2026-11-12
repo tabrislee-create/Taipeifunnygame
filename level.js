@@ -68,6 +68,13 @@ class LevelScene extends Phaser.Scene {
     this.exitOpen = false;
     this.finished = false;
     this.deathStarted = false;
+    // chunk 11 (grok reviews of chunk 8 / chunk 9): the `Level` scene instance is reused (ui.js fadeTo(..., 'Level'),
+    // window.GAME_DEBUG.goto -> scene.restart), and both cutscene flags are set to true *inside* a run, so without
+    // resetting them here a second attempt at the same level - or any later level - made _bossDefeatCutscene() return
+    // at its first line: no cutscene, no clear flow, the level stuck on the dead boss.
+    this._defeatSceneRun = false;
+    this._defeatCutscene = false;
+    this.boss = null; this._pendingBoss = null;   // the scene instance is reused: a dead boss left from the previous level made _afterClear() play its defeat cutscene when the NEXT level's enemies were all dead (found 2026-11-13: level 10 general -> level 11)
     RUN.levelStats = { hits: 0, kills: 0, startMs: Date.now() };
   }
 
@@ -378,6 +385,7 @@ class LevelScene extends Phaser.Scene {
     // Shutdown cleanup
     this.events.once('shutdown', () => {
       RUN.levelBuff = null;
+      this.anims.resumeAll();   // chunk 11 (grok review of chunk 8): a cutscene pauses the animation manager and only its own ending resumes it; if the scene is torn down mid-cutscene (player died, retry) nothing else ever puts it back. No-op in this build - nothing creates sprite animations - but the pauseAll() above would bite the moment one does.
       if ((typeof Extras !== 'undefined')) Extras.destroy(this);
       this.events.off('enemy-dead', this.onEnemyDead, this);
       this.events.off('player-dead', this.onPlayerDead, this);
@@ -1115,6 +1123,18 @@ class LevelScene extends Phaser.Scene {
   }
 
   _bossDefeatCutscene() {
+    // chunk 8 (user 2026-11-13): a boss whose data carries `defeat_scene` (level 10 將軍俑) plays the scripted
+    // multi-line cutscene (ember flash -> pottery shards where it fell -> dialog that advances by itself).
+    // The branch sits BEFORE the common guard on purpose: that guard's `_defeatCutscene` flag is never reset
+    // in init() and the LevelScene instance is reused across levels (fadeTo -> scene.start('Level')), so one
+    // earlier cutscene (level 5) would otherwise swallow every later one. Hence its own flag, `_defeatSceneRun`,
+    // which `_defeatFinish()` puts back to false so a replay of the level plays it again.
+    if (this.boss && this.boss.def && this.boss.def.defeat_scene) {
+      if (this._defeatSceneRun || this.deathStarted || this.finished) return;
+      this._defeatSceneRun = true;
+      this._playDefeatScene(this.boss.def.defeat_scene);
+      return;
+    }
     if (this._defeatCutscene || this.deathStarted || this.finished) return;
     this._defeatCutscene = true;
     if (this.boss && this.boss.def.clear_on_death) this._surrenderMinions();
@@ -1137,7 +1157,7 @@ class LevelScene extends Phaser.Scene {
       const lines = (this.boss && this.boss.def.defeat_lines && this.boss.def.defeat_lines.length) ? this.boss.def.defeat_lines : phrases;
       const textStr = lines[Math.floor(Math.random() * lines.length)];
       
-      this.add.text(GAME_W / 2, 270, textStr, {
+      const mainText = this.add.text(GAME_W / 2, 270, textStr, {
         fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif',
         fontSize: '30px',
         color: '#fff6d8',
@@ -1145,21 +1165,245 @@ class LevelScene extends Phaser.Scene {
         strokeThickness: 5
       }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
 
-      this.time.delayedCall(2500, () => {
+      // ==== chunk 9 (user 2026-11-13): the teaser line is long, so it scrolls through a fixed window ====
+      // Timing: white cover fades in (1500 ms, above) -> the teaser holds still 900 ms -> scrolls left
+      // (text width - 880) px in 2400 ms -> holds 300 ms -> white cover + both lines fade out in 600 ms ->
+      // the clear flow runs the moment that fade is over (user: 「滾完就淡出，接下一關」). The 2.5 s dwell is
+      // only kept for bosses without `defeat_teaser`, which are on the early-return path below and behave
+      // exactly as before (no fade, no mask). Every tween here is created after the
+      // `tweens.getTweens().forEach(pause)` in _bossDefeatCutscene(), so none of them is paused.
+      const TEASER_W = 880;                                    // scroll window, px
+      const TEASER_X = Math.max(0, (GAME_W - TEASER_W) / 2);    // window left edge (40 when GAME_W is 960)
+      const TEASER_HOLD_MS = 900;                              // still, first characters readable
+      const TEASER_ROLL_MS = 2400;                             // the scroll itself
+      const TEASER_END_MS = 300;                               // pause once the line has fully scrolled past
+      const TEASER_FADE_MS = 600;                              // cover + both lines fade out
+      const TEASER_DWELL_MS = 3400;                            // line fits the window: chunk 8's static dwell
+      let teaserText = null;      // teaser + mask graphics are created outside the display list (the mask
+      let teaserMaskG = null;    // graphics is `add: false`), so finish() is what tears them down
+
+      // The clear flow, unchanged apart from *when* it runs: right after the fade-out (or 2.5 s later for
+      // bosses with no teaser line).
+      const finish = () => {
+        if (teaserText) { teaserText.clearMask(true); teaserText = null; }   // detaches and destroys the mask
+        if (teaserMaskG) { teaserMaskG.destroy(); teaserMaskG = null; }      // not in the display list, so the scene shutdown would not free it
         this.anims.resumeAll();   // the animation manager is global: leave it running for the next scene
         RUN.levelStats.time = Date.now() - RUN.levelStats.startMs;
-        
+
         if (RUN.levelBuff && RUN.levelBuff.clear_coins && typeof _addCoins === 'function') {
           _addCoins(this.player, RUN.levelBuff.clear_coins);
         }
-        
+
         if (RUN.level === GAME_DATA.levels.length) {
           this.scene.start('End', { result: 'victory' });
         } else {
           this.scene.start('Cleared', { cleared: RUN.level, stats: RUN.levelStats });
         }
+      };
+
+      // white cover, main line and teaser line fade out together; the clear flow starts as soon as they are gone
+      const fadeOut = () => {
+        const objs = [cover, mainText];
+        if (teaserText) objs.push(teaserText);
+        this.tweens.add({ targets: objs, alpha: 0, duration: TEASER_FADE_MS, onComplete: finish });
+      };
+
+      const teaser = (this.boss && this.boss.def.defeat_teaser) ? String(this.boss.def.defeat_teaser) : '';
+      if (!teaser) { this.time.delayedCall(2500, finish); return; }   // other bosses: the old fixed 2.5 s, nothing else
+
+      teaserText = this.add.text(GAME_W / 2, 320, teaser, {   // 50 px under the main line (270)
+        fontFamily: 'Microsoft JhengHei, PingFang TC, sans-serif',
+        fontSize: '24px',
+        fontStyle: 'bold',
+        color: '#9fe3ff',
+        stroke: '#1a1a1a',
+        strokeThickness: 4
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(300);
+
+      const tw = teaserText.width;   // measured width, the 4 px stroke included
+      if (tw <= TEASER_W) {
+        // fits the window: static and centered exactly as chunk 8 drew it, 3.4 s, then fade out
+        this.time.delayedCall(TEASER_DWELL_MS, fadeOut);
+        return;
+      }
+
+      // Too long (the 2026-11-13 line is about 1000 px at 24 px bold): left-align it on the window and clip the
+      // overflow. The graphics is built with `add: false` and gets scrollFactor 0 exactly like the text (same
+      // idiom as the indoor window mask, weather.js:1278), so mask and text share screen space and the window
+      // cannot slide out from under the text while the camera is still easing towards the player.
+      teaserText.setOrigin(0, 0.5).setX(TEASER_X);
+      const th = teaserText.height;
+      teaserMaskG = this.make.graphics({ x: 0, y: 0, add: false });
+      teaserMaskG.setScrollFactor(0);
+      teaserMaskG.fillStyle(0xffffff, 1);
+      teaserMaskG.fillRect(TEASER_X, 320 - th / 2 - 2, TEASER_W, th + 4);   // full window height (+2 px each side)
+      teaserText.setMask(teaserMaskG.createGeometryMask());
+      this.time.delayedCall(TEASER_HOLD_MS, () => {
+        this.tweens.add({
+          targets: teaserText,
+          x: TEASER_X - (tw - TEASER_W),   // stops with the last characters flush with the window's right edge
+          duration: TEASER_ROLL_MS,
+          ease: 'Sine.easeInOut',
+          onComplete: () => this.time.delayedCall(TEASER_END_MS, fadeOut)   // rolled out -> fade -> clear flow
+        });
       });
     } });
+  }
+
+  // ==== chunk 8 (user 2026-11-13): scripted defeat cutscene for bosses with data `defeat_scene` ====
+  // Only boss_terracotta_general (level 10) has one. Timeline (def.line_ms drives the dialog, everything
+  // else is fixed here): 0 s freeze + kiln-orange flash + light shake / 1.2 s pottery shards, dust and
+  // embers at the spot the boss fell / 3.0 s dialog box, one line every def.line_ms (1800) with 150 ms
+  // cross-fades / 500 ms after the last line -> the normal clear flow. Nothing registers a pointer or key
+  // handler: the user asked for a cutscene that cannot be skipped.
+  _playDefeatScene(sc) {
+    const self = this;                      // the delayedCall callbacks below check the scene is still running
+    const lineMs = sc.line_ms || 1800;
+    const gapMs = (typeof sc.gap_ms === 'number') ? sc.gap_ms : 150;
+    const holdMs = (typeof sc.hold_ms === 'number') ? sc.hold_ms : 500;
+    const flashColor = (typeof sc.flash_color === 'number') ? sc.flash_color : 0xff9a3a;
+    const shardColors = (sc.shard_colors && sc.shard_colors.length) ? sc.shard_colors : [0xb5651d, 0x8c5a3c, 0xd9a66a];
+
+    // Freeze the last hit the same way the generic cutscene does. Copied on purpose (user: the other bosses
+    // must stay exactly as they were, so the shared lines are not factored out): physics, update() (through
+    // `finished`), the tweens running so far and the sprite animations.
+    if (this.boss && this.boss.def.clear_on_death) this._surrenderMinions();   // grey, still, heads down from t = 0 (as before)
+    this.physics.pause();
+    this.finished = true;
+    if (this.hud && this.hud._destroyBossBar) this.hud._destroyBossBar();
+    this.tweens.getTweens().forEach((t) => t.pause());   // only the tweens created so far - the ones below are created after this and still run
+    this.anims.pauseAll();
+
+    // t = 0: full-screen kiln flash fading out in 0.35 s + a light shake (camera shake is not a tween, so
+    // the paused tween manager does not stop it; GAME_W * 2 x 1080 covers the widest supported camera)
+    const flash = this.add.rectangle(GAME_W / 2, (typeof GAME_H === 'number' ? GAME_H : 540) / 2, GAME_W * 2, 1080, flashColor, 1).setScrollFactor(0).setDepth(299).setAlpha(0.85);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 350, onComplete: () => { if (flash.active !== false) flash.destroy(); } });
+    FX.screenShake(this, 5, 280);
+
+    // t = 1.2 s: the general bursts into shards where it stood (boss.js _die() left `_deathPos`; the sprite
+    // itself was destroyed there, so this is the only place that knows where it fell)
+    this.time.delayedCall(1200, () => { if (self.sys.isActive()) self._defeatShardBurst(shardColors); });
+
+    // t = 3 s: the dialog
+    this.time.delayedCall(3000, () => { if (self.sys.isActive()) self._defeatDialog(sc, lineMs, gapMs, holdMs, flashColor); });
+  }
+
+  // Pottery shards + kiln embers + dust, drawn in code (user: no new art, no picture files). Each shard is a
+  // small rectangle flown on a ballistic curve from the tween's onUpdate: update() returns early while
+  // `finished`, so a per-frame mover is not an option, while tweens created after the pause() above do run.
+  _defeatShardBurst(colors) {
+    const b = this.boss, pos = b && b._deathPos;
+    let x = pos ? pos.x : 0, y = pos ? pos.y : 0, h = pos ? pos.h : 160;
+    if (!pos) {   // should not happen; never read a destroyed sprite, fall back to live objects
+      if (b && b.sprite && b.sprite.active !== false) { x = b.sprite.x; y = b.sprite.y; h = b._dispH || h; }
+      else if (this.player && this.player.sprite) { x = this.player.sprite.x, y = this.player.sprite.y; }
+      else return;
+    }
+    const mid = y - h * 0.5;   // torso (sprite.y is the feet)
+
+    const n = 15 + Math.floor(Math.random() * 5);   // 15-19 shards (user: 14-20)
+    for (let i = 0; i < n; i++) {
+      const o = this.add.rectangle(
+        x + (Math.random() - 0.5) * 34, mid + (Math.random() - 0.5) * h * 0.7,
+        5 + Math.random() * 9, 4 + Math.random() * 6, colors[i % colors.length], 1
+      ).setRotation(Math.random() * 6.28).setDepth(298);
+      const ang = -Math.PI / 2 + (Math.random() - 0.5) * 2.2;   // mostly up, spreading both ways
+      const spd = 130 + Math.random() * 210, grav = 640 + Math.random() * 320;
+      const vx = Math.cos(ang) * spd, vy = Math.sin(ang) * spd, life = 750 + Math.random() * 550;
+      const x0 = o.x, y0 = o.y;
+      this.tweens.add({
+        targets: o, duration: life, alpha: 0,
+        onUpdate: (tw) => {
+          const t = tw.progress * life / 1000;   // seconds since the burst
+          o.x = x0 + vx * t; o.y = y0 + vy * t + 0.5 * grav * t * t;
+          o.rotation += 0.14;
+        },
+        onComplete: () => { if (o.active !== false) o.destroy(); }
+      });
+    }
+    for (let i = 0; i < 8; i++) {   // embers: a few orange dots drifting up
+      const e = this.add.circle(
+        x + (Math.random() - 0.5) * 46, mid + (Math.random() - 0.5) * h * 0.6,
+        1.8 + Math.random() * 1.8, i % 2 ? 0xffb066 : 0xff7a2f, 1
+      ).setDepth(298);
+      this.tweens.add({
+        targets: e, x: e.x + (Math.random() - 0.5) * 70, y: e.y - (46 + Math.random() * 80), alpha: 0,
+        duration: 900 + Math.random() * 550, ease: 'Sine.easeOut', onComplete: () => { if (e.active !== false) e.destroy(); }
+      });
+    }
+    for (let i = 0; i < 4; i++) {   // dust: four soft grey-brown puffs swelling on the ground
+      const d = this.add.circle(x + (i - 1.5) * 26, y - 8, 15 + Math.random() * 9, 0x9a8878, 0.22).setDepth(297);
+      this.tweens.add({
+        targets: d, scaleX: 2.6, scaleY: 1.9, alpha: 0,
+        duration: 850 + Math.random() * 350, ease: 'Sine.easeOut', onComplete: () => { if (d.active !== false) d.destroy(); }
+      });
+    }
+  }
+
+  // The dialog itself: a translucent dark box at the bottom (760 x 110, centred, depth 300, scrollFactor 0),
+  // the speaker's name over its left edge (warm orange for 將軍俑, light grey for 旁白 - whose line is also
+  // italic), the line itself under it. `step()` chains itself with time.delayedCall, so nothing can interrupt it.
+  _defeatDialog(sc, lineMs, gapMs, holdMs, flashColor) {
+    const FONT = 'Microsoft JhengHei, PingFang TC, sans-serif';
+    const self = this;
+    const lines = (sc.lines || []).filter((l) => l && l.text);
+    if (!lines.length) { this._defeatFinish(); return; }   // bad data must not strand the level without settlement
+
+    const boxW = 760, boxH = 110, boxY = (typeof GAME_H === 'number' ? GAME_H : 540) - boxH / 2 - 14;   // 471
+    // fillAlpha 1 x gameObject alpha 0.78 -> the translucency the user asked for (same trick as the generic
+    // cutscene's white cover), so the fade-in below only has to tween `alpha`.
+    const box = this.add.rectangle(GAME_W / 2, boxY, boxW, boxH, 0x121011, 1).setScrollFactor(0).setDepth(300).setStrokeStyle(2, flashColor, 0.9).setAlpha(0);
+    const nameT = this.add.text(GAME_W / 2 - boxW / 2 + 16, boxY - boxH / 2 - 10, '', {
+      fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: '#ff9a3a', stroke: '#1a1a1a', strokeThickness: 4
+    }).setOrigin(0, 1).setScrollFactor(0).setDepth(301).setAlpha(0);
+    const lineT = this.add.text(GAME_W / 2, boxY + 4, '', {
+      fontFamily: FONT, fontSize: '30px', color: '#fff6d8', stroke: '#1a1a1a', strokeThickness: 5,
+      align: 'center', wordWrap: { width: 704, useBreakWords: true }   // 704 < 760: the longest line wraps instead of sticking out
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(301).setAlpha(0);
+    this.tweens.add({ targets: box, alpha: 0.78, duration: 260 });      // translucent box
+    this.tweens.add({ targets: nameT, alpha: 1, duration: 260 });        // the name does not get a cap of its own
+
+    const step = (i) => {
+      if (!self.sys.isActive() || box.active === false || lineT.active === false) return;   // the scene is gone (replay / next level)
+      const ln = lines[i], nar = !!ln.narration;
+      nameT.setText(String(ln.speaker || ''));
+      nameT.setColor(nar ? '#c9c9c9' : '#ff9a3a');   // setText / setColor may hand back the scene instead of the text, so no chaining
+      lineT.setFontStyle(nar ? 'italic' : 'normal');
+      lineT.setColor(nar ? '#eaeaea' : '#fff6d8');
+      lineT.setText(String(ln.text));
+      lineT.setAlpha(0);
+      self.tweens.add({ targets: lineT, alpha: 1, duration: 200 });
+      self.time.delayedCall(lineMs, () => {
+        self.tweens.add({ targets: lineT, alpha: 0, duration: gapMs, onComplete: () => {
+          if (i + 1 < lines.length) { step(i + 1); return; }
+          self.time.delayedCall(holdMs, () => {   // 500 ms on the last line, then the original clear flow
+            if (box.active !== false) box.destroy();
+            if (nameT.active !== false) nameT.destroy();
+            if (lineT.active !== false) lineT.destroy();
+            self._defeatFinish();
+          });
+        } });
+      });
+    };
+    step(0);
+  }
+
+  // The same ending as the generic cutscene (duplicated so that path stays untouched): resume the global
+  // animation manager for the next scene, pay the clear bonus, then Cleared / End.
+  _defeatFinish() {
+    this.anims.resumeAll();
+    this._defeatSceneRun = false;   // init() resets `finished` but never a cutscene flag, and the instance is reused across levels
+    RUN.levelStats.time = Date.now() - RUN.levelStats.startMs;
+
+    if (RUN.levelBuff && RUN.levelBuff.clear_coins && typeof _addCoins === 'function') {
+      _addCoins(this.player, RUN.levelBuff.clear_coins);
+    }
+
+    if (RUN.level === GAME_DATA.levels.length) {
+      this.scene.start('End', { result: 'victory' });
+    } else {
+      this.scene.start('Cleared', { cleared: RUN.level, stats: RUN.levelStats });
+    }
   }
 
   // Steam rising from each fumarole (user 2026-11-12: like the vendor's wok smoke in effects.js - many small puffs, one every ~60 ms, swelling as they rise, drifting a little, fading in and out, two nested discs) instead of the old 18 big soft glow discs (user: it looked like a column of light).

@@ -775,7 +775,11 @@ class Enemy {
                 else this.fireProjectile(px, py, off);
             } else {
                 this.scene.time.delayedCall(delay, () => {
-                    if (this.dead) return;
+                    // chunk 11 (grok review of chunk 8, must-fix 2): the boss's death does not stop the scene clock, so a
+                    // volley that was already counting down (terracotta_archer fires at +1/+2/+3/+4 s) kept shooting
+                    // through the defeat cutscene - and its fire arrows hurt the player there. `surrendered` is set by
+                    // LevelScene._surrenderMinions(), `finished` by either cutscene path.
+                    if (this.dead || this.surrendered || this.scene.finished) return;
                     if (this.params.arc) this.fireArrow(px, py, i);
                     else this.fireProjectile(px, py, off);
                 });
@@ -897,6 +901,15 @@ class Enemy {
         const updateArrow = function (time, delta) {
             if (!arrow.active) { scene.events.off('update', updateArrow); return; }
             if (!scene.sys.isActive()) return;
+            // chunk 11 (grok review of chunk 8, must-fix 2): this listener is on scene.events, so LevelScene.update's
+            // early return on `finished` does not stop it - an arrow that was already in the air kept flying and
+            // kept spawning burn zones during the defeat cutscene. Tear the shot down the moment the level is over.
+            if (scene.finished) {
+                scene.events.off('update', updateArrow);
+                arrow.destroy();   // the arrow's own 'destroy' handler takes the glow sprites with it
+                if (tip && tip.active) tip.destroy();
+                return;
+            }
             const dt = Math.min(delta, 50) / 1000;
             arrow.x += vx * dt;
             vy += arc.gravity * dt;
@@ -1581,7 +1594,9 @@ class Enemy {
         const start = scene.time.now;
         let lastTick = 0;
         const onUpdate = function (time) {
-            if (!scene.sys.isActive()) {
+            // chunk 11 (grok review of chunk 8, must-fix 2): `finished` joins the inactive-scene teardown - a burn zone
+            // that was already burning would otherwise keep ticking damage during the defeat cutscene.
+            if (!scene.sys.isActive() || scene.finished) {
                 scene.events.off('update', onUpdate);
                 patch.destroy();
                 tongues.forEach(function (t) { t.destroy(); });

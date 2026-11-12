@@ -41,7 +41,7 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
 #lopts button.on{background:#b3541e}
 #linst button,#lopts button{appearance:none;font:700 15px 'Microsoft JhengHei','PingFang TC',sans-serif;color:#fff;background:rgba(10,18,36,.82);border:2px solid rgba(255,255,255,.55);border-radius:99px;padding:6px 16px;cursor:pointer}
 #lline{display:none;font-weight:800;color:#ffd966;text-shadow:-1px -1px 0 #0a1224,1px -1px 0 #0a1224,-1px 1px 0 #0a1224,1px 1px 0 #0a1224;max-width:90%}
-#lfoot{position:absolute;left:0;right:0;bottom:max(6px,env(safe-area-inset-bottom));text-align:center;font-size:12px;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000}
+#lfoot{position:absolute;left:0;right:0;bottom:max(6px,env(safe-area-inset-bottom));text-align:center;font-size:12px;font-weight:700;text-shadow:-1px -1px 0 #000,1px -1px 0 #000,-1px 1px 0 #000,1px 1px 0 #000;box-sizing:border-box;padding:0 4vmin;white-space:normal;line-height:1.45}   /* the AI credit at the end is long: it may wrap on a narrow portrait phone, never cut off (user 2026-11-13) */
 /* landscape: short and wide - everything is sized from the screen HEIGHT */
 @media (orientation:landscape){
   #lmain{gap:2.2vh}
@@ -86,12 +86,23 @@ body.loading #lstart{display:none}body.loading #lload{display:block}body.loading
 #lrecbox .btns{display:flex;gap:10px;justify-content:center;margin-top:10px}
 #lrecbox .btns button{appearance:none;font:700 16px 'Microsoft JhengHei',sans-serif;color:#fff;background:#2f6fc8;border:2px solid #fff;border-radius:99px;padding:5px 26px;cursor:pointer}
 #lrecbox .btns button.del{background:#6a2a2a}#lrecbox .btns button.del.arm{background:#c0392b}
+/* credits page (both builds: the 製作人員 button in #lopts; same structure/look as the play records page above, the text itself is fixed HTML in the markup) */
+#lcred{display:none;position:absolute;inset:0;z-index:7;background:rgba(0,0,0,.72);align-items:center;justify-content:center;padding:3vmin;box-sizing:border-box}
+#lcred.on{display:flex}
+#lcredbox{background:#0a1224;border:2px solid rgba(255,255,255,.25);border-radius:18px;width:640px;max-width:100%;max-height:96%;overflow:auto;padding:12px 18px;box-sizing:border-box;text-align:left;font-size:15px;line-height:1.55}
+#lcredbox h3{margin:4px 0 10px;color:#ffc94a;font-size:19px;text-align:center}
+#lcredbox p{margin:0 0 7px}
+#lcredbox p b{color:#ffc94a}
+#lcredbox .note{font-size:12px;color:#b8c4d8;margin-top:8px}
+#lcredbox .btns{display:flex;gap:10px;justify-content:center;margin-top:10px}
+#lcredbox .btns button{appearance:none;font:700 16px 'Microsoft JhengHei',sans-serif;color:#fff;background:#2f6fc8;border:2px solid #fff;border-radius:99px;padding:5px 26px;cursor:pointer}
 /* 大字版 (user 2026-10-14, 字體：大字): the small landing-page text is raised to at least 18px; the bigger text is left alone */
 body.big #linst button,body.big #lopts button{font-size:18px}
 body.big #lfoot{font-size:16px}
 body.big #lbox{font-size:18px}body.big #lbox h3{font-size:20px}
 body.big #lline,body.big #lhint{font-size:18px!important}
 body.big #lrecbox{font-size:18px}body.big #lrecbox h3{font-size:22px}body.big #lrecbox h4{font-size:18px}body.big #lrecbox .grid b{font-size:22px}body.big #lrecbox .grid span,body.big #lrecbox .note,body.big #lrecbox table{font-size:16px}body.big #lrecbox .btns button{font-size:18px}body.big #lrecbox{padding:12px 10px}body.big #lrecbox td,body.big #lrecbox th{padding:3px 2px}   /* 遊玩記錄 (trial build); tighter padding so the six-column table fits a portrait phone */
+body.big #lcredbox{font-size:18px}body.big #lcredbox h3{font-size:22px}body.big #lcredbox p,body.big #lcredbox p b{font-size:18px}body.big #lcredbox .note{font-size:16px}body.big #lcredbox .btns button{font-size:18px}
 @media (orientation:landscape){#lrecbox{width:94vw;max-width:860px}#lrecbox .grid{grid-template-columns:repeat(6,1fr)}}   /* phones held sideways: the six numbers in one row */
 </style>
 </head><body>
@@ -119,9 +130,19 @@ body.big #lrecbox{font-size:18px}body.big #lrecbox h3{font-size:22px}body.big #l
     <button type="button" id="lmodalok">OK</button>
   </div></div>
   <div id="lrec"><div id="lrecbox"></div></div>
+  <div id="lcred"><div id="lcredbox">
+    <h3>製作人員</h3>
+    <p><b>台北好好玩</b>／企劃、製作、審核與測試：tabrislee-create</p>
+    <p><b>AI 協作（程式與企劃）</b>：Claude（Anthropic）：專案統籌、程式撰寫與審查；Qwen3.8-Flash-Next（阿里雲，本機執行）：程式與文件撰寫；Grok（xAI）：程式碼審查</p>
+    <p><b>美術（AI 生成）</b>：角色、敵人、背景與地形圖皆為 AI 生成：Qwen-Image（透過 ComfyUI）；背景圖以作者提供的實景照片作為參考</p>
+    <p><b>遊戲引擎</b>：Phaser 3（MIT 授權）</p>
+    <p id="lcredlic"><b>授權</b>：試玩版採 CC BY-NC-ND 4.0</p>
+    <p class="note">所有 AI 產出皆經作者審核；遊戲內容為虛構，地名與地景僅作背景參考。</p>
+    <div class="btns"><button type="button" id="lcredok">關閉</button></div>
+  </div></div>
 </div>
 
-<script>window.DEMO_BUILD = true; window.DEMO_VERSION = '0.3.32';   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
+<script>window.DEMO_BUILD = true; window.DEMO_VERSION = '0.3.33';   // the public demo bundle (tools/make_demo_bundle.py) sets this to true
 window.DEV_MENU = true;      // the 開發者選項 button on this page (full build only); set false for a public full release</script>
 <script src="viewport.js?v=20261009a"></script>
 <script src="titlecopy.js?v=20261012a"></script>
@@ -185,10 +206,12 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
     var im = new Image(); im.src = 'assets/avatar_' + id + '.png'; im.alt = ''; w.appendChild(im);
     $('lava').appendChild(w);
   });
-  if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 ' + (window.DEMO_VERSION ? 'v' + window.DEMO_VERSION : '（開發版）') + '｜AI 輔助製作'; }   // DEMO_VERSION: set by tools/make_demo_bundle.py from tools/demo_bundle/VERSION
+  // the short AI-credit line in the footer (user 2026-11-13, both builds); the full wording is on the 製作人員 page
+  var AI_CREDIT = '程式與企劃在 AI 輔助下完成、美術為 AI 生成（參考實景照片），由作者審核';
+  if (demo) { $('lflag').textContent = '試玩版'; $('lfoot').textContent = '© 2026 tabrislee-create｜試玩版 ' + (window.DEMO_VERSION ? 'v' + window.DEMO_VERSION : '（開發版）') + '｜' + AI_CREDIT; }   // DEMO_VERSION: set by tools/make_demo_bundle.py from tools/demo_bundle/VERSION
   else {   // full build (user 2026-10-14): © + build stamp from version.js (written by the post-commit hook, tools/git_hooks/post-commit); loaded fresh every time so a phone never shows a stale stamp
-    // each part kept on one line (a narrow portrait phone wraps only at the ｜ separators, never inside a part)
-    var foot = function (stamp) { $('lfoot').innerHTML = ['© 2026 tabrislee-create', '開發版' + (stamp ? ' ' + stamp : ''), 'AI 輔助製作'].map(function (t) { return '<span style="white-space:nowrap">' + t.replace(/[&<>]/g, '') + '</span>'; }).join('｜'); };
+    // each part kept on one line (a narrow portrait phone wraps only at the ｜ separators, never inside a part); the exception is the last part, the long AI credit (user 2026-11-13)
+    var foot = function (stamp) { var parts = ['© 2026 tabrislee-create', '開發版' + (stamp ? ' ' + stamp : ''), AI_CREDIT]; $('lfoot').innerHTML = parts.map(function (t, i) { return '<span style="white-space:' + (i === parts.length - 1 ? 'normal' : 'nowrap') + '">' + t.replace(/[&<>]/g, '') + '</span>'; }).join('｜'); };   // last part = the long AI credit: allowed to wrap, the other two stay on one line
     foot('');
     var vs = document.createElement('script'); vs.src = 'version.js?t=' + Date.now();
     vs.onload = function () { if (window.BUILD_STAMP) foot(window.BUILD_STAMP); };
@@ -208,6 +231,14 @@ window.DEV_MENU = true;      // the 開發者選項 button on this page (full bu
     var showFont = function () { fb.textContent = '字體：' + (window.__bigText ? '大字' : '標準'); fb.classList.toggle('on', !!window.__bigText); document.body.classList.toggle('big', !!window.__bigText); };
     fb.addEventListener('click', function () { window.__bigText = !window.__bigText; try { localStorage.setItem('bigText', window.__bigText ? '1' : '0'); } catch (e) {} showFont(); });
     showFont(); $('lopts').appendChild(fb);
+  }
+  // 製作人員 (credits): both builds (user 2026-11-13).  The page is fixed HTML in the markup (#lcredbox) - no innerHTML, nothing from outside the file; only the 授權 line is trial-build only, hidden here.
+  {
+    var cb = document.createElement('button'); cb.type = 'button'; cb.textContent = '製作人員';
+    cb.addEventListener('click', function () { $('lcred').classList.add('on'); });
+    $('lcredok').addEventListener('click', function () { $('lcred').classList.remove('on'); });
+    if (!demo) $('lcredlic').style.display = 'none';
+    $('lopts').appendChild(cb);
   }
   // 遊玩記錄: trial build only (user 2026-10-13); the records stay in this browser (records.js)
   if (demo) { var rb = document.createElement('button'); rb.type = 'button'; rb.textContent = '遊玩記錄'; rb.addEventListener('click', showRecords); $('lopts').appendChild(rb); }

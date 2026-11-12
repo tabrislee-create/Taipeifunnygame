@@ -2232,9 +2232,15 @@ var FX = (function () {
     scene.physics.world.pause();
     scene.tweens.timeScale = 0.05;
     window.setTimeout(function () {
-      scene.physics.world.resume();
+      // chunk 11 (grok review of chunk 8, must-fix 1): the boss's killing blow runs takeHit -> hitEnemy -> hitStop
+      // inside the same synchronous call that ends the level, so this timeout is ALREADY scheduled when the defeat
+      // cutscene pauses physics and sets `finished`. Resuming here would leave the Arcade world stepping for the rest
+      // of the cutscene (LevelScene.update returns early on `finished`, but world.update sits on scene.events
+      // 'update', which keeps firing), sliding the player along with whatever velocity the last hit left behind.
+      // The tween time scale is still restored - the dialog/flash tweens the cutscene creates must keep running.
       scene.tweens.timeScale = 1;
       scene._hitStop = false;
+      if (!scene.finished) scene.physics.world.resume();
     }, ms);
   }
 

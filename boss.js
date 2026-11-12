@@ -1568,6 +1568,9 @@ class Boss {
       this._deadEmitted = true;
       this.scene.events.emit('enemy-dead', { x: x, y: y, ref: this });  // contract payload, same as Enemy
     }
+    // chunk 8 (user 2026-11-13): remember where the body fell - the defeat cutscene of level 10 sprays its
+    // pottery shards here and the sprite is destroyed right below, so nothing else can read the position.
+    this._deathPos = { x: x, y: y, h: this._dispH };
     if (this.def.id === 'boss_slime_king') this._leaveGreyCorpse();   // level 5 boss (user 2026-10-14): stays on the field, the iridescent colours drained to grey
     else this.sprite.destroy();
   }
