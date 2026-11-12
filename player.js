@@ -174,7 +174,7 @@ class Player {
 
     const upEdge = up && !this._prevUp;
     if (upEdge) this._jumpBufferAt = now;
-    const canJump = (grounded || (now - this._lastGroundedAt <= 100)) && !this._jumpUsed && !knock && !dash;
+    const canJump = (grounded || (now - this._lastGroundedAt <= 100)) && !this._jumpUsed && !knock && !dash && !this.terrainNoJump;
     if (canJump && (upEdge || (now - this._jumpBufferAt <= 100))) {
       const jv = st.jump_velocity * (580 / 600) * (scene.flood ? Math.SQRT1_2 : 1);   // flood: half the jump height (height ~ v^2)
       b.setVelocityY(jv);

@@ -157,6 +157,7 @@ class BootScene extends Phaser.Scene {
     for (let i = 1; i <= 4; i++) { this.load.image('rock_stone_' + i, 'assets/rock_stone_' + i + '.png'); this.load.image('rock_boulder_' + i, 'assets/rock_boulder_' + i + '.png'); } // golem's thrown stones / rolling boulder: 4 variants each, picked at random
     this.load.image('rock_road', 'assets/rock_road.png'); // level-15 boss stage: one painted continuous rock trail
     for (let i = 1; i <= 4; i++) this.load.image('rock_block_' + i, 'assets/rock_block_' + i + '.png'); // level-15 boss-stage rock blocks (cropped, never stretched, see level.js _buildRocks)
+    for (let i = 1; i <= 4; i++) this.load.image('mud_patch_' + i, 'assets/mud_patch_' + i + '.png'); // levels 11-14 mud strip (level.js _mud)
     this.load.image('thorn_spike','assets/thorn_spike.png'); this.load.image('thorn_mound', 'assets/thorn_mound.png'); // bramble's ground thorn: dirt mound first, then the spike
     var th = Object.keys(D.themes);
     for (var m = 0; m < th.length; m++) {

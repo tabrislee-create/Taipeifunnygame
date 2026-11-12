@@ -214,7 +214,10 @@ var WX = (function () {
   // Indoor levels (user 2026-10-13: level 4 is indoors): no wet floor / reflection / slippery footing / floor splashes.
   var INDOOR_LEVELS = { 4: true };
   // Level 15 (Seven-Star Mountain boss level, user 2026-11-12): forced strong wind in every weather / time of day, and never flooded (even on thunder / typhoon).
-  var NO_FLOOD_LEVELS = { 15: true }, FORCED_WIND_LEVELS = { 15: true };
+  // User 2026-11-13 (「11-15 hiking 不會淹水」): the whole hiking stretch 11-15 is never flooded, so all five are listed here. Level 11 already never flooded through MOUNTAIN, so adding it is belt-and-braces;
+  // level 13 (擎天崗, in OUTDOOR) is the one whose behaviour really changes - it used to flood on thunder / typhoon and is dry from now on. isFlood() also has its own 11-15 rule returning false; both agree.
+  // FORCED_WIND_LEVELS is a separate table (same line, untouched): level 15 keeps strong wind in every weather.
+  var NO_FLOOD_LEVELS = { 11: true, 12: true, 13: true, 14: true, 15: true }, FORCED_WIND_LEVELS = { 15: true };
   // Indoors the rain is only visible on the window glass, not on the frames (screen rects of the glass panes; level 4's observation-deck windows, measured from a screenshot: 3 panes wide x 2 rows,
   // mullions at x 421-433 / 803-816, transom at y 110-123, top frame to y 55, sill from y 434; the backdrop only drifts a few px).
   var INDOOR_WINDOW = { 4: [ [178, 58, 419, 108], [435, 58, 801, 108], [818, 58, 960, 108], [178, 125, 419, 432], [435, 125, 801, 432], [818, 125, 960, 432] ] };
@@ -232,7 +235,10 @@ var WX = (function () {
   // WET_MAX = how wet the street gets per weather (sheen strength); WET_GRIP = the footing factor at full wetness (first guesses, to be tuned by the user); WET_SECONDS = time to get fully wet.
   var WET_MAX = { drizzle: 0.55, rain: 0.85, thunder: 1, typhoon: 1 }, WET_GRIP = { drizzle: 1, rain: 0.15, thunder: 0.1, typhoon: 0.05 }, WET_SECONDS = 8;
   // Levels whose wet street shows a mirror image of the backdrop's lower strip instead of the random sheen / light streaks (user 2026-10-12: do 1 and 6 first, then the others).
-  var WET_REFLECT_LEVELS = { 1: true, 2: true, 3: true, 5: true, 6: true };
+  // User 2026-11-13 (倒影擴大): opened to every level that has perspective ground data (PERSP in level.js = 1-15; the user asked for 1-15 only, so 16 and up - level 18 included - are deliberately NOT here),
+  // i.e. 7-15 are added next to the existing 1 / 2 / 3 / 5 / 6. Note rain itself only ever happens on the OUTDOOR levels (see OUTDOOR near pickWeather: 1, 2, 3, 13, 15, 17, 27, 29, 30) plus levels 1-5,
+  // so of the new numbers only 13 and 15 actually get a wet street today; the rest wait until more levels can rain (that is out of this change's scope).
+  var WET_REFLECT_LEVELS = { 1: true, 2: true, 3: true, 5: true, 6: true, 7: true, 8: true, 9: true, 10: true, 11: true, 12: true, 13: true, 14: true, 15: true };
   var WET_STREAK_COLORS = { day: [0xffffff, 0xdbe9ff], dusk: [0xffc08a, 0xff9a6a, 0xffe0c0], night: [0xffb070, 0xff6a8a, 0x7ab0ff, 0xffe6a0] };
   var WET_SHEEN = { day: [0xdbe8ff, 0.5], dusk: [0xffc8a0, 0.5], night: [0x7a98ff, 0.42] };   // user 2026-10-12: stronger reflection (was 0.3 / 0.32 / 0.26)
   var MAX = 40;
@@ -356,10 +362,11 @@ var WX = (function () {
   // it sits at depth -0.5, above the backdrop picture and below the pit graphics (-0.1), so the holes cover it. scene.wetGrip is the slippery-footing factor read by Player.update.
   // The reflection: the strip of the backdrop picture just above the shop base line (the paving band's top), mirrored, slightly blurred, faded downwards, drawn once into a canvas texture;
   // it sits where the paving band is (same scale / parallax as the backdrop) and gets the backdrop's own colour look (ColorMatrix), so its colours are the picture's.
-  function buildReflection(ctx, scene) {
+  // keySuffix (user 2026-11-13, optional): a redraw puts the new canvas under a different key - see refreshReflection, the puddle mirror may still be holding the old one.
+  function buildReflection(ctx, scene, keySuffix) {
     var bd = scene.backdrop, pr = (typeof PERSP !== 'undefined') ? PERSP[RUN.level] : null;
     if (!bd || !bd.active || !pr || !bd.texture) return;
-    var src = bd.texture.getSourceImage(), iw = src.width, ih = src.height, bandPx = Math.round(pr.band * 1920 / 3168), rh = bandPx, key = 'wetrefl_' + RUN.level;
+    var src = bd.texture.getSourceImage(), iw = src.width, ih = src.height, bandPx = Math.round(pr.band * 1920 / 3168), rh = bandPx, key = 'wetrefl_' + RUN.level + (keySuffix || '');
     if (scene.textures.exists(key)) scene.textures.remove(key);
     var ct = scene.textures.createCanvas(key, iw, rh), c = ct.getContext();
     c.save(); c.translate(0, rh); c.scale(1, -1);
@@ -373,6 +380,29 @@ var WX = (function () {
     var look = getSkyLook(ctx.cond);
     if (scene.renderer.type === Phaser.WEBGL && img.postFX) { var cm = img.postFX.addColorMatrix(); if (look.sat !== 0) cm.saturate(look.sat); if (look.bri !== 1) cm.brightness(look.bri, true); }
     ctx.reflImg = img; ctx.reflKey = key;
+  }
+  // User 2026-11-13: level 15 changes its backdrop picture when the boss stage starts (level.js _swapBossStage: Xiaoyoukeng -> Qixing main peak), and the mirror was drawn from the old picture,
+  // so that level calls this right after the swap. It redraws the mirror from the new picture and re-points the puddle mirror (ctx.puddleRefl, a copy of the same canvas) at the result;
+  // the redraw uses a key suffix instead of reusing 'wetrefl_<level>', because removing a texture that a live image still uses leaves that image blank (Phaser keeps the destroyed Texture object).
+  // No weather ctx, no mirror (not raining / a level without one), or an already-finished weather = nothing to do, so calling it on a dry street is safe.
+  function refreshReflection(scene) {
+    var ctx = scene && scene._wx;
+    if (!ctx || ctx.destroyed || !ctx.reflImg) return;
+    var oldKey = ctx.reflKey;
+    ctx.reflImg.destroy(); ctx.reflImg = null;
+    buildReflection(ctx, scene, '_sw');
+    if (!ctx.reflImg) {   // the new backdrop gives no usable picture: leave the street without a mirror (updateWet then draws the plain sheen, as on a level that was never opened for reflections)
+      if (ctx.puddleRefl) { ctx.puddleRefl.destroy(); ctx.puddleRefl = null; }
+      if (oldKey && scene.textures.exists(oldKey)) scene.textures.remove(oldKey);
+      ctx.reflKey = null;
+      return;
+    }
+    if (ctx.puddleRefl) {   // (a copy of the old canvas - re-point it before the old key is freed below)
+      ctx.puddleRefl.setTexture(ctx.reflKey);   // same strip, so the puddle ellipses' mask still fits; x is re-read from reflImg every frame by updatePuddles
+      ctx.puddleRefl.setScale(ctx.reflImg.scaleX, ctx.reflImg.scaleY);
+      ctx.puddleRefl.y = ctx.reflImg.y;
+    }
+    if (oldKey && oldKey !== ctx.reflKey && scene.textures.exists(oldKey)) scene.textures.remove(oldKey);   // the old canvas is free now (its image is destroyed, the puddle mirror was re-pointed)
   }
   function updateWet(ctx, dt, time) {
     if (!ctx.wetG) return;
@@ -399,9 +429,16 @@ var WX = (function () {
   // a translucent water body drawn over the characters, a rippling surface line, and rising bubbles from any character / enemy whose whole body is under the surface.
   // The no-pit ground and the half speed / half jump are in level.js and player.js (scene.flood).
   var FLOOD_H = 38, FLOOD_COLOR = { day: 0x4d7088, dusk: 0x5b6079, night: 0x1c2a48 };
+  // User 2026-11-13 (「6-10 戶外會淹水，11-15 hiking 不會淹水」): thunder / typhoon only, then the level rules, in this order:
+  //   6-10  -> always flood (9 and 10 are in MOUNTAIN, but the user wants them flooded, so this returns before the MOUNTAIN test);
+  //   11-15 -> never flood (the hiking stretch; level 13 used to, 11 already didn't through MOUNTAIN / NO_FLOOD_LEVELS);
+  //   every other level (1-5, 16 up) -> the old result: flat outdoor ground, and only on a level that could rain before (oldRainLevel), so the levels 16+ that only started raining on 2026-11-13 stay dry.
   function isFlood(cond, level) {
     var c = normCond(cond);
-    return (c.wx === 'thunder' || c.wx === 'typhoon') && !INDOOR_LEVELS[level] && !NO_FLOOD_LEVELS[level] && MOUNTAIN.indexOf(level) < 0;
+    if (c.wx !== 'thunder' && c.wx !== 'typhoon') return false;
+    if (level >= 6 && level <= 10) return true;
+    if (level >= 11 && level <= 15) return false;
+    return !INDOOR_LEVELS[level] && !NO_FLOOD_LEVELS[level] && MOUNTAIN.indexOf(level) < 0 && oldRainLevel(level);
   }
   function floodSplash(ctx, x, y, n, power) {
     for (var i = 0; i < n; i++) ctx.drops.push({ x: x + rand(-10, 10), y: y, vx: rand(-60, 60) * power, vy: -rand(110, 230) * power, r: rand(1.6, 3.4), life: 0, max: rand(0.35, 0.6) });
@@ -1192,6 +1229,7 @@ var WX = (function () {
       puddles: [], puddleG: null, puddleMaskG: null, puddleRefl: null, rippleG: null, ripples: [],
       last: 0, destroyed: false
     };
+    scene._wx = ctx;   // user 2026-11-13: the level's own weather ctx, so WX.refreshReflection(scene) can find it (level 15's boss-stage swap redraws the wet-street mirror). Cleared again in destroy below.
     
     // Sky Cut Logic
     if (scene.skyCut) {
@@ -1353,6 +1391,7 @@ var WX = (function () {
         ctx.splashes = [];
         if (ctx.wetG) ctx.wetG.destroy();
         if (ctx.reflImg) { ctx.reflImg.destroy(); ctx.reflImg = null; if (scene.textures.exists(ctx.reflKey)) scene.textures.remove(ctx.reflKey); }
+        // (ctx.reflKey is the '_sw' key after a boss-stage redraw - see refreshReflection - so the same line frees that canvas too; the pre-swap one was already removed there)
         if (ctx.puddleG) ctx.puddleG.destroy();
         if (ctx.puddleRefl) ctx.puddleRefl.destroy();
         if (ctx.puddleMaskG) ctx.puddleMaskG.destroy();
@@ -1364,12 +1403,19 @@ var WX = (function () {
         if (ctx.windG) ctx.windG.destroy();
         ctx.windLines = [];
         scene.wetGrip = 1;
+        if (scene._wx === ctx) scene._wx = null;
       }
     };
   }
 
   // Per-level random weather (2026-10-09 plan). sunny = no overlay (35%); typhoon 10% on outdoor levels; fog only on mountain levels.
   var OUTDOOR = [1, 2, 3, 13, 15, 17, 27, 29, 30], MOUNTAIN = [5, 9, 10, 11, 22, 23, 29];
+  // The test that decided whether a level could draw rain / thunder / typhoon before 2026-11-13. Kept for the flood rule only (isFlood): the flood table for levels 16+ must not follow the new, wider canRain(),
+  // otherwise every level from 16 on would start flooding the day it learned to rain.
+  function oldRainLevel(level) { return OUTDOOR.indexOf(level) >= 0 || level <= 5; }
+  // User 2026-11-13: 「戶外的都會下雨」but the whole change 「只涵蓋 1～15 關」- so on levels 1-15 anything that is not an indoor level (INDOOR_LEVELS, today only level 4) may draw rain / thunder / typhoon,
+  // and from level 16 on the old test applies unchanged (OUTDOOR plus levels 1-5): 16, 18-26, 28 still never rain, 17 / 27 / 29 / 30 keep raining as before.
+  function canRain(level) { return level <= 15 ? !INDOOR_LEVELS[level] : oldRainLevel(level); }
   // Returns a condition { time: 'day' | 'dusk' | 'night', wx: null | weather id }; the two axes are drawn separately.
   var CLEAR_DAY = { time: 'day', wx: null };
   function pickWeather(level) {
@@ -1389,7 +1435,7 @@ var WX = (function () {
     }
     if (wx === undefined && !auto) wx = null;
     if (wx === undefined) {
-      var out = OUTDOOR.indexOf(level) >= 0 || level <= 5, pool = ['cloudy', 'drizzle'];
+      var out = canRain(level), pool = ['cloudy', 'drizzle'];   // user 2026-11-13: was `OUTDOOR.indexOf(level) >= 0 || level <= 5` (= oldRainLevel); canRain opens levels 1-15 except the indoor ones
       if (out) pool = pool.concat(['rain', 'thunder']);
       if (level >= 1 && level <= 5) pool.push('fog1');   // levels 1-5 (user 2026-10-13): lowland 1-3 = plain fog only; high places 4 (101) and 5 (Xiangshan) = all three fogs
       if (level === 4 || level === 5) pool.push('fog', 'fog3');
@@ -1410,7 +1456,7 @@ var WX = (function () {
   // thunder / typhoon are listed as 雷雨淹水 / 颱風淹水 (that is what they are there).
   function levelOptions(level) {
     var times = TIMES_OF_LEVEL[level] || (level >= 1 && level <= 5 ? ['day', 'dusk', 'night'] : ['day', 'dusk']), TN = { day: '白天', dusk: '黃昏', night: '夜晚' };
-    var out = OUTDOOR.indexOf(level) >= 0 || level <= 5, ids = ['none', 'cloudy', 'drizzle'], fl = isFlood({ wx: 'thunder' }, level);
+    var out = canRain(level), ids = ['none', 'cloudy', 'drizzle'], fl = isFlood({ wx: 'thunder' }, level);   // 2026-11-13: same switch as pickWeather, so the menu lists exactly what can be drawn (fl = isFlood -> 雷雨淹水 / 颱風淹水)
     if (out) ids.push('rain', 'thunder', 'typhoon');
     if (level >= 1 && level <= 5) ids.push('fog1');
     if (level === 4 || level === 5) ids.push('fog', 'fog3'); else if (MOUNTAIN.indexOf(level) >= 0) ids.push('fog');
@@ -1939,5 +1985,5 @@ var WX = (function () {
     };
   }
 
-  return { start: start, pick: pickWeather, isFlood: isFlood, options: levelOptions, name: weatherName, softCloud: makeSoftCloud, cloud2: makeCloud2, skyPieces: skyPieceList, skyLook: getSkyLook, moon: MOON, rainBriOfLevel: RAIN_BRI_OF_LEVEL, drizzle: DRIZZLE, storm: STORM, typhoonDrops: TYPHOON_DROPS };
+  return { start: start, pick: pickWeather, isFlood: isFlood, refreshReflection: refreshReflection, options: levelOptions, name: weatherName, softCloud: makeSoftCloud, cloud2: makeCloud2, skyPieces: skyPieceList, skyLook: getSkyLook, moon: MOON, rainBriOfLevel: RAIN_BRI_OF_LEVEL, drizzle: DRIZZLE, storm: STORM, typhoonDrops: TYPHOON_DROPS };
 })();

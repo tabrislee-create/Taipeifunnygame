@@ -38,7 +38,8 @@ const PERSP = {
   18: { bottom: 1312, band: 76, vpy: 990, vpx: 0.5, base: [125, 114, 113], pave: [112, 103, 106], frontMax: 528 }   // level 18 (user 2026-10-13, Ximending wide panorama pano45_s2101): numbers from art_eval/lv_shinkai/v3/out/L18v3_pano45p_s2105_persp.json (2026-10-13: 2105p + TAIPEI painted by add_taipei_text.py, no grey band; replaced 2101p, backup art_eval/persp/prev2101p_*) (vpy 899 measured from the crossing stripe edges 2026-10-13, was the pipeline default 1157)
 };
 // Pebble pit (level data pit_kind: 'pebble', user 2026-10-12: Taiwan's pebble health-walk path at the bottom of a pit): the player on the pebbles walks slower and every step hurts a little. Values are first guesses.
-const PEBBLE_SLOW = 0.6, PEBBLE_DMG = 3, PEBBLE_TICK_MS = 600;
+// User 2026-11-12: the slowdown is now the same as the mud / flood one (FLOOD_SLOW = x0.5). The damage is unchanged (only while walking, PEBBLE_DMG every PEBBLE_TICK_MS).
+const PEBBLE_SLOW = 0.5, PEBBLE_DMG = 3, PEBBLE_TICK_MS = 600;
 const ENEMY_SLIP_ACCEL = 1600;   // px/s^2 of an enemy's ground speed change on a dry street's worth of grip (x wetGrip when wet); the player uses 3600. First guess, user to tune.
 const FIRE_ENTER_DMG = 8, FIRE_DMG = 2, FIRE_TICK_MS = 500, FIRE_LINGER_MS = 2500;
 const POISON_DMG = 1, POISON_TICK_MS = 500, POISON_LINGER_MS = 8000;
@@ -51,6 +52,10 @@ const ROCK_PICS = 4, ROCK_PIC_SCALE = 0.45;   // painted rock pictures (assets/r
 const ROCK_H = [40, 70, 100, 125, 150];   // level-15 boss stage rock heights (px above the ground line); jump apex is ~140, each step is <= 30 higher than the one before
 const FLOOD_SLOW = 0.5;   // flood (user 2026-10-13): walking speed x0.5 (the jump is x1/sqrt2 = half the height, in player.js)
 const PERSP_FACE_DY = 12;   // the cross-section's top edge sits this far below the ground line (= the picture's bottom edge)
+// Level-15 fumarole steam (levels.json smoke_vents, redrawn every frame by _drawVents). User 2026-11-12: 參考火旺伯炒鍋的煙 = the numbers follow VENDOR_ATK.skill in effects.js (smokeEveryMs 60, smokeLife 1300-1800, r0 6-10, smokeGrow 24, the decelerating rise curve 1-(1-u)^1.6, the alpha curve A*min(1,u*5)*(1-u), two nested discs: outer fainter / wider x1.3). VENT_SMOKE_SLOTS puff slots per vent, each slot re-emitting every VENT_SMOKE_LIFE ms, gives about one new puff every 60 ms (26 slots x ~1.55 s life).
+// Colours stay WHITE, not the vendor's grey (user 2026-11-13: 硫磺蒸氣用白色). The peak alpha was first set above the vendor's 0.38 so white steam reads against the blue sky, then dropped to 0.28 - below the vendor's - because 26 slots x 2 vents stacked into what read as one solid white light column instead of separate puffs (user 2026-11-13: 煙團淡一些); the outer/inner ratio (0.55 / 1) is unchanged, so only the whole plume gets lighter, not its internal layering (pi 2026-11-12, tune VENT_SMOKE_ALPHA on the real build).
+// VENT_SMOKE_SPEED = per-slot rise-distance multiplier, seeded once per slot (see _drawVents): every slot used to climb the same `rise` with the same curve, so all puffs moved at one speed (user 2026-11-13: 噴煙的速度要有快有慢). 0.55..1.6 keeps the fastest puff at 1.6x the vent's rise (levels.json v.rise, default 190 -> 304 px at the reference height), the stated ceiling, so nothing shoots off the top of the picture; VENT_SMOKE_LIFE is deliberately NOT touched with it - shortening the fast slots would also change how many puffs are alive at once (the ~60 ms emission rate above), which is the "count" the user said to leave alone (pi 2026-11-12).
+const VENT_SMOKE_SLOTS = 26, VENT_SMOKE_LIFE = [1300, 1800], VENT_SMOKE_R0 = [6, 10], VENT_SMOKE_GROW = 24, VENT_SMOKE_ALPHA = 0.28, VENT_SMOKE_RISE = 190, VENT_SMOKE_RISE_POW = 1.6, VENT_SMOKE_SPEED = [0.55, 1.6], VENT_SMOKE_LEAN = 14, VENT_SMOKE_WOBBLE = 5;
 
 class LevelScene extends Phaser.Scene {
   constructor() { super('Level'); }
@@ -77,8 +82,9 @@ class LevelScene extends Phaser.Scene {
     this.weatherId = this.cond.wx;
     RUN.levelBuff = levelBuffFor(RUN.char, this.cond);   // this character's weather / night bonus for this level only (characters.json level_buff); cleared on shutdown
     this.flood = WX.isFlood(this.cond, RUN.level);
+    this.noPits = this.flood || !!(lvl.no_pits);   // no-pit ground (continuous segments): flood or level data (levels 11-14 mud)
     let groundSegs = lvl.ground;
-    if (this.flood) {   // flood: no pits, so each ground segment is stretched to meet the next one (lvl.ground itself is left alone)
+    if (this.noPits) {   // no pits: each ground segment is stretched to meet the next one (lvl.ground itself is left alone)
       const sorted = lvl.ground.slice().sort((a, b) => a.x - b.x);
       groundSegs = sorted.map((sg, i) => (i < sorted.length - 1 ? Object.assign({}, sg, { w: sorted[i + 1].x - sg.x }) : sg));
       this.groundSegments = groundSegs;
@@ -180,8 +186,8 @@ class LevelScene extends Phaser.Scene {
     this._pitG = null;   // the scene object is reused between levels: drop the previous run's (destroyed) pit graphics
     this._pitStatus = { burn: { until: 0, nextTick: 0 }, poison: { until: 0, nextTick: 0 } };
     this._inPit = null;
-    if (this.flood && this._persp) this._ensurePitLayers();   // the ground cross-sections are still placed by _drawPitsPersp
-    if (sysm && !this.flood) {
+    if (this.noPits && this._persp) this._ensurePitLayers();   // ground cross-sections are still placed by _drawPitsPersp
+    if (sysm && !this.noPits) {
       const segs = lvl.ground.slice().sort((a, b) => a.x - b.x);
       for (let i = 0; i < segs.length - 1; i++) {
         const l = segs[i].x + segs[i].w, r = segs[i + 1].x;
@@ -200,6 +206,38 @@ class LevelScene extends Phaser.Scene {
         }
       }
       this._buildPitWarnings();
+    }
+
+    // Mud patch (levels 11-14, user 2026-11-13): a single random mud strip on the continuous ground; halves walk speed and prevents jumping.
+    this._mud = null;
+    this._mudSprites = [];
+    if (lvl.mud) {
+      const MUD_W_MIN = 260, MUD_W_MAX = 360;
+      const AVOID_SPAWN = 150, AVOID_EXIT = 300;
+      const minX = PLAYER_SPAWN_X + AVOID_SPAWN;
+      const maxX = lvl.exit_x - AVOID_EXIT;
+      const mudW = MUD_W_MIN + Math.random() * (MUD_W_MAX - MUD_W_MIN);
+      const lMin = minX;
+      const lMax = maxX - mudW;
+      if (lMax > lMin) {
+        const l = lMin + Math.random() * (lMax - lMin);
+        const r = l + mudW;
+        this._mud = { l, r };
+        // Visual: tile mud_patch images across [l, r] at the ground line
+        const yg = lvl.y_ground;
+        const texH = 42, texW = 180;
+        let cx = l;
+        while (cx < r) {
+          const idx = 1 + Math.floor(Math.random() * 4);
+          const flip = Math.random() > 0.5;
+          const sc = 0.9 + Math.random() * 0.2;
+          const sp = this.add.image(cx + texW * sc / 2, yg, 'mud_patch_' + idx);
+          sp.setOrigin(0.5, 1).setScale(sc).setDepth(-0.15);
+          if (flip) sp.setFlipX(true);
+          this._mudSprites.push(sp);
+          cx += texW * sc * 0.75;   // slight overlap
+        }
+      }
     }
 
     // Platforms
@@ -415,6 +453,18 @@ class LevelScene extends Phaser.Scene {
 
     // Player update
     this.player.terrainSlow = this._pebbleUnder() ? PEBBLE_SLOW : 1;   // read by Player.update (the pebbles slow the walk)
+    // Mud (levels 11-14): slow + no-jump while the player's feet are on the ground and within the mud span
+    this.player.terrainNoJump = false;
+    if (this._mud) {
+      const ps2 = this.player.sprite;
+      if (ps2 && ps2.body && (ps2.body.blocked.down || ps2.body.touching.down)) {
+        const cx2 = ps2.x;
+        if (cx2 >= this._mud.l && cx2 <= this._mud.r) {
+          this.player.terrainSlow = Math.min(this.player.terrainSlow, 0.5);
+          this.player.terrainNoJump = true;
+        }
+      }
+    }
     this.player.update(time, delta, this.keys);
 
     // Enemies update
@@ -784,7 +834,7 @@ class LevelScene extends Phaser.Scene {
       return out;
     };
     const xf = (x) => VPX + (x - VPX) / SP;   // world x on the feet plane -> x on the front plane (the cross-section face is nearer than the feet)
-    for (const gp of this._groundParts) { const a = xf(gp.seg.x), b = xf(gp.seg.x + gp.seg.w); gp.ts.x = a; gp.ts.width = b - a + (this.flood && gp !== this._groundParts[this._groundParts.length - 1] ? 1 : 0); }   // flood: neighbouring segments meet; +1 px overlap hides the light hairline that showed between them at fractional x
+    for (const gp of this._groundParts) { const a = xf(gp.seg.x), b = xf(gp.seg.x + gp.seg.w); gp.ts.x = a; gp.ts.width = b - a + (this.noPits && gp !== this._groundParts[this._groundParts.length - 1] ? 1 : 0); }   // noPits: neighbouring segments meet; +1 px overlap hides the light hairline that showed between them at fractional x
     for (const pit of this._pits) {
       const l = pit.l, r = pit.r;
       if (r < sx - 260 || l > sx + GAME_W + 260) { if (pit._warnT) pit._warnT.setVisible(false); continue; }
@@ -1112,19 +1162,30 @@ class LevelScene extends Phaser.Scene {
     } });
   }
 
-  // Steam puffs rising from each vent: deterministic from the clock (phase per puff), white, growing, drifting right a little, fading at both ends of the life.
+  // Steam rising from each fumarole (user 2026-11-12: like the vendor's wok smoke in effects.js - many small puffs, one every ~60 ms, swelling as they rise, drifting a little, fading in and out, two nested discs) instead of the old 18 big soft glow discs (user: it looked like a column of light).
+  // Still deterministic from the clock, so nothing needs cleaning up: VENT_SMOKE_SLOTS puff "slots" per vent, each slot born life*frac(...) ms ago and re-emitting every (its own fixed) life, so the whole plume is recomputed from `time` every frame. _swapBossStage clears it by setting this._vents = null.
+  // White, not the vendor's grey (user 2026-11-13); positions follow the backdrop picture (bd.x / displayWidth), so the steam keeps its parallax.
+  // Each slot also gets its own fixed rise-speed multiplier, so the plume has fast and slow puffs instead of one uniform column (user 2026-11-13).
   _drawVents(time) {
-    const g = this._ventG, bd = this.backdrop; if (!g || !bd) return;
+    const g = this._ventG, bd = this.backdrop; if (!g || !bd || !this._vents) return;
     g.clear();
-    const dw = bd.displayWidth, dh = bd.displayHeight, left = bd.x - dw / 2, top = bd.y - dh, N = 18, LIFE = 5200;
+    const frac = (n) => { const v = Math.sin(n * 12.9898) * 43758.5453; return v - Math.floor(v); };   // fixed pseudo-random 0..1 (does not change from frame to frame)
+    const dw = bd.displayWidth, dh = bd.displayHeight, left = bd.x - dw / 2, top = bd.y - dh;
     this._vents.forEach((v, vi) => {
-      const vx = left + v.u * dw, vy = top + v.v * dh, rise = (v.rise || 190) * (dh / 960);
-      for (let k = 0; k < N; k++) {
-        const ph = ((time + vi * 1300) / LIFE + k / N) % 1, wob = Math.sin((time / 700) + k * 2.1 + vi) * 7;
-        const a = 0.42 * Math.sin(Math.PI * Math.min(1, ph * 1.15));
+      if (!v || typeof v.u !== 'number' || typeof v.v !== 'number') return;   // a vent without u / v is skipped instead of drawing NaN
+      const vx = left + v.u * dw, vy = top + v.v * dh, rise = (v.rise || VENT_SMOKE_RISE) * (dh / 960);
+      for (let k = 0; k < VENT_SMOKE_SLOTS; k++) {
+        const sd = vi * 91.7 + k * 7.13;                                       // per-slot fixed seeds: size / drift / phase / life / rise speed
+        const life = VENT_SMOKE_LIFE[0] + (VENT_SMOKE_LIFE[1] - VENT_SMOKE_LIFE[0]) * frac(sd + 1.1);
+        const u = ((time + life * frac(sd + 2.2)) % life) / life;              // this slot's puff lifetime progress 0..1 (the vendor's u)
+        const a = VENT_SMOKE_ALPHA * Math.min(1, u * 5) * (1 - u);              // the vendor's alpha curve: quick fade-in, linear fade-out
+        const spd = VENT_SMOKE_SPEED[0] + (VENT_SMOKE_SPEED[1] - VENT_SMOKE_SPEED[0]) * frac(sd + 6.6);   // this slot's rise multiplier, 0.55-1.6 (seed offset 6.6 is new, the other slots' offsets are untouched), so the same slot always rises at the same speed
         if (a <= 0.01) continue;
-        const px = vx + ph * 80 + wob, py = vy - ph * rise, r = (14 + 62 * ph) * (dh / 960);
-        for (let j = 0; j < 3; j++) { g.fillStyle(0xf6f6f0, a * (0.38 + 0.2 * j)); g.fillCircle(px, py, r * (1 - 0.28 * j)); }   // soft edge: three nested discs, the outer one faintest
+        const r = VENT_SMOKE_R0[0] + (VENT_SMOKE_R0[1] - VENT_SMOKE_R0[0]) * frac(sd + 3.3) + VENT_SMOKE_GROW * u;   // r0 6-10, +24 over the life (the vendor's smokeGrow)
+        const px = vx + ((-10 + 20 * frac(sd + 4.4)) + VENT_SMOKE_LEAN) * u * life / 1000 + VENT_SMOKE_WOBBLE * Math.sin(time / 300 + frac(sd + 5.5) * 6) * u;   // drift + a slow wobble (the vendor's drift / lean / sin)
+        const py = vy - rise * spd * (1 - Math.pow(1 - u, VENT_SMOKE_RISE_POW)); // the vendor's decelerating rise, scaled by this slot's speed (fast puffs climb higher, slow ones stay low); rise = levels.json v.rise (default 190) scaled by the picture height, as before
+        g.fillStyle(0xf0efe8, a * 0.55); g.fillCircle(px, py, r * 1.3);         // outer disc: fainter and wider (white, the vendor's grey is not used)
+        g.fillStyle(0xf8f8f4, a); g.fillCircle(px, py, r);                      // inner disc: the brighter white core
       }
     });
   }
@@ -1139,6 +1200,7 @@ class LevelScene extends Phaser.Scene {
     this._lvKey = k;
     if (PERSP[k]) this._persp = PERSP[k];
     this._buildRocks(bs);
+    if (WX.refreshReflection) WX.refreshReflection(this);   // user 2026-11-13: the wet-street mirror was drawn from the Xiaoyoukeng picture, redraw it from the boss-stage one (a no-op when it is not raining / this level has no mirror)
   }
 
   // Stepped rock terrain (user 2026-11-11, plan/lv15_stepped_terrain_plan.md): boss_stage.rocks [{x, w, lv 1-5}] = solid blocks standing on the flat ground, heights ROCK_H[lv-1]. Left low, right high; the boss stands on the top one.

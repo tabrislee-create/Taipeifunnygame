@@ -1178,7 +1178,9 @@
   ],
   "exit_x": 3900,
   "intro_text_zh": "纜車緩緩滑過山谷，層層茶園的盡頭，遠方可以望見台北111。",
-  "y_ground": 400
+  "y_ground": 400,
+  "mud": true,
+  "no_pits": true
  },
  {
   "n": 12,
@@ -1323,7 +1325,9 @@
   ],
   "exit_x": 4100,
   "intro_text_zh": "二子坪步道的水池倒映著藍天，木橋與涼亭藏在山谷間的草坡上。",
-  "y_ground": 400
+  "y_ground": 400,
+  "mud": true,
+  "no_pits": true
  },
  {
   "n": 13,
@@ -1478,7 +1482,9 @@
   ],
   "exit_x": 4300,
   "intro_text_zh": "遼闊的擎天崗草原，遠方的牛群悠閒吃草，風一吹整片草海跟著起伏。",
-  "y_ground": 400
+  "y_ground": 400,
+  "mud": true,
+  "no_pits": true
  },
  {
   "n": 14,
@@ -1638,7 +1644,9 @@
   ],
   "exit_x": 4300,
   "intro_text_zh": "竹子湖的海芋田一望無際，白色花海鋪滿了陽明山腳下的山谷。",
-  "y_ground": 400
+  "y_ground": 400,
+  "mud": true,
+  "no_pits": true
  },
  {
   "n": 15,

@@ -606,8 +606,11 @@
   "speed": 30,
   "params": {
    "patrol_range": 150,
+   "death_fade": {
+    "ms": 600
+   },
    "thorn": {
-    "range": 150,
+    "range": 300,
     "aim_ms": 1500,
     "rise_px": 75,
     "stay_ms": 1000,
@@ -632,6 +635,9 @@
   "speed": 40,
   "params": {
    "patrol_range": 150,
+   "death_fade": {
+    "ms": 600
+   },
    "death_goo": {
     "duration_ms": 3000,
     "damage": 6,
@@ -655,6 +661,9 @@
   "params": {
    "amplitude": 40,
    "frequency": 2.0,
+   "death_fade": {
+    "ms": 600
+   },
    "shoot": {
     "range": 380,
     "windup_ms": 600,
@@ -679,6 +688,9 @@
   "damage": 15,
   "speed": 30,
   "params": {
+   "death_fade": {
+    "ms": 600
+   },
    "charge_speed": 360,
    "charge_duration": 0.7,
    "cooldown": 2.8,
@@ -699,6 +711,9 @@
   "damage": 18,
   "speed": 25,
   "params": {
+   "death_fade": {
+    "ms": 600
+   },
    "fire_rate": 2.6,
    "projectile_speed": 300,
    "projectile_damage": 18,

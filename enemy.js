@@ -1814,7 +1814,22 @@ class Enemy {
         if (this.params.split_count && !this.fell && !this._isSplitChild && this.scene.addEnemy) this._splitInto(x, y);   // before 'enemy-dead' so the level never sees "0 enemies left" in between
         if (this._telegraph) this._telegraph.destroy();
         this._thornGlowOff(); this._thornClear();   // a dead bramble takes its thorn with it
-        if (this.params.shatter_fx) {
+        const df = this.params.death_fade;
+        if (df) {
+            // Data-driven gray-then-fade death (hiking minions only; no such param = old behaviour).
+            // Gray tint + pure alpha fade, no scale change. The tint is re-applied every frame because
+            // the killing blow's FX.hitEnemy -> flashSprite schedules a clearTint ~100 ms after death that
+            // would otherwise wipe the gray part-way through the fade. onComplete guards s.active so a
+            // level end / restart / killAll that destroys the group first can never touch a dead sprite.
+            const ms = df.ms != null ? df.ms : 600, gray = df.tint != null ? df.tint : 0x9a9a9a;
+            if (s.body) s.body.setVelocity(0, 0);   // spec: stop moving while graying out (this branch only)
+            s.setTint(gray);
+            this.scene.tweens.add({
+                targets: s, alpha: 0, duration: ms,
+                onUpdate: function () { if (s.active) s.setTint(gray); },
+                onComplete: function () { if (s.active) s.destroy(); }
+            });
+        } else if (this.params.shatter_fx) {
             this._shatterFx(x, s.body ? s.body.bottom : y + 20);
             s.destroy();
         } else {
