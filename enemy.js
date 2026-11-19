@@ -1789,8 +1789,8 @@ class Enemy {
                 z.baseObj.setAlpha(0.5 * rise);
             }
             const pl = scene.player;
-            if (pl && !pl.dead && time - z.lastTick >= z.tickMs && Phaser.Geom.Intersects.RectangleToRectangle(rect, bodyRect(pl.sprite))) {
-                z.lastTick = time;
+            if (pl && !pl.dead && (scene._steamLastTick == null || time < scene._steamLastTick || time - scene._steamLastTick >= z.tickMs) && Phaser.Geom.Intersects.RectangleToRectangle(rect, bodyRect(pl.sprite))) {
+                scene._steamLastTick = time;   // one shared clock for every steam column (any enemy): overlapping columns do not stack, at most one hit per tick_ms
                 pl.tickDamage(Math.max(1, Math.round(z.dmg)), 0xbfe0ee);   // interval damage: not eaten by the 0.8 s invulnerability, no knock-back (QUESTIONS.md B5)
             }
         };

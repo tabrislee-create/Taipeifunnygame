@@ -734,7 +734,7 @@
    "landing_zone": {
     "warn_ms": 500,
     "duration_ms": 3000,
-    "tick_ms": 500,
+    "tick_ms": 1000,
     "damage": 3,
     "width": 70,
     "height": 90,
