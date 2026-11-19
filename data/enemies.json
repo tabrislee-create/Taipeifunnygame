@@ -719,9 +719,9 @@
    "death_fade": {
     "ms": 600
    },
-   "fire_rate": 2.6,
+   "fire_rate": 5.2,
    "projectile_speed": 300,
-   "projectile_damage": 18,
+   "projectile_damage": 6,
    "face_player": true,
    "windup_ms": 500,
    "arc": {
