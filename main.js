@@ -3,6 +3,28 @@ var GAME_DATA = null;
 window.DEMO = true;
 var SKY_CUT_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15]; // Levels with transparent-sky backdrops (assets/backdrop_lvNN_sky.png)
 
+// Per-level backdrop and ground art loaded on demand by LevelScene.preload() to keep boot downloads and texture memory small.
+function levelArtList(n) {
+  var lk = 'lv' + (n < 10 ? '0' : '') + n;
+  var list = [
+    SKY_CUT_LEVELS.indexOf(n) >= 0
+      ? { key: 'backdrop_' + lk + '_sky', url: 'assets/backdrop_' + lk + '_sky.png' }
+      : { key: 'backdrop_' + lk, url: 'assets/backdrop_' + lk + '.jpg' },
+    { key: 'ground_' + lk, url: 'assets/ground_' + lk + '.png' }
+  ];
+  var lvl = GAME_DATA && GAME_DATA.levels && GAME_DATA.levels[n - 1];
+  if (lvl && lvl.boss_stage && lvl.boss_stage.backdrop) {
+    var k = lvl.boss_stage.backdrop;
+    list.push(
+      { key: 'backdrop_' + k + '_sky', url: 'assets/backdrop_' + k + '_sky.png' },
+      { key: 'ground_' + k, url: 'assets/ground_' + k + '.png' }
+    );
+    if (lvl.boss_stage.landmark && lvl.boss_stage.landmark.key) list.push({ key: lvl.boss_stage.landmark.key, url: 'assets/' + lvl.boss_stage.landmark.key + '.png' });   // the summit post, its own world-space picture
+    if (lvl.boss_stage.rock_art) list.push({ key: lvl.boss_stage.rock_art.key, url: 'assets/' + lvl.boss_stage.rock_art.key + '.png' });   // the boss stage's painted rock strip (level 15, level.js _buildRocks)
+  }
+  return list;
+}
+
 function loadJson(url) {
   return fetch(url).then(function(r) { return r.json(); });
 }
@@ -52,6 +74,8 @@ function bootGame() {
     L.platforms.forEach(function (q) { q.y += DY; });
     L.spawns.forEach(function (sp) { if (sp.y_hint != null) sp.y_hint += DY; });
   });
+  // Standing baseline per level (user 2026-11-13, foot-zero calibration): stand_y is stored as the RUNTIME value (after the +55 above, so it is NOT shifted); a level without one uses its y_ground. Developer aid only for now (red line in level.js); entities still stand on y_ground.
+  GAME_DATA.levels.forEach(function (L) { if (L.stand_y == null) L.stand_y = L.y_ground; });
   window.__GAME_DATA = GAME_DATA;
 
   window.__game = new Phaser.Game({
@@ -142,6 +166,7 @@ class BootScene extends Phaser.Scene {
       }
       if (c && c.level_buff) this.load.image('lvbuff_' + c.level_buff.id, 'assets/lvbuff_' + c.level_buff.id + '.png');   // brush-calligraphy level-buff name (characters.json level_buff)
     }
+    this.load.image('phantom_cavalry', 'assets/phantom_cavalry.png');   // 金戈鐵馬 phantom (H3-Image seed 55 + H3 video frame, user 2026-11-13; boss.js falls back to the Graphics placeholder when the texture is missing)
     this.load.image('bossskill_rain', 'assets/bossskill_rain.png');   // brush-calligraphy 漫天幻彩 (level-5 boss, shown over its head during the charge; user picked Qwen-Image seed 303, colours painted by the model)
     var en = Object.keys(D.enemies);
     for (var j = 0; j < en.length; j++) {
@@ -155,8 +180,6 @@ class BootScene extends Phaser.Scene {
     }
     this.load.image('boss_rock_golem_open', 'assets/boss_rock_golem_open.png'); // golem's eyes-open picture
     for (let i = 1; i <= 4; i++) { this.load.image('rock_stone_' + i, 'assets/rock_stone_' + i + '.png'); this.load.image('rock_boulder_' + i, 'assets/rock_boulder_' + i + '.png'); } // golem's thrown stones / rolling boulder: 4 variants each, picked at random
-    this.load.image('rock_road', 'assets/rock_road.png'); // level-15 boss stage: one painted continuous rock trail
-    for (let i = 1; i <= 4; i++) this.load.image('rock_block_' + i, 'assets/rock_block_' + i + '.png'); // level-15 boss-stage rock blocks (cropped, never stretched, see level.js _buildRocks)
     for (let i = 1; i <= 4; i++) this.load.image('mud_patch_' + i, 'assets/mud_patch_' + i + '.png'); // levels 11-14 mud strip (level.js _mud)
     this.load.image('thorn_spike','assets/thorn_spike.png'); this.load.image('thorn_mound', 'assets/thorn_mound.png'); // bramble's ground thorn: dirt mound first, then the spike
     var th = Object.keys(D.themes);
@@ -164,19 +187,6 @@ class BootScene extends Phaser.Scene {
       this.load.image('ground_' + th[m], 'assets/ground_' + th[m] + '.png');
       this.load.image('backdrop_' + th[m], 'assets/backdrop_' + th[m] + '.jpg');
     }
-    // per-level backdrop + ground art (assets/backdrop_lvNN.jpg, ground_lvNN.png; missing files are ignored, see level.js)
-    for (var lv = 1; lv <= 15; lv++) {
-      var lk = 'lv' + (lv < 10 ? '0' : '') + lv;
-      this.load.image('backdrop_' + lk, 'assets/backdrop_' + lk + '.jpg');
-      this.load.image('ground_' + lk, 'assets/ground_' + lk + '.png');
-    }
-    // Transparent-sky backdrops for specific levels (only load what is in SKY_CUT_LEVELS)
-    for (var s = 0; s < SKY_CUT_LEVELS.length; s++) {
-      var skLv = SKY_CUT_LEVELS[s];
-      var skKey = 'lv' + (skLv < 10 ? '0' : '') + skLv;
-      this.load.image('backdrop_' + skKey + '_sky', 'assets/backdrop_' + skKey + '_sky.png');
-    }
-    this.load.image('backdrop_lv15b_sky', 'assets/backdrop_lv15b_sky.png'); this.load.image('ground_lv15b', 'assets/ground_lv15b.png');   // level 15 boss stage (Qixing main peak, level.js _swapBossStage)
     this.load.image('fg_lv03_lane', 'assets/fg_lv03_lane.png');   // level 3: the lane dashes are their own layer (level.js)
     this.load.image('fg_lv05_rail', 'assets/fg_lv05_rail.png');   // level 5: the railing is its own scrolling layer (level.js), one seamless post-to-post tile
     this.load.image('underview_lv04', 'assets/underview_lv04.png');   // level 4 glass floor: the view straight down on Taipei (level.js _drawGlassFloor)

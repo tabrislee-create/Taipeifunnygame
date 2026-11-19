@@ -395,7 +395,7 @@ class Player {
       }
       const fx = FX.slashArc(scene, s.x + this.facing * halfW, s.y, this.facing, range, s.body.bottom); // x = inner edge of the hit rectangle, last arg = feet (geek aims its bottom stream at ground level); geek returns { markHit } (glyphs turn red)
       if (vend) this._flameUntil = now + FX.VENDOR_ATK.swingMs;   // while the wok flame is out, enemy shots touching its hit area are cancelled
-      const kids = scene.enemies.getChildren();
+      const kids = scene.enemies.getChildren().slice();
       for (let i = 0; i < kids.length; i++) {
         const es = kids[i];
         if (es.ref && !es.ref.dead && Phaser.Geom.Intersects.RectangleToRectangle(rect, bodyRect(es))) {
@@ -473,7 +473,7 @@ class Player {
     const t0 = scene.time.now, launchCfg = { heightPx: 110, stunMs: 0 };
     const check = function () {
       if (self.dead || !s.active) { iv.remove(); return; }
-      const el = scene.time.now - t0, kids = scene.enemies.getChildren();
+      const el = scene.time.now - t0, kids = scene.enemies.getChildren().slice();
       for (let a = 0; a < L.items.length; a++) {
         const it = L.items[a];
         if (el < it.startMs || el > it.endMs) continue;
@@ -543,7 +543,7 @@ class Player {
     const prevBottom = this._prevBottom === undefined ? b.bottom : this._prevBottom;   // feet last frame: independent of frame rate / closing speed
     this._prevBottom = b.bottom;
     const mine = bodyRect(s);
-    const kids = this.scene.enemies.getChildren();
+    const kids = this.scene.enemies.getChildren().slice();
     for (let i = 0; i < kids.length; i++) {
       const es = kids[i], ref = es.ref;
       if (!ref || ref.dead) continue;
@@ -678,7 +678,7 @@ class Player {
 
   updateProjectiles(now) {
     const scene = this.scene;
-    const kids = scene.enemies.getChildren();
+    const kids = scene.enemies.getChildren().slice();
     for (let i = this._projectiles.length - 1; i >= 0; i--) {
       const pr = this._projectiles[i];
       const o = pr.obj;
@@ -719,7 +719,7 @@ class Player {
     if (window.GAME_DEBUG && GAME_DEBUG.godMode) return false;
     const scene = this.scene;
     const now = scene.time.now;
-    if (this.dead || now < this.invUntil || now < this.examUntil || now < this.nanoUntil || now < this.stirUntil) return false;   // true = the hit landed (the boss effects stun / attack block depend on it)
+    if (scene.finished || this.dead || now < this.invUntil || now < this.examUntil || now < this.nanoUntil || now < this.stirUntil) return false;   // true = the hit landed (the boss effects stun / attack block depend on it)
     const st = this.stats;
     let dmg = ignoreDefense ? amount : Math.max(1, Math.round(amount * (1 - st.defense_pct)));
     if (this.shieldHp > 0) {
@@ -780,7 +780,7 @@ class Player {
   }
   _updateDot(now) {
     const d = this._dot; if (!d) return;
-    if (this.dead) { this._dot = null; return; }
+    if (this.dead || this.scene.finished) { this._dot = null; return; }
     while (this._dot && now >= d.next && d.next <= d.until + 1) {
       d.next += d.iv;
       if (window.GAME_DEBUG && GAME_DEBUG.godMode) continue;
@@ -800,7 +800,7 @@ class Player {
   tickDamage(amount, colorHex) {
     if (window.GAME_DEBUG && GAME_DEBUG.godMode) return;
     const scene = this.scene, now = scene.time.now;
-    if (this.dead || now < this.examUntil || now < this.nanoUntil || now < this.stirUntil) return;
+    if (scene.finished || this.dead || now < this.examUntil || now < this.nanoUntil || now < this.stirUntil) return;
     RUN.hp -= amount;
     FX.damageNumber(scene, this.sprite.x, this.sprite.y - 30, amount, false, true);
     const tint = colorHex !== undefined ? colorHex : 0xff7070;

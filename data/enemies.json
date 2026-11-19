@@ -379,7 +379,8 @@
     "damage": 6,
     "width": 100,
     "palette": "clay",
-    "visual": false
+    "visual": false,
+    "center_dy": 0
    },
    "wobble": {
     "angle_deg": 7,
@@ -387,7 +388,8 @@
    },
    "shatter_fx": {
     "count": 10,
-    "stay_ms": 3000
+    "stay_ms": 3000,
+    "rest_dy": 0
    }
   },
   "first_level": 6,
@@ -512,6 +514,7 @@
     "hz": 0.8
    }
   },
+  "sink": 3,
   "first_level": 10,
   "art_prompt": "chibi cute terracotta lantern bearer figurine holding a shallow clay oil lamp bowl high above its head with both stubby hands, a small ember-orange flame in the bowl, pale Han-green glaze pooling in the robe folds, a long triangular robe hiding its feet, flat cloth cap, a firing hole in the chest glowing with ember light, blank deadpan face, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
   "notes": "A level 10 enemy that stands holding up a clay lamp; it drifts slowly and its lamp breathes a soft glow. It no longer shoots, leaves ember pools, or bursts on death. If the player stomps it, a single long kiln-style flame erupts upward from the lamp, knocking the player back and setting them alight."
@@ -551,6 +554,7 @@
     "dedupe_ms": 400
    }
   },
+  "sink": 3,
   "first_level": 8,
   "art_prompt": "chibi cute terracotta figurine pushing a large round ancient Chinese bronze mirror in front of its body like a shield, mirror back facing the viewer with bumpy nipple-pattern and cloud-scroll engravings, mottled verdigris patina with patches of raw bronze showing, only the figurine's small head and one stubby foot peek out behind the mirror, gray clay body, blank deadpan face, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
   "notes": "Absorbs all normal attacks and skills with a green flash (immune); only vulnerable to stomps. After 3 absorbed hits, fires a green bar beam toward the player (width = sprite displayWidth, range 100 px, damage 15)."
@@ -590,6 +594,7 @@
     "dedupe_ms": 400
    }
   },
+  "sink": 5,
   "first_level": 10,
   "art_prompt": "chibi cute terracotta figurine pushing a large round ancient Chinese bronze mirror in front of its body like a shield, mirror back facing the viewer with bumpy nipple-pattern and cloud-scroll engravings, mottled verdigris patina with patches of raw bronze showing, only the figurine's small head and one stubby foot peek out behind the mirror, gray clay body, blank deadpan face, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
   "notes": "Absorbs all attacks and skills with a green flash (immune); only vulnerable to stomps. After 3 absorbed hits, emits a semicircular arc wave above (upper 180 deg, thickness 20 px, range 180 px, damage 15)."
@@ -621,7 +626,7 @@
   },
   "first_level": 13,
   "art_prompt": "",
-  "notes": "Level-13 hiking minion (wood). Patrols; when the player is within thorn.range px it stops for aim_ms, locks the spot where the player stood when the aim began (a ground marker that does not follow), then a thorn bursts out of the ground there (rise_px high, stays stay_ms, one hit that knocks the player away; may hit again if the player leaves and comes back), cooldown cd_ms. The thorn cannot be destroyed. Placeholder art."
+  "notes": "Level-13 hiking minion (wood). Patrols; when the player is within thorn.range px it stops for aim_ms, locks the spot where the player stood when the aim began (a ground marker that does not follow), then a thorn bursts out of the ground there (rise_px high, stays stay_ms, one hit that knocks the player away; may hit again if the player leaves and comes back), cooldown cd_ms. The thorn cannot be destroyed."
  },
  {
   "id": "hike_grub",
@@ -675,7 +680,7 @@
   },
   "first_level": 12,
   "art_prompt": "chibi cute small translucent water sprite, plump droplet-shaped body in pale aqua blue with a soft inner glow, a round duckweed leaf sitting on its head like a tiny parasol with one notch bitten out of the edge, a single rolling dew drop on the leaf, wide surprised round eyes and a small o mouth, faint water ripples floating around its base, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
-  "notes": "Level-12 hiking minion (water). Drifts on a sine track like the bats, but when the player is alive and within shoot.range px and its cooldown is up it stops dead in the air, swells and blinks white for windup_ms, then spits one water drop straight at the spot where the player stands at the moment of the shot (dodged by moving or by jumping over it; it dies on the ground or off-screen), holds still for hold_ms and drifts on with cd_ms until the next shot. All shoot numbers are unconfirmed defaults. Placeholder art."
+  "notes": "Level-12 hiking minion (water). Drifts on a sine track like the bats, but when the player is alive and within shoot.range px and its cooldown is up it stops dead in the air, swells and blinks white for windup_ms, then spits one water drop straight at the spot where the player stands at the moment of the shot (dodged by moving or by jumping over it; it dies on the ground or off-screen), holds still for hold_ms and drifts on with cd_ms until the next shot. All shoot numbers are unconfirmed defaults."
  },
  {
   "id": "hike_bamblin",
@@ -698,7 +703,7 @@
   },
   "first_level": 14,
   "art_prompt": "chibi cute upright bamboo stalk sprite, body made of three segmented green bamboo culms with clear node rings and waxy glossy skin, a tuft of thin bamboo leaves on top of its head like messy hair, one small leafy branch sticking out each side like an arm, mischievous squinting grin with one big buck tooth, pale jade green with darker green nodes and a few brown sheath husks hanging off the base, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
-  "notes": "Level-14 hiking minion (wood). Charges like the wild boar but slower and for a shorter burst; because of 'rebound' a charge that runs into a wall or into the end of the ground does not die there - it reverses on the spot and charges the full charge_duration once more (at most one reversal per charge, only the first impact counts) before its cooldown, so hugging a wall is not safe. Enemies without 'rebound' (the boar) keep the old behaviour. Placeholder art."
+  "notes": "Level-14 hiking minion (wood). Charges like the wild boar but slower and for a shorter burst; because of 'rebound' a charge that runs into a wall or into the end of the ground does not die there - it reverses on the spot and charges the full charge_duration once more (at most one reversal per charge, only the first impact counts) before its cooldown, so hugging a wall is not safe. Enemies without 'rebound' (the boar) keep the old behaviour."
  },
  {
   "id": "hike_cinderite",
@@ -730,7 +735,7 @@
     "warn_ms": 500,
     "duration_ms": 3000,
     "tick_ms": 500,
-    "damage": 6,
+    "damage": 3,
     "width": 70,
     "height": 90,
     "grow_ms_per_s": 80,
@@ -740,6 +745,6 @@
   },
   "first_level": 15,
   "art_prompt": "chibi cute volcanic fumarole creature, squat egg-shaped body built from cemented grey-brown angular rock fragments and dried mud bubbles with glowing orange geothermal cracks between them, one irregular smoking vent crater on top of its head rimmed with bright yellow sulfur crystals, constant thin white steam drifting from the vent, two tiny squinting eyes and a small round coughing mouth, two stubby mud feet shedding ash grains, matte mineral grey body with warm rust-orange inner glow, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
-  "notes": "Level-15 hiking minion (earth, plus a fumarole): it lobs a mud ball on a parabola (arc) after windup_ms. Where the ball lands or hits the player, a steam column comes up: warn_ms of white ground marker with the first wisp, then a width x height column that lasts duration_ms plus grow_ms_per_s for every second this enemy has been alive (the bonus is capped at grow_cap_ms), so the longer the fight the less floor is safe. Standing in a column costs damage every tick_ms with no knock-back; at most max_zones columns per enemy at a time (the oldest is dismissed first). Columns already up burn out on their own even if the enemy dies first; a column still in its warning is dismissed with the enemy. All landing_zone numbers are unconfirmed defaults. Placeholder art."
+  "notes": "Level-15 hiking minion (earth, plus a fumarole): it lobs a mud ball on a parabola (arc) after windup_ms. Where the ball lands or hits the player, a steam column comes up: warn_ms of white ground marker with the first wisp, then a width x height column that lasts duration_ms plus grow_ms_per_s for every second this enemy has been alive (the bonus is capped at grow_cap_ms), so the longer the fight the less floor is safe. Standing in a column costs damage every tick_ms with no knock-back; at most max_zones columns per enemy at a time (the oldest is dismissed first). Columns already up burn out on their own even if the enemy dies first; a column still in its warning is dismissed with the enemy. All landing_zone numbers are unconfirmed defaults."
  }
 ]

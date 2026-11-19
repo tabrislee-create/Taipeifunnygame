@@ -3,6 +3,13 @@ const RAIN_G = 900;   // strip gravity (px/s^2)
 // 窯火燃身護身的火焰盾牌 (user 2026-11-13): tongue layers, [width x, height x, colour, alpha] of params.flame_h - wide dark orange outside,
 // narrow pale-yellow core (same warm multi-layer gradient idea as the kiln pool's KF_LAY in effects.js, drawn here so that function stays untouched).
 const GUARD_FLAME = [[0.66, 1.0, 0xff3a00, 0.5], [0.48, 0.84, 0xff8a10, 0.72], [0.32, 0.64, 0xffc83a, 0.82], [0.17, 0.42, 0xfff4c0, 0.95]];
+// 金戈鐵馬 preparation glow (user 2026-11-13, C1): the 8 offset silhouettes are laid down in two rings, [offset px, colour, alpha factor].
+// The wide deep-gold ring is created first, so with equal depth it is drawn behind the narrow pale-gold one - one gold rim along the body outline.
+const CAV_GLOW = [[7, 0xffa41f, 0.5], [3.5, 0xffe98a, 0.95]];
+// 金戈鐵馬 phantom picture sits this many px below the ground line (user 2026-11-13, foot-zero calibration: looked at the 3x zoom with the red line, 'phantom -3' on top of the earlier 2). The hit box moves with the picture.
+const CAV_FOOT_DY = 5;
+// The phantom's hit box is a centred, ground-aligned rectangle this fraction of the picture's width and height (user 2026-11-13 picked option B = 85% x 85% from the candidate overlay; the picture itself is not scaled).
+const CAV_HIT_SCALE = 0.85;
 
 class Boss {
   constructor(scene, def, x, y) {
@@ -64,9 +71,10 @@ class Boss {
     this._swings = [];
     this._waveObj = null;
     this._rain = null; this._rainStripes = []; this._rainPuddles = []; this._rainGlow = []; this._rainG = null;   // rainbow_sky_rain state
+    this._cav = null; this._cavG = null; this._cavImg = null; this._cavGlow = [];   // cavalry_charge (金戈鐵馬, user 2026-11-13): phantom state, its Graphics and the preparation rim light (C1/C2: new state fields must exist from construction - this scene instance is reused across levels)
     this._guard = null; this._guardG = null;   // guard_shield (窯火燃身護身, user 2026-11-13): the 5 s window and its single Graphics
     this._glints = []; this._pools = []; this._glintAcc = 0;       // code-drawn light effects (no flares baked into the art)
-    this._afx = 1; this._afy = 1; this._hitSquashUntil = 0; this._flashUntil = 0; this._landSquashT = -1e9;   // procedural squash & stretch
+    this._afx = 1; this._afy = 1; this._hitSquashUntil = 0; this._flashUntil = 0; this._landSquashT = -1e9; this._hop = null; this._hopAt = 0;   // procedural squash & stretch; hop movement (def.hop)
     this._dormant = !!def.wake;
     this._wakeOpenMs = (def.wake && def.wake.open_ms) || 600;
     this._stones = []; this._stoneJobs = [];   // stone_toss / stone_rain: live stones and pending launches
@@ -135,7 +143,7 @@ class Boss {
       this._entering = false; s.setAlpha(1);
       s.body.setVelocity(0, 0);
       FX.explosionRing(this.scene, s.x, this._groundY(), 140);
-      FX.screenShake(this.scene, 0.015, 350);
+      FX.screenShake(this.scene, 15, 350);
       this._stateTimer = 0; this._state = 'idle';
       this._landSquashT = now;
       if (this.def.intro_text_zh) {
@@ -207,6 +215,7 @@ class Boss {
       this._clearBoulders();
       this._rainGlowOff();
       this._clearGuard();   // 護身 (user 2026-11-13): the new phase resets the state to idle, so the flame shield must go with it
+      this._clearCavalry();   // 金戈鐵馬 (user 2026-11-13): phantom must not survive a phase change
       this._useCount = new Map();   // pattern max_uses is counted per phase (user 2026-10-13: the minion summon, twice in phase 1 and in phase 2)
       this._initSeq();
       const first = this._seq && this._seq[0];
@@ -219,6 +228,7 @@ class Boss {
   _clearTelegraph() {
     for (const o of this._telegraphObjs) { if (o && o.destroy) o.destroy(); }
     this._telegraphObjs = [];
+    this._cavGlowOff();   // 金戈鐵馬 rim light (user 2026-11-13, C2): it belongs to the preparation, so any path that ends a telegraph ends it too - _startCavalry / _clearCavalry also call it, an empty list costs nothing
   }
 
   _clearWave() {
@@ -234,7 +244,7 @@ class Boss {
 
   _groundY() {
     const sc = this.scene, lvl = sc.lvl;
-    if (sc.surfaceYAt && this.sprite) return sc.surfaceYAt(this.sprite.x);   // stepped rocks (level 15 boss stage)
+    if (sc.surfaceYAt && this.sprite) return sc.surfaceYAt(this.sprite.x, this.sprite.body ? this.sprite.body.halfWidth - 2 : 0);   // rocks (level 15 boss stage): the highest one under the body, which is what the body rests on
     if (lvl && lvl.y_ground != null) return lvl.y_ground;
     return 400;
   }
@@ -260,6 +270,12 @@ class Boss {
   _initSeq() {
     const pats = this._activePatterns();
     this._seq = pats.filter((p) => p.seq).sort((x, y) => x.seq - y.seq);
+    // no_use_ms: pre-seed cooldown so the skill cannot fire before the boss has been active this long (user 2026-11-13 金戈鐵馬)
+    if (!this._skillCd) this._skillCd = new Map();
+    for (const p of pats) {
+      const key = p.id || p.primitive;
+      if (p.no_use_ms && !this._skillCd.has(key)) this._skillCd.set(key, this.scene.time.now + p.no_use_ms);
+    }
   }
 
   _nextPattern() {
@@ -383,6 +399,13 @@ class Boss {
         const w = Math.abs(x1 - x0);
         this._telegraphObjs.push(FX.telegraphRect(scene, cx, gy - 18, w, 36, tm));
       }
+    } else if (pr === 'cavalry_charge') {   // 金戈鐵馬 (user 2026-11-13): yellow glow on body edges + skill name text over head
+      const tex = scene.textures.exists('bossskill_cavalry') ? 'bossskill_cavalry' : (scene.textures.exists('bossskill_rain') ? 'bossskill_rain' : null);
+      if (tex) {
+        this._rainTextImg = scene.add.image(s.x, s.y, tex).setDepth(97).setAlpha(0);
+        this._rainTextImg.setDisplaySize(260, 260 * this._rainTextImg.height / this._rainTextImg.width);
+        this._telegraphObjs.push(this._rainTextImg);
+      }
     }
   }
 
@@ -447,6 +470,8 @@ class Boss {
       this._startRain(p);
     } else if (pr === 'guard_shield') {   // 窯火燃身 (user 2026-11-13): stand still behind a flame shield for params.duration_ms, taking params.damage_taken_mult of all damage
       this._startGuard(p);
+    } else if (pr === 'cavalry_charge') {   // 金戈鐵馬 (user 2026-11-13): spawn a phantom cavalry charge, boss stays in place
+      this._startCavalry(p, dir);
     } else if (pr === 'summon_adds') {
       this._state = 'cooldown';
       this._stateTimer = 0;
@@ -917,6 +942,55 @@ class Boss {
     s.x = nx; this._moving = true;
   }
 
+  // Hop movement (def.hop, user 2026-11-17: the level-15 golem jumps and moves, and comes down the whole rock road after the player). Only on a rock stage (scene._rocks).
+  // Between skills it hops every gap_ms: toward the player while further than `keep` px, else at random (left / right / on the spot). One hop = step px sideways, landing on
+  // the highest rock under its body there. The flight is a fixed arc (no physics: gravity and the ground collision are off until it lands), so it can climb or drop any step.
+  _updateHop(dt, player) {
+    const hp = this.def.hop, sc = this.scene, s = this.sprite, now = sc.time.now;
+    if (!hp || !sc._rocks || !sc._rocks.length) return;
+    const h = this._hop;
+    if (h) {
+      h.t += dt; const u = Math.min(1, h.t / h.dur);
+      s.body.reset(h.x0 + (h.x1 - h.x0) * u, h.y0 + (h.y1 - h.y0) * u - 4 * h.apex * u * (1 - u));
+      if (u >= 1) {
+        this._hopEnd(); this._landSquashT = now; this._hopAt = 0;
+        const cam = sc.cameras.main; if (s.x > cam.scrollX - 60 && s.x < cam.scrollX + GAME_W + 60) FX.screenShake(sc, 4, 120);
+      }
+      return;
+    }
+    if ((this._state !== 'idle' && this._state !== 'cooldown') || now < this._freezeUntil) return;
+    if (!(s.body.blocked.down || s.body.touching.down)) return;
+    const rnd = (a) => a[0] + Math.random() * (a[1] - a[0]);
+    if (!this._hopAt) { this._hopAt = now + rnd(hp.gap_ms || [500, 1300]); return; }
+    if (now < this._hopAt) return;
+    const keep = hp.keep || 150, dx = (player && player.sprite && !player.dead) ? player.sprite.x - s.x : 0;
+    let dir, step = rnd(hp.step || [90, 150]);
+    if (Math.abs(dx) > keep && Math.random() < 0.85) { dir = dx > 0 ? 1 : -1; step = Math.min(step, Math.abs(dx) - keep * 0.5); }
+    else { const r = Math.random(); dir = r < 0.34 ? 0 : (r < 0.67 ? 1 : -1); }
+    const lo = this._minX(), hi = this._worldBounds().right - this._dispW * 0.3;
+    // Landing spot: the body's width follows the squash & stretch (up to about +20% on landing), so a rock edge near the body's edge would make "the highest rock under the body" ambiguous
+    // (hover and drop, or land inside a rock's side). Slide the spot along until the answer is the same for a narrow and a wide body; if none is, take the wide answer (never inside a rock).
+    const bh = s.body.halfWidth * (s.baseScaleX / s.scaleX);
+    let x1 = Math.max(lo, Math.min(hi, s.x + dir * step)), y1 = sc.surfaceYAt(x1, bh * 1.25);
+    for (let k = 0; k < 9; k++) {
+      const x = Math.max(lo, Math.min(hi, x1 + (k % 2 ? 1 : -1) * Math.ceil(k / 2) * 18));
+      if (sc.surfaceYAt(x, bh * 0.9) === sc.surfaceYAt(x, bh * 1.25)) { x1 = x; y1 = sc.surfaceYAt(x, bh); break; }
+    }
+    const y0 = s.y, dy = y1 - y0;
+    this._hop = { t: 0, x0: s.x, y0: y0, x1: x1, y1: y1, apex: (hp.height || 45) + Math.abs(dy) * 0.5, dur: ((hp.air_ms || 480) + Math.abs(dy) * 1.2) / 1000 };
+    const cc = s.body.checkCollision; cc.up = cc.down = cc.left = cc.right = false;
+    s.body.setAllowGravity(false); s.body.setVelocity(0, 0);
+  }
+
+  // Back to normal physics (landing, or the boss dies in the air).
+  _hopEnd() {
+    if (!this._hop) return;
+    this._hop = null;
+    const b = this.sprite && this.sprite.body; if (!b) return;
+    const cc = b.checkCollision; cc.up = cc.down = cc.left = cc.right = true;
+    b.setAllowGravity(true);
+  }
+
   // Squash & stretch driven by the state machine; skipped while a hit-squash tween runs. Also the code-drawn iridescent tint flow.
   _updateAnim(dt, now) {
     const s = this.sprite; if (!s || !s.active) return;
@@ -928,6 +1002,7 @@ class Boss {
     else if (st === 'rain' || this._rainCharge()) { fx = 1.1 + 0.03 * Math.sin(now / 60); fy = 0.94; }
     else if (st === 'guard') { fx = 1.05 + 0.02 * Math.sin(now / 200); fy = 0.96 - 0.02 * Math.sin(now / 200); }   // 護身: a slow breath behind the fire ring
     else if (st === 'wave' || st === 'laser') { fx = 1.05; fy = 0.93; }
+    else if (this._hop) { const u = this._hop.t / this._hop.dur; fx = u < 0.5 ? 0.92 : 0.95; fy = u < 0.5 ? 1.12 : 1.07; }   // hop (def.hop): stretched in the air
     else if (this._moving) { const k = Math.sin(now / 110); fx = 1.06 + 0.06 * k; fy = 0.95 - 0.06 * k; }   // slithering wobble
     const land = (now - this._landSquashT) / 320;
     if (land >= 0 && land < 1) { const k = 1 - land; fx = Math.max(fx, 1 + 0.2 * k); fy = Math.min(fy, 1 - 0.22 * k); }
@@ -1024,7 +1099,7 @@ class Boss {
       this._crescent(g, ox, oy, R * 0.97, dir, 66, 2.1, 0xf0fdff, 0.9 * k);
     }
     const ti = this._rainTextImg;
-    if (ti && ti.active && st === 'telegraph' && pr === 'rainbow_sky_rain') {   // name: fades in 0.25 s, out for the last 0.3 s; kept clear of the HUD boss bar at the top
+    if (ti && ti.active && st === 'telegraph' && (pr === 'rainbow_sky_rain' || pr === 'cavalry_charge')) {   // name: fades in 0.25 s, out for the last 0.3 s; kept clear of the HUD boss bar at the top
       const t = this._stateTimer, tm = this._telegraphMs || 1;
       ti.setAlpha(Math.max(0, Math.min(1, t / 250, (tm - t) / 300)));
       ti.setPosition(s.x, Math.max(78 + ti.displayHeight / 2, s.y - this._dispH - 66 - ti.displayHeight / 2));
@@ -1033,6 +1108,10 @@ class Boss {
       const p = Math.min(1, this._stateTimer / (this._telegraphMs || 1)), hx = s.x, hy = s.y - this._dispH - 20, R = 10 + 46 * p;
       for (let i = 0; i < 6; i++) { const a = now / 300 + i * Math.PI / 3; g.fillStyle(RAIN_COLS[i], 0.55); g.fillCircle(hx + Math.cos(a) * R * 0.5, hy + Math.sin(a) * R * 0.3, R * 0.55); }
       g.fillStyle(0xffffff, 0.2 + 0.5 * p); g.fillCircle(hx, hy, R * 0.4);
+    }
+    if (st === 'telegraph' && pr === 'cavalry_charge') {   // 金戈鐵馬 (user 2026-11-13, C1): the yellow box this block used to draw (fillRect + strokeRect) is gone - the preparation now glows along the body outline instead, see _cavGlowOn / _updateCavGlow
+      this._cavGlowOn();
+      this._updateCavGlow(now);
     }
     const fcB = (this.def.fx_colors || {}), bmB = fcB.beam;
     if (bmB && st === 'telegraph' && pr === 'laser_sweep') {   // kiln-fire glow gathering outside the chest
@@ -1181,12 +1260,13 @@ class Boss {
   // A strip hurts once (params.damage) if it touches the player in flight or splashes within 45 px of where it lands; the puddle it leaves is visual only.
   // Damage taken during the skill: user 2026-11-13 — the 2 s charge + duration rain window is no longer invulnerable; every damage path is multiplied by params.damage_taken_mult (0.5) while it is up.
   _rainCharge() { return this._state === 'telegraph' && !!this._activePattern && this._activePattern.primitive === 'rainbow_sky_rain'; }
+  _cavCharge() { return this._state === 'telegraph' && !!this._activePattern && this._activePattern.primitive === 'cavalry_charge'; }   // 金戈鐵馬 preparation (user 2026-11-13)
   _skillInv() { return this._dormant || this._boulderInv || this._state === 'jump'; }   // also the whole flight of 黃色跳壓 (user 2026-10-13); 漫天幻彩 is no longer here (user 2026-11-13, see _dmgTakenMult)
   // 漫天幻彩 (user 2026-11-13): while the 2 s charge or the duration rain is up, every hp-damaging path is multiplied by params.damage_taken_mult (data-driven; 1 if missing).
   // 窯火燃身護身 (user 2026-11-13): the same one mechanism - same params field name, same takeHit / burn / scorch call sites, no second system.
   // Unlike 漫天幻彩 the 1.2 s telegraph is NOT covered (the user's spec: the reduction starts when the shield comes up), so only state 'guard' counts here.
   _dmgTakenMult() {
-    if (!(this._state === 'rain' || this._rainCharge() || this._state === 'guard')) return 1;
+    if (!(this._state === 'rain' || this._rainCharge() || this._state === 'guard' || this._cavCharge())) return 1;
     const p = this._activePattern && this._activePattern.params;
     const m = p && p.damage_taken_mult;
     return (typeof m === 'number' && isFinite(m)) ? m : 1;
@@ -1216,7 +1296,7 @@ class Boss {
     this._rain = { t: 0, n: 0, total: p.count || 20, gap: p.interval_ms || 200, dur: p.duration_ms || 4000, dmg: (p.damage || 10) * this._am, bins: { '-1': this._rainBins(), '1': this._rainBins() }, k: { '-1': 0, '1': 0 } };
     this._rainDmg = this._rain.dmg;
     this._rainGlowOn();
-    FX.screenShake(this.scene, 0.006, 200);
+    FX.screenShake(this.scene, 6, 200);
   }
 
   _rainBins() {
@@ -1346,6 +1426,145 @@ class Boss {
   _clearGuard() {   // the one and only cleanup: the shield has no tweens and no timers, just this Graphics
     this._guard = null;
     if (this._guardG) { this._guardG.destroy(); this._guardG = null; }
+  }
+
+  // ==== 金戈鐵馬 phantom cavalry charge (user 2026-11-13, level 10 將軍俑) ====
+  // The boss stays in place; a semi-transparent fire-coloured phantom (placeholder for a future sprite)
+  // charges forward for params.charge_distance px at params.charge_speed px/s.
+  // Hit detection: each frame during the charge, overlap with the player is tested; player.takeDamage()
+  // returns false when the player is invulnerable (skill/iframe), true when the hit lands (only once per phantom).
+  _startCavalry(p, dir) {
+    this._cavGlowOff();   // C2 (user 2026-11-13): the preparation ends here, so the gold rim light ends with it (charge / cooldown must not keep it - and the level-5 rainbow glow is a separate object set, untouched by this)
+    this._state = 'cavalry';
+    const pw = p.phantom_w || 128, ph = p.phantom_h || 128;
+    const startX = this.sprite.x + dir * (this._dispW * 0.3);
+    // fadeStart < 0 while the charge runs; _endCavCharge stamps the frame the fade begins (C3/C5, user 2026-11-13). fadeMs is a data field (params.fade_ms, 400 in all three phases).
+    this._cav = { x: startX, dir, remaining: p.charge_distance || 300, speed: p.charge_speed || 280, damage: (p.damage || 25) * this._am, w: pw, h: ph, hitDone: false, fadeStart: -1, fadeMs: (typeof p.fade_ms === 'number' && p.fade_ms > 0) ? p.fade_ms : 400 };
+    if (!this._cavG) this._cavG = this.scene.add.graphics().setDepth(6.5);   // above player/boss sprites, below UI
+    if (!this._cavImg && this.scene.textures.exists('phantom_cavalry')) this._cavImg = this.scene.add.image(startX, this._groundY(), 'phantom_cavalry').setOrigin(0.5, 1).setDepth(6.5);   // picture phantom (the image faces right; w/h from params.phantom_w/h are the display size AND the hit box)
+  }
+
+  _updateCavalry(dt, player) {
+    const cv = this._cav;
+    if (!cv) { this._state = 'cooldown'; this._stateTimer = 0; return; }   // cleared from outside
+    const step = cv.speed * dt;
+    cv.x += cv.dir * step;
+    cv.remaining -= step;
+    // C8 (user 2026-11-13): the old test ended the charge the frame the phantom's CENTRE left the world, so a general standing at the
+    // edge and charging into it lost the whole 300 px on frame 1. Now it ends only once the WHOLE phantom is out (centre past the edge
+    // by half its width); until then it keeps moving and keeps its hit box. Ending here = the same fade path as a finished charge (see _endCavCharge).
+    const b = this._worldBounds();
+    if (cv.x < b.left - cv.w * 0.5 || cv.x > b.right + cv.w * 0.5) { cv.remaining = 0; }
+    // hit detection (once per phantom)
+    if (!cv.hitDone && player && !player.dead && player.sprite && player.sprite.active) {
+      const pb = player.sprite.body;
+      const pLeft = pb.left, pRight = pb.right, pTop = pb.top, pBot = pb.bottom;
+      const gy = this._groundY();
+      const hs = this._cavImg ? CAV_HIT_SCALE : 1;   // picture phantom: the shrunk box; the Graphics placeholder keeps the full w x h
+      const fLeft = cv.x - cv.w * hs * 0.5, fRight = cv.x + cv.w * hs * 0.5;
+      const fB = gy + (this._cavImg ? CAV_FOOT_DY : 0), fT = fB - cv.h * hs;   // ground-aligned, centred; the picture's rectangle shrunk by option B (user 2026-11-13)
+      if (pRight > fLeft && pLeft < fRight && pBot > fT && pTop < fB) {
+        if (player.takeDamage(cv.damage, this.sprite.x)) {
+          cv.hitDone = true;   // only one hit per phantom lifetime
+        }
+      }
+    }
+    // C4 (user 2026-11-13): a landed hit does NOT end the charge - cv.hitDone only stops further hit tests, the phantom keeps running
+    // the rest of charge_distance and fades out there (C3). Hit detection stays once per phantom lifetime.
+    if (cv.remaining <= 0) this._endCavCharge();
+  }
+
+  // C5 (user 2026-11-13): the charge is over - the boss goes to cooldown on this very frame (params cooldown_ms 500, then idle 800) and the
+  // hit box is gone with the state. What is left is only a picture: _drawCavalry() runs outside the state machine, so the phantom keeps
+  // fading for params.fade_ms. It stands still while fading (_updateCavalry is not called any more) - QUESTIONS.md item 3/4.
+  // The next 金戈鐵馬 cannot overlap the fade: cd_ms 5000 and cooldown_ms 500 + _idleDuration 800 are both far past 400 ms.
+  _endCavCharge() {
+    if (this._cav) this._cav.fadeStart = this.scene.time.now;
+    this._state = 'cooldown';
+    this._stateTimer = 0;
+  }
+
+  // C1/C2 (user 2026-11-13): the 1.5 s preparation glows along the BODY OUTLINE in gold, not in a box.
+  // Same mechanism as the level-5 漫天幻彩 outline (_rainGlowOn: offset silhouettes of the boss texture, setTintFill, depth 4.9 behind the
+  // sprite at 5), but a SEPARATE object set: _rainGlowOn() returns early when its list is not empty, so a leftover gold mode would tint the
+  // slime king's rainbow, and _updateRain()'s early return keys off that list. C2 cleanup: _startCavalry (end of preparation),
+  // _clearTelegraph (any telegraph cancelled) and _clearCavalry (phase change / death). Level-5 colours and timing are untouched.
+  _cavGlowOn() {
+    if (this._cavGlow.length) return;   // already glowing since the preparation began
+    for (const ring of CAV_GLOW) {
+      for (let i = 0; i < 8; i++) {
+        const im = this.scene.add.image(this.sprite.x, this.sprite.y, this.id).setOrigin(0.5, 1).setDepth(4.9).setTintFill(ring[1]);
+        im._cavRing = ring;   // plain property, not setData: the Data Manager plugin is not guaranteed to be enabled in this Phaser build
+        this._cavGlow.push(im);
+      }
+    }
+  }
+
+  _updateCavGlow(now) {   // one gold rim: 8 silhouettes pushed out by the ring offset, pulsing together, in 0.25 s / out over the last 0.2 s
+    const s = this.sprite;
+    if (!this._cavGlow.length || !s || !s.active) return;
+    const t = this._stateTimer, T = this._telegraphMs || 1;
+    const a = (0.45 + 0.5 * Math.sin(t / 110) * Math.sin(t / 110)) * Math.max(0, Math.min(1, t / 250, (T - t) / 200));
+    for (let i = 0; i < this._cavGlow.length; i++) {
+      const im = this._cavGlow[i], ring = im._cavRing || CAV_GLOW[0], ang = (i % 8) * Math.PI / 4;
+      im.setPosition(s.x + Math.cos(ang) * ring[0], s.y + Math.sin(ang) * ring[0]).setScale(s.scaleX, s.scaleY).setFlipX(s.flipX).setAlpha(a * ring[2]);
+    }
+  }
+
+  _cavGlowOff() {   // the one and only cleanup of the rim light (no tweens, no timers, just these images)
+    for (const im of this._cavGlow) im.destroy();
+    this._cavGlow = [];
+  }
+
+  // Draw the placeholder phantom: a 128x128 semi-transparent fire glow with a horse+rider silhouette hint.
+  // Future: replace this Graphics with a sprite using an actual image from ComfyUI.
+  _drawCavalry(now) {
+    const cv = this._cav, g = this._cavG;
+    if (!cv || !g) { if (g) g.clear(); return; }
+    let al = 1;   // C3 (user 2026-11-13): after the charge the whole phantom fades over params.fade_ms (400 ms), then the Graphics goes away
+    if (cv.fadeStart >= 0) {
+      const k = (now - cv.fadeStart) / (cv.fadeMs > 0 ? cv.fadeMs : 400);
+      if (k >= 1) { this._clearCavalry(); return; }   // only now is the phantom gone for good (C3: not an instant disappearance)
+      al = 1 - k;
+    }
+    g.clear();
+    const gy = this._groundY();
+    const cx = cv.x, cy = gy - cv.h * 0.5;
+    const w = cv.w, h = cv.h;
+    if (this._cavImg) {   // picture phantom: no Graphics placeholder
+      this._cavImg.setPosition(cx, gy + CAV_FOOT_DY).setDisplaySize(w, h).setFlipX(cv.dir < 0).setAlpha(al);
+      return;
+    }
+    // outer glow
+    g.fillStyle(0xff4a00, 0.25 * al);
+    g.fillRect(cx - w * 0.55, cy - h * 0.55, w * 1.1, h * 1.1);
+    // body (semi-transparent orange-red)
+    g.fillStyle(0xff6620, 0.55 * al);
+    g.fillRect(cx - w * 0.4, cy - h * 0.4, w * 0.8, h * 0.8);
+    // core (bright yellow)
+    g.fillStyle(0xffcc30, 0.7 * al);
+    g.fillRect(cx - w * 0.25, cy - h * 0.3, w * 0.5, h * 0.55);
+    // horse silhouette hint (dark rectangle lower half)
+    g.fillStyle(0x331100, 0.35 * al);
+    const hw = w * 0.7, hh = h * 0.3;
+    g.fillRect(cx - hw * 0.5, cy + h * 0.1, hw, hh);
+    // rider silhouette hint (dark rectangle upper half)
+    g.fillRect(cx - w * 0.12, cy - h * 0.35, w * 0.24, h * 0.4);
+    // flicker particles (fire sparks trailing behind)
+    for (let i = 0; i < 5; i++) {
+      const px = cx - cv.dir * (w * 0.3 + Math.sin(now / 80 + i * 1.8) * 20);
+      const py = cy - Math.sin(now / 60 + i * 2.1) * h * 0.25;
+      const r = 3 + Math.sin(now / 50 + i) * 2;
+      g.fillStyle(0xffaa00, (0.4 + 0.3 * Math.sin(now / 70 + i * 1.5)) * al);
+      g.fillCircle(px, py, r);
+    }
+  }
+
+  _clearCavalry() {
+    this._cav = null;
+    this._cavGlowOff();   // C2 (user 2026-11-13): the rim light goes with the phantom (hooked into _checkPhase and _die, so a phase change / death / restart can never leave it behind)
+    if (this._cavG) { this._cavG.clear(); this._cavG.destroy(); this._cavG = null; }
+    if (this._cavImg) { this._cavImg.destroy(); this._cavImg = null; }
   }
 
   // The flame shield, redrawn every frame into the single _guardG: params.flames (12) tongues on an ellipse around the body, the ring turning slowly,
@@ -1567,7 +1786,7 @@ class Boss {
       s.body.setAllowGravity(true);
       s.body.setVelocity(0, 0);
       FX.explosionRing(this.scene, s.x, this._groundY(), this._jumpRadius);
-      FX.screenShake(this.scene, 0.012, 250);
+      FX.screenShake(this.scene, 12, 250);
       this._landSquashT = this.scene.time.now;
       this._freezeUntil = this.scene.time.now + 1000;   // after the landing: stands still, no skills, 1 s (user 2026-10-13)
       const player = this.scene.player;
@@ -1644,11 +1863,13 @@ class Boss {
   _die() {
     if (this.dead) return;
     this.dead = true;
+    this._hopEnd();
     this._clearTelegraph();
     this._clearWave();
     this._clearLaser();
     this._clearRain();
     this._clearGuard();   // 護身 (user 2026-11-13): the flame shield must not outlive the boss (the defeat cutscene starts from _die)
+    this._clearCavalry();   // 金戈鐵馬 (user 2026-11-13): phantom must not outlive the boss
     for (const proj of this._projectiles) proj.destroy();
     this._projectiles = [];
     this._clearStones();
@@ -1662,7 +1883,7 @@ class Boss {
     if (this._phaseBar) { this._phaseBar.destroy(); this._phaseBar = null; }
     const x = this.sprite.x, y = this.sprite.y;
     FX.deathPoof(this.scene, x, y - this._dispH * 0.5);
-    FX.screenShake(this.scene, 0.015, 400);
+    FX.screenShake(this.scene, 15, 400);
     if (!this._deadEmitted) {
       this._deadEmitted = true;
       this.scene.events.emit('enemy-dead', { x: x, y: y, ref: this });  // contract payload, same as Enemy
@@ -1719,6 +1940,7 @@ class Boss {
     this._checkPhase();
     this._drawPhaseBar();
     this._updateWalk(dt);
+    this._updateHop(dt, player);
     this._updateAnim(dt, this.scene.time.now);
     this._updateFx(this.scene.time.now);
     this._updateGlints(dt, this.scene.time.now);
@@ -1758,6 +1980,8 @@ class Boss {
       this._updateRainState(delta);
     } else if (this._state === 'guard') {
       this._updateGuardState(delta);   // 窯火燃身護身 (user 2026-11-13): stands still, cannot start another skill while this branch runs
+    } else if (this._state === 'cavalry') {   // 金戈鐵馬 (user 2026-11-13): phantom charges, boss stays in place
+      this._updateCavalry(dt, player);
     } else if (this._state === 'cooldown') {
       this._stateTimer += delta;
       const cdm = this._activePattern ? this._activePattern.cooldown_ms : null;
@@ -1768,6 +1992,7 @@ class Boss {
       }
     }
     this._drawGuardShield(this.scene.time.now);   // 護身 (user 2026-11-13): after the state machine, so the shield vanishes on the very frame 護身 ends (or on death / phase change, which clear it)
+    this._drawCavalry(this.scene.time.now);   // 金戈鐵馬 phantom (user 2026-11-13)
     if (player && !player.dead && this.sprite.active && this._state !== 'jump') {   // no touch damage during the jump flight: the landing shockwave (and its attack seal) is that skill's hit
       if (Phaser.Geom.Intersects.RectangleToRectangle(bodyRect(this.sprite), bodyRect(player.sprite))) {
         const dmg = this._dashContact ? this.contactDamage * 1.5 : this.contactDamage;

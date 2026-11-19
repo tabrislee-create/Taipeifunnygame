@@ -329,6 +329,25 @@
       "id": "summon",
       "seq": 1,
       "once": true
+     },
+     {
+      "primitive": "cavalry_charge",
+      "params": {
+       "damage": 25,
+       "charge_distance": 300,
+       "charge_speed": 280,
+       "phantom_w": 184,
+       "phantom_h": 160,
+       "damage_taken_mult": 0.5,
+       "fade_ms": 400
+      },
+      "telegraph_ms": 1500,
+      "cooldown_ms": 500,
+      "zh_name": "金戈鐵馬",
+      "zh_desc": "將軍俑發出火光幻影將軍騎馬衝鋒，向前衝刺後將玩家彈開。",
+      "id": "cavalry",
+      "cd_ms": 5000,
+      "no_use_ms": 5000
      }
     ]
    },
@@ -392,6 +411,24 @@
       "zh_desc": "同時在場上留下兩個窯火焚坑，被燒到的人無法行動。",
       "id": "kiln_pool",
       "cd_ms": 10500
+     },
+     {
+      "primitive": "cavalry_charge",
+      "params": {
+       "damage": 25,
+       "charge_distance": 300,
+       "charge_speed": 280,
+       "phantom_w": 184,
+       "phantom_h": 160,
+       "damage_taken_mult": 0.5,
+       "fade_ms": 400
+      },
+      "telegraph_ms": 1500,
+      "cooldown_ms": 500,
+      "zh_name": "金戈鐵馬",
+      "zh_desc": "將軍俑發出火光幻影將軍騎馬衝鋒，向前衝刺後將玩家彈開。",
+      "id": "cavalry",
+      "cd_ms": 5000
      }
     ]
    },
@@ -471,6 +508,24 @@
       "id": "beam",
       "seq": 2,
       "cd_ms": 12000
+     },
+     {
+      "primitive": "cavalry_charge",
+      "params": {
+       "damage": 25,
+       "charge_distance": 300,
+       "charge_speed": 280,
+       "phantom_w": 184,
+       "phantom_h": 160,
+       "damage_taken_mult": 0.5,
+       "fade_ms": 400
+      },
+      "telegraph_ms": 1500,
+      "cooldown_ms": 500,
+      "zh_name": "金戈鐵馬",
+      "zh_desc": "將軍俑發出火光幻影將軍騎馬衝鋒，向前衝刺後將玩家彈開。",
+      "id": "cavalry",
+      "cd_ms": 5000
      }
     ]
    }
@@ -555,7 +610,7 @@
   "notes": "Level-10 boss with three color stages; summons two double-size reflecting mirror minions at the start and at each color change.",
   "walk_speed": 50,
   "roam_min_x": 1000,
-  "sink": 14
+  "sink": 7
  },
  {
   "id": "boss_rock_golem",
@@ -573,6 +628,19 @@
    "distance": 400,
    "y_tol": 120,
    "open_ms": 600
+  },
+  "hop": {
+   "gap_ms": [
+    500,
+    1300
+   ],
+   "step": [
+    90,
+    150
+   ],
+   "height": 45,
+   "air_ms": 480,
+   "keep": 150
   },
   "phases": [
    {

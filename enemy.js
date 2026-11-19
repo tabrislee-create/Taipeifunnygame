@@ -55,7 +55,8 @@ class Enemy {
         const bwPx = texW * 0.6;
         const bhPx = texH * 0.85;
         this.sprite.body.setSize(bwPx, bhPx);
-        this.sprite.body.setOffset((texW - bwPx) / 2, texH - bhPx);
+        // def.sink (display px, optional): the art hangs this far below the hitbox (same mechanism as bosses.json 'sink'); user 2026-11-13 foot-zero calibration
+        this.sprite.body.setOffset((texW - bwPx) / 2, texH - bhPx - (def.sink || 0) / scale);
 
         this.spawnX = x;
         this.spawnY = y;
@@ -840,21 +841,30 @@ class Enemy {
             const ry = vx * sn + vy * c;
             vx = rx; vy = ry;
         }
-        const proj = this.scene.physics.add.sprite(s.x + this.dir * 14, s.y - 6, 'enemy_proj');
+        const scene = this.scene;
+        if (!scene.textures.exists('enemy_proj')) {   // generate once so straight projectiles do not show missing-texture box
+            const g = scene.make.graphics({ x: 0, y: 0, add: false });
+            g.fillStyle(0xff6a3a, 1);
+            g.fillCircle(6, 6, 6);
+            g.lineStyle(2, 0x8a2a0a, 1);
+            g.strokeCircle(6, 6, 6);
+            g.generateTexture('enemy_proj', 12, 12);
+            g.destroy();
+        }
+        const proj = scene.physics.add.sprite(s.x + this.dir * 14, s.y - 6, 'enemy_proj');
         proj.setDepth(3);
-        proj.body.setCircle(6, -6, -6);
+        proj.body.setCircle(6);
         proj.body.setAllowGravity(false);
         proj.body.setVelocity(vx, vy);
         (this.scene._enemyShots = this.scene._enemyShots || []).push(proj);   // vendor's flame cancels these (player.js cancelEnemyShots)
         const self = this;
-        const scene = this.scene;
         const updateProj = function () {
             if (!proj.active) { scene.events.off('update', updateProj); return; }
             if (self.dead) return;
             const p = proj.x;
             const q = proj.y;
             if (p < -30 || p > scene.physics.world.bounds.width + 30 || q > 620) { proj.destroy(); return; }
-            if (scene.hasGroundAt(p)) { FX.hitSpark(scene, p, q); if (self.params.ember_pool) self._spawnEmber(p); proj.destroy(); return; }
+            if (scene.hasGroundAt(p) && q >= scene.lvl.y_ground - 4) { FX.hitSpark(scene, p, q); if (self.params.ember_pool) self._spawnEmber(p); proj.destroy(); return; }
             const pl = scene.player;
             if (pl && !pl.dead && Phaser.Geom.Intersects.RectangleToRectangle(proj.getBounds(), bodyRect(pl.sprite))) {
                 pl.takeDamage(self._projDmg, s.x);
@@ -1087,7 +1097,7 @@ class Enemy {
         this._exploded = true;
         const s = this.sprite;
         FX.explosionRing(this.scene, s.x, s.y, this._expRadius);
-        FX.screenShake(this.scene, 0.006, 220);
+        FX.screenShake(this.scene, 6, 220);
         const pl = this.scene.player;
         if (pl && !pl.dead && Math.hypot(pl.sprite.x - s.x, pl.sprite.y - s.y) <= this._expRadius) {
             pl.takeDamage(this._expDmg, s.x);
@@ -1407,23 +1417,26 @@ class Enemy {
                         const d = scene.add.circle(x, floor - 6, rand(3, 5), (pal ? pal.fill : 0x4cd964), 0.9).setDepth(1.95);
                         scene.tweens.add({ targets: d, x: x + rand(-40, 40), y: floor - rand(14, 34), alpha: 0, duration: 320, ease: 'Quad.easeOut', onComplete: function () { d.destroy(); } });
                     }
-                    self._makeGoo(x, floor, W, dur, dmg, true, pal, g.visual !== false);
+                    self._makeGoo(x, floor, W, dur, dmg, true, pal, g.visual !== false, g.center_dy);
                 }
             };
             scene.events.on('update', fall);
-        } else this._makeGoo(x, bottom, W, dur, dmg, false, pal, g.visual !== false);
+        } else this._makeGoo(x, bottom, W, dur, dmg, false, pal, g.visual !== false, g.center_dy);
     }
 
-    _makeGoo(x, bottom, W, dur, dmg, splat, colors, visual) {
+    // centerDy (px, optional; death_goo.center_dy): how far the puddle's centre line sits above `bottom` (the ground line). Default 7 = the old look for slimes;
+    // the jar uses 0 so its damage range is centred on the ground line (user 2026-11-13, foot-zero calibration).
+    _makeGoo(x, bottom, W, dur, dmg, splat, colors, visual, centerDy) {
         const scene = this.scene;
+        const cdy = (typeof centerDy === 'number') ? centerDy : 7;
         const cFill = colors ? colors.fill : 0x4cd964;
         const cStroke = colors ? colors.stroke : 0x1f8f3a;
         const cRoll = colors ? colors.roll : 0xb6ff9a;
         const cBubble = colors ? colors.bubble : 0xc8ffb0;
         const drawVisual = visual !== false;
-        const goo = scene.add.ellipse(x, bottom - 7, W, 18, cFill, 0.8).setStrokeStyle(2, cStroke).setDepth(1.9);
+        const goo = scene.add.ellipse(x, bottom - cdy, W, 18, cFill, 0.8).setStrokeStyle(2, cStroke).setDepth(1.9);
         if (!drawVisual) goo.setVisible(false);
-        const roll = scene.add.ellipse(x, bottom - 8, W * 0.32, 8, cRoll, 0.55).setDepth(1.91);   // lighter blob that rolls around inside
+        const roll = scene.add.ellipse(x, bottom - cdy - 1, W * 0.32, 8, cRoll, 0.55).setDepth(1.91);   // lighter blob that rolls around inside
         if (!drawVisual) roll.setVisible(false);
         const bubbles = [];
         const t0 = scene.time.now;
@@ -1438,13 +1451,13 @@ class Enemy {
             if (drawVisual) {
                 goo.setAlpha(0.8 * fade * (left < 600 ? 1 : 0.9 + 0.1 * Math.sin(now / 120)));
                 goo.setScale(grow * (1 + 0.04 * Math.sin(now / 150)), grow * (1 + 0.12 * Math.sin(now / 110 + 1)));
-                roll.setPosition(x + Math.sin(now / 330) * W * 0.26, bottom - 8 + Math.sin(now / 210) * 1.5);
+                roll.setPosition(x + Math.sin(now / 330) * W * 0.26, bottom - cdy - 1 + Math.sin(now / 210) * 1.5);
                 roll.setScale(1 + 0.25 * Math.sin(now / 190), 1 - 0.3 * Math.sin(now / 190)); roll.setAlpha(0.55 * fade);
                 if (now >= nextBubble && left > 700) {
                     nextBubble = now + rand(90, 220);
                     const r = rand(3, 7), bx = x + rand(-W * 0.4, W * 0.4);
-                    const o = scene.add.circle(bx, bottom - 9, r, cBubble, 0.5).setStrokeStyle(1.5, cStroke).setDepth(1.92);
-                    bubbles.push({ o: o, born: now, life: rand(450, 800), x0: bx, y0: bottom - 9, r: r, rise: rand(14, 30) });
+                    const o = scene.add.circle(bx, bottom - cdy - 2, r, cBubble, 0.5).setStrokeStyle(1.5, cStroke).setDepth(1.92);
+                    bubbles.push({ o: o, born: now, life: rand(450, 800), x0: bx, y0: bottom - cdy - 2, r: r, rise: rand(14, 30) });
                 }
                 for (let k = bubbles.length - 1; k >= 0; k--) {
                     const b = bubbles[k], a = (now - b.born) / b.life;
@@ -1493,7 +1506,9 @@ class Enemy {
         const clamp = function (v) { return Math.max(0, Math.min(255, Math.round(v))); };
         const baseColor = (clamp(0xc8 * f) << 16) | (clamp(0x93 * f) << 8) | clamp(0x5a * f);
         const outlineColor = (clamp(0x6b * f) << 16) | (clamp(0x44 * f) << 8) | clamp(0x23 * f);
+        // restY: where the shards' centres come to rest. Default = 3 px above the ground line (old look); shatter_fx.rest_dy 0 centres the pile on the ground line (user 2026-11-13, foot-zero calibration).
         const floorY = scene.lvl.y_ground;
+        const restY = floorY - (typeof fx.rest_dy === 'number' ? fx.rest_dy : 3);
         const shards = [];
         for (let i = 0; i < count; i++) {
             const size = rand(5, 12);
@@ -1536,8 +1551,8 @@ class Enemy {
                 s.x += s._vx * dt;
                 s.y += s._vy * dt;
                 s.rotation += s._spin * dt;
-                if (s.y >= floorY - 3) {
-                    s.y = floorY - 3;
+                if (s.y >= restY) {
+                    s.y = restY;
                     if (!s._bounced) {
                         s._bounced = true;
                         s._vy = -90;
@@ -1781,12 +1796,15 @@ class Enemy {
         };
         scene.events.on('update', onUpdate);
         z.off = function () { scene.events.off('update', onUpdate); };
+        z.onShutdown = function () { self._removeSteam(z); };   // clear steam update listener when the reused scene restarts
+        scene.events.once('shutdown', z.onShutdown);
     }
 
     _removeSteam(z) {
         if (!z || z.done) return;
         z.done = true;
         if (z.off) z.off();
+        if (z.onShutdown) this.scene.events.off('shutdown', z.onShutdown);
         for (const o of z.objs) { if (o && o.active) o.destroy(); }
         z.objs = [];
         if (this._steamZones) {

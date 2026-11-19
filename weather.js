@@ -411,6 +411,7 @@ var WX = (function () {
     ctx.scene.wetGrip = 1 - (ctx.wet / (target || 1)) * (1 - (WET_GRIP[ctx.weatherId] || 1));
     var g = ctx.wetG, tm = ctx.cond.time, wet = ctx.wet, y0 = RAIN_LAND_MIN - 6, h = RAIN_LAND_MAX - RAIN_LAND_MIN + 10, sh = WET_SHEEN[tm];
     g.clear();
+    if (ctx.scene._rockStage) { if (ctx.reflImg) ctx.reflImg.setVisible(false); return; }   // level 15 boss stage (2026-11-17): no flat street band, so no sheen / mirror strip (the slippery footing above still applies)
     if (ctx.reflImg) {   // mirror image of the backdrop: follows the backdrop's parallax; the wetter the street, the clearer it is
       var bd = ctx.scene.backdrop; if (bd && bd.active) ctx.reflImg.x = bd.x;
       ctx.reflImg.setAlpha(Math.min(1, wet) * (0.75 + 0.1 * Math.sin(time * 0.0013)));
@@ -567,6 +568,7 @@ var WX = (function () {
     ctx.puddleG.clear();
     ctx.rippleG.clear();
     ctx.puddleMaskG.clear();
+    if (ctx.scene._rockStage) { if (ctx.puddleRefl) ctx.puddleRefl.setVisible(false); ctx.ripples.length = 0; return; }   // level 15 boss stage (2026-11-17): rocks at many heights, no flat street for the puddles to lie on
     
     var anyPuddle = false;
     var scrollX = ctx.scene.cameras.main.scrollX;
@@ -1171,6 +1173,10 @@ var WX = (function () {
           r.o.setVisible(inGlass);
         }
         if (r.land === undefined) r.land = rainLand(ctx);
+        if (ctx.scene._rockStage) {   // level 15 boss stage (2026-11-17): the drop lands on the top face of the rock under it (the camera also moves up and down there), not on the fixed street rows
+          if (r.lj === undefined) r.lj = rand(-18, 10);
+          var rcam = ctx.scene.cameras.main; r.land = ctx.scene.surfaceYAt(r.o.x + rcam.scrollX) - rcam.scrollY + r.lj;
+        }
         if (r.o.y >= r.land) {
           var inPuddle = false;
           if (ctx.puddles.length > 0) {

@@ -48,8 +48,8 @@ const PIT_WARN = { spikes: ['很尖', '救人喔!'], pebble: ['健康?', '我踩
 const LANE_BOTTOM = 941, LANE_X0 = 33;   // level 3 lane layer: texture row under the tile, texture column of tile column 0 (make_lv03_lane.py)
 const RAIL_H_SRC = 150, RAIL_FOOT = 1203, RAIL_PAR = 0.7;   // level 5 railing layer: height in source-picture px, foot row on the parapet, share of the camera scroll it moves (the feet plane = 1)
 const BACKDROP_PARALLAX = { 5: 0.12, 10: 0.08 };   // per-level override of the default 0.03 (user 2026-10-13: level 5's railing / distant view looked frozen while walking); a larger value scales the picture up
-const ROCK_PICS = 4, ROCK_PIC_SCALE = 0.45;   // painted rock pictures (assets/rock_block_N.png) and their display scale (source px -> game px)
-const ROCK_H = [40, 70, 100, 125, 150];   // level-15 boss stage rock heights (px above the ground line); jump apex is ~140, each step is <= 30 higher than the one before
+const ROCK_TOP_BACK = 26, ROCK_TOP_FRONT = 14, ROCK_CAM_DY = 60, ROCK_BD_PARY = 0.35;   // level-15 boss stage (user 2026-11-17): a rock's top face is drawn from ROCK_TOP_BACK px above the standing line to ROCK_TOP_FRONT px below it (ground perspective); the camera aims ROCK_CAM_DY px above the rock under the player; the backdrop moves down by ROCK_BD_PARY of the camera's climb
+const ROCK_H = [40, 70, 100, 125, 150];// level-15 boss stage rock heights (px above the ground line); jump apex is ~140, each step is <= 30 higher than the one before
 const FLOOD_SLOW = 0.5;   // flood (user 2026-10-13): walking speed x0.5 (the jump is x1/sqrt2 = half the height, in player.js)
 const PERSP_FACE_DY = 12;   // the cross-section's top edge sits this far below the ground line (= the picture's bottom edge)
 // Level-15 fumarole steam (levels.json smoke_vents, redrawn every frame by _drawVents). User 2026-11-12: 參考火旺伯炒鍋的煙 = the numbers follow VENDOR_ATK.skill in effects.js (smokeEveryMs 60, smokeLife 1300-1800, r0 6-10, smokeGrow 24, the decelerating rise curve 1-(1-u)^1.6, the alpha curve A*min(1,u*5)*(1-u), two nested discs: outer fainter / wider x1.3). VENT_SMOKE_SLOTS puff slots per vent, each slot re-emitting every VENT_SMOKE_LIFE ms, gives about one new puff every 60 ms (26 slots x ~1.55 s life).
@@ -75,7 +75,32 @@ class LevelScene extends Phaser.Scene {
     this._defeatSceneRun = false;
     this._defeatCutscene = false;
     this.boss = null; this._pendingBoss = null;   // the scene instance is reused: a dead boss left from the previous level made _afterClear() play its defeat cutscene when the NEXT level's enemies were all dead (found 2026-11-13: level 10 general -> level 11)
+    this._rocks = null; this._bossRange = null; this._rockG = null; this._rockStage = false; this._camT = null; this._bdFill = null;// clear level 15 rock terrain so it does not leak into later levels
     RUN.levelStats = { hits: 0, kills: 0, startMs: Date.now() };
+  }
+
+  preload() {
+    const want = levelArtList(RUN.level);
+    const wantKeys = new Set(want.map((e) => e.key));
+    // Free other levels' backdrop/ground textures before loading this level so texture memory stays bounded.
+    for (const key of this.textures.getTextureKeys()) {
+      if (/^(backdrop|ground)_lv\d\d[a-z]?(_sky)?$/.test(key) && !wantKeys.has(key)) {
+        this.textures.remove(key);
+      }
+    }
+    let queued = 0;
+    for (const entry of want) {
+      if (!this.textures.exists(entry.key)) {
+        this.load.image(entry.key, entry.url);
+        queued++;
+      }
+    }
+    if (queued > 0) {
+      const txt = this.add.text(GAME_W / 2, 270, '載入中…', {
+        fontFamily: FONT, fontSize: '24px', color: '#ffffff'
+      }).setOrigin(0.5).setScrollFactor(0).setDepth(100);
+      this.load.once('complete', () => { if (txt && txt.active) txt.destroy(); });
+    }
   }
 
   create() {
@@ -109,7 +134,7 @@ class LevelScene extends Phaser.Scene {
     // Backdrop (slow parallax)
     // Per-level artwork (backdrop_lvNN.jpg + ground_lvNN.png); levels without it fall back to the theme art. `sysm` = level-1 mechanics (no platforms, spike pits, exit arrow).
     const lvKey = 'lv' + String(RUN.level).padStart(2, '0');
-    const custom = this.textures.exists('backdrop_' + lvKey) && this.textures.exists('ground_' + lvKey);
+    const custom = (this.textures.exists('backdrop_' + lvKey) || this.textures.exists('backdrop_' + lvKey + '_sky')) && this.textures.exists('ground_' + lvKey);
     const sysm = true; // every level uses the level-1 mechanics: no floating platforms, spike pits instead of open gaps, breathing arrow + walk to the right screen edge to finish (name kept from level 1)
     
     // Check for sky-cut backdrop
@@ -405,8 +430,21 @@ class LevelScene extends Phaser.Scene {
       // top-right corner, always 12 px (keepSize: 大字版 does not enlarge it) (user 2026-10-14: it covered the HUD on the left)
       this._dbgTxt = this.add.text(GAME_W - 4, 4, '', { fontFamily: 'monospace', fontSize: '12px', color: '#00ff66', backgroundColor: '#000000bb', keepSize: true }).setOrigin(1, 0).setScrollFactor(0).setDepth(9999);
       this._dbgFrames = 0; this._dbgErr = '';
-      window.addEventListener('error', (e) => { this._dbgErr = String(e.message || e).slice(0, 80); });
-      window.addEventListener('unhandledrejection', (e) => { this._dbgErr = String(e.reason).slice(0, 80); });
+      const onErr = (e) => { this._dbgErr = String(e.message || e).slice(0, 80); };
+      const onRej = (e) => { this._dbgErr = String(e.reason).slice(0, 80); };
+      window.addEventListener('error', onErr);
+      window.addEventListener('unhandledrejection', onRej);
+      // standing baseline (user 2026-11-13, foot-zero calibration): one red line at lvl.stand_y (levels.json, runtime value; defaults to y_ground) across the whole level. It is a developer aid only: it lives inside this
+      // dbgOn block (dev menu + 'debug 視窗' toggle), so a normal run never draws it. Depth above every sprite so the feet can be read against it. Entities stand with
+      // their lowest foot ~2 px below it so the line runs between near and far foot (see plan/_foot_calib/REPORT.md).
+      this._groundLine = this.add.graphics().setDepth(9000);
+      this._groundLine.lineStyle(2, 0xff0000, 1).lineBetween(-100, this.lvl.stand_y, (this.lvl.width || 3000) + 100, this.lvl.stand_y);
+      this.events.once('shutdown', () => {   // remove window listeners and drop destroyed debug object refs across restarts
+        window.removeEventListener('error', onErr);
+        window.removeEventListener('unhandledrejection', onRej);
+        this._dbgTxt = null;
+        this._groundLine = null;
+      });
     }
     window.GAME_DEBUG = {
       killAll: () => { for (const s of this.enemies.getChildren()) if (s.ref && !s.ref.dead) s.ref.takeHit(99999, 0, false, {}); },
@@ -452,11 +490,16 @@ class LevelScene extends Phaser.Scene {
 
     // Backdrop parallax
     if (this.backdrop) this.backdrop.x = GAME_W / 2 - this.cameras.main.scrollX * this._bdPar;
+    if (this._rockStage) {   // level 15 boss stage: the camera follows the height of the rock under the player (not every jump), and the distant view sinks as the player climbs
+      const ps = this.player.sprite;
+      this._camT.x = ps.x; this._camT.y = this.surfaceYAt(ps.x) - ROCK_CAM_DY;
+      this.backdrop.x += this._bdDX; this.backdrop.y = this._bdY0 - this.cameras.main.scrollY * this._bdParY;
+    }
     if (this._vents) this._drawVents(time);
     if (this.laneFg) this.laneFg.tilePositionX = (this.cameras.main.scrollX - this.laneFg._x0) / this.laneFg._sc;
     if (this.railFg) this.railFg.tilePositionX = this.cameras.main.scrollX * RAIL_PAR / this.railFg._sc;
     if (this._joints) this._drawGroundJoints();
-    if (this._pitG) this._drawPitsPersp();
+    if (this._pitG && !this._rockStage) this._drawPitsPersp();   // (the rock stage has no flat ground band / cross-section)
     if (this._glassUV) this._drawGlassFloor();
 
     // Player update
@@ -1447,44 +1490,58 @@ class LevelScene extends Phaser.Scene {
     if (WX.refreshReflection) WX.refreshReflection(this);   // user 2026-11-13: the wet-street mirror was drawn from the Xiaoyoukeng picture, redraw it from the boss-stage one (a no-op when it is not raining / this level has no mirror)
   }
 
-  // Stepped rock terrain (user 2026-11-11, plan/lv15_stepped_terrain_plan.md): boss_stage.rocks [{x, w, lv 1-5}] = solid blocks standing on the flat ground, heights ROCK_H[lv-1]. Left low, right high; the boss stands on the top one.
-  // Chunk 1: collision + a plain placeholder look (the painted rocks come in chunk 2).
+  // Rock terrain of the boss stage (user 2026-11-17, replaces the 2026-11-11 six blocks on flat ground): boss_stage.rocks [{x, w, h}] stand side by side over the whole level
+  // (h = px above the lowest step; the older {lv 1-5} = ROCK_H still reads), low on the left, up and down but rising to the right; the boss starts on the highest one.
+  // The flat ground band and its cross-section are hidden: the lowest step is the bottom of the picture. Each rock is a solid body from its top down past the screen bottom;
+  // the camera and the physics world open upward, so the climb can be taller than one screen (update() moves the camera target and the backdrop).
+  // Look: plain colour blocks for now (top face in ground perspective + front face); the painted rocks come after the user confirms the layout.
   _buildRocks(bs) {
     this._rocks = []; this._bossRange = null;
     if (!bs.rocks || !bs.rocks.length) return;
-    const yg = this.lvl.y_ground, g = this.add.graphics().setDepth(-0.15);
-    // One painted continuous rocky trail (user picked s1302, 2026-11-11): strip drawn from road_guide.json origin (world x 1380, y 251, 1 source px = 0.5 game px), scrolls 1:1 with the world; the rect bodies below stay the collision.
-    const road = this.textures.exists('rock_road');
-    if (road) this.add.image(1380, 251, 'rock_road').setOrigin(0, 0).setScale(0.5).setDepth(-0.15);
+    const lvl = this.lvl, yg = lvl.y_ground, g = this.add.graphics().setDepth(-0.15), BOT = 600;
+    let hMax = 0;
+    const art = bs.rock_art, pic = !!(art && this.textures.exists(art.key));   // boss_stage.rock_art {key, x, y, scale}: one painted strip over all the rocks (world position of its top-left corner, game px per source px); without it the plain blocks below
+    if (pic) this.add.image(art.x, art.y, art.key).setOrigin(0, 0).setScale(art.scale).setDepth(-0.15);
     for (let i = 0; i < bs.rocks.length; i++) {
       const r = bs.rocks[i];
-      const h = ROCK_H[Math.max(1, Math.min(5, r.lv)) - 1], top = yg - h;
-      const body = this.add.rectangle(r.x + r.w / 2, top + (h + 20) / 2, r.w, h + 20, 0x000000, 0);
+      const h = r.h != null ? r.h : ROCK_H[Math.max(1, Math.min(5, r.lv)) - 1], top = yg - h, l = r.x, rr = r.x + r.w;
+      const body = this.add.rectangle(l + r.w / 2, (top + BOT) / 2, r.w, BOT - top, 0x000000, 0);
       this.physics.add.existing(body, true); this.groundGroup.add(body);
-      if (!road && !this._rockPic(r, top, h, i)) { g.fillStyle(0x8b6f5d, 1); g.fillRect(r.x, top, r.w, h); g.lineStyle(3, 0x4a3a30, 1); g.strokeRect(r.x, top, r.w, h); }   // plain block if the pictures are missing
-      this._rocks.push({ l: r.x, r: r.x + r.w, top: top, lv: r.lv });
+      this._rocks.push({ l: l, r: rr, top: top });
+      if (h > hMax) hMax = h;
+      if (pic) continue;
+      const k = 1 + 0.07 * Math.sin(i * 2.4), col = (c, m) => (Math.min(255, Math.round(((c >> 16) & 255) * m)) << 16) | (Math.min(255, Math.round(((c >> 8) & 255) * m)) << 8) | Math.min(255, Math.round((c & 255) * m));
+      const fy = top + ROCK_TOP_FRONT;
+      g.fillStyle(col(0x96775d, k), 1); g.fillRect(l, fy, r.w, 130);                                   // front face, darker further down
+      g.fillStyle(col(0x96775d, k * 0.86), 1); g.fillRect(l, fy + 130, r.w, 150);
+      g.fillStyle(col(0x96775d, k * 0.72), 1); g.fillRect(l, fy + 280, r.w, Math.max(0, BOT - fy - 280));
+      g.fillStyle(col(0xcdb08e, k), 1);                                                                // top face: a trapezoid narrowing away from the viewer
+      g.fillPoints([{ x: l, y: fy }, { x: rr, y: fy }, { x: rr - 10, y: top - ROCK_TOP_BACK }, { x: l + 10, y: top - ROCK_TOP_BACK }], true);
+      g.lineStyle(2, 0x4a3a30, 0.9); g.lineBetween(l, fy, rr, fy); g.lineBetween(l, fy, l, BOT); g.lineBetween(rr, fy, rr, BOT);
+      g.lineStyle(1, 0x4a3a30, 0.5); g.strokePoints([{ x: l, y: fy }, { x: l + 10, y: top - ROCK_TOP_BACK }, { x: rr - 10, y: top - ROCK_TOP_BACK }, { x: rr, y: fy }], false);
     }
     this._rockG = g;
-    const hi = this._rocks.reduce((a, b) => (b.top < a.top ? b : a));
-    this._bossRange = { l: hi.l, r: hi.r };
+    this._rockStage = true;
+    for (const gp of this._groundParts) gp.ts.setVisible(false);   // no flat ground under the rocks
+    for (const q of [this._pitG, this._pitFG, this._pitFire, this._pitSmoke, this._pitFireF, this._pitSmokeF]) if (q) q.clear();
+    const up = hMax + 300, cam = this.cameras.main, ps = this.player.sprite;
+    this.physics.world.setBounds(0, -up, lvl.width, 700 + up);
+    cam.setBounds(0, -up, lvl.width, 540 + up);
+    this._camT = { x: ps.x, y: this.surfaceYAt(ps.x) - ROCK_CAM_DY };
+    cam.startFollow(this._camT, true, 0.1, 0.1);
+    if (this._ex && this._ex.coins) for (const c of this._ex.coins) if (c && c.active && c.body) c.body.reset(c.x, this.surfaceYAt(c.x, 12) - 14);   // coins left over from the minion stage: up onto the rock that now stands there
+    this._bdY0 = this.backdrop.y; this._bdDX = 0; this._bdParY = ROCK_BD_PARY;
+    // boss_stage.landmark {key, x} (user 2026-11-17: the summit post stands on the highest rock, and must not be seen from the middle of the climb): the post was cut out of the backdrop
+    // picture (art_eval/lv15_rocks/v2/make_post_layer.py) and is its own picture in world space, at the backdrop's scale, its foot on the highest rock's top face.
+    const lm = bs.landmark;
+    if (lm && this.textures.exists(lm.key)) this.add.image(lm.x, yg - hMax - 8, lm.key).setOrigin(0.5, 1).setScale(this.backdrop.scaleX).setDepth(-0.14);   // foot ON the top face (a little behind the standing line), drawn over the rock picture, so there is rock under it
+    this._bdFill = this.add.rectangle(GAME_W / 2, (this._bdY0 - 4 + 540) / 2, GAME_W, 540 - (this._bdY0 - 4), 0x6c5643, 1).setScrollFactor(0).setDepth(-20.5);   // behind the picture: never a strip of sky under its bottom edge when the camera is up
   }
 
-  // Painted rock: one of ROCK_PICS pictures at a fixed scale, a window of the rock's own size cropped from it (top-anchored: the picture's flat top = the rock top, a low rock shows only the top strip). Neighbours use different pictures.
-  _rockPic(r, top, h, i) {
-    const key = 'rock_block_' + (1 + (i * 3 + Math.floor(r.x / 7)) % ROCK_PICS);
-    if (!this.textures.exists(key)) return false;
-    const src = this.textures.get(key).getSourceImage(), S = ROCK_PIC_SCALE, sw = r.w / S, sh = h / S;
-    if (src.width < sw || src.height < sh) return false;
-    const cx = Math.floor(((r.x * 13 + i * 37) % 100) / 100 * (src.width - sw)), cy = 0;
-    const im = this.add.image(r.x - cx * S, top - cy * S, key).setOrigin(0, 0).setScale(S).setDepth(-0.15);
-    im.setCrop(cx, cy, sw, sh);
-    return true;
-  }
-
-  // Surface height at x: the top of the rock there, else the flat ground line.
-  surfaceYAt(x) {
-    let y = this.lvl.y_ground;
-    if (this._rocks) for (const r of this._rocks) if (x >= r.l && x <= r.r && r.top < y) y = r.top;
+  // Surface height at x: the top of the rock there, else the flat ground line. half > 0 = the highest surface under the span x - half .. x + half (what a wide body rests on).
+  surfaceYAt(x, half) {
+    let y = this.lvl.y_ground; const hw = half || 0;
+    if (this._rocks) for (const r of this._rocks) if (x + hw >= r.l && x - hw <= r.r && r.top < y) y = r.top;
     return y;
   }
 
@@ -1548,7 +1605,7 @@ class LevelScene extends Phaser.Scene {
   }
 
   onPlayerDead() {
-    if (this.deathStarted) return;
+    if (this.finished || this.deathStarted) return;
     this.deathStarted = true;
     if (FX.deathSequence) {
       FX.deathSequence(this, this.player, () => this.scene.start('End', { result: 'dead' }));
