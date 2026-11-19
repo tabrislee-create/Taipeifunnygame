@@ -447,7 +447,7 @@ class LevelScene extends Phaser.Scene {
       });
     }
     window.GAME_DEBUG = {
-      killAll: () => { for (const s of this.enemies.getChildren()) if (s.ref && !s.ref.dead) s.ref.takeHit(99999, 0, false, {}); },
+      killAll: () => { for (const s of this.enemies.getChildren()) if (s.ref && !s.ref.dead) s.ref.takeHit(99999, 0, false, { proc: true }); },
       godMode: false,
       tp: (x) => { this.player.sprite.x = x; },
       goto: (n) => { RUN.level = n; this.scene.restart(); }

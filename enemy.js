@@ -13,7 +13,12 @@ class Enemy {
 
         // A Patrol enemy with an 'enemy_<id>_hop' spritesheet (8 cells, see slime_game.aseprite) hops instead of walking
         this.hop = def.behavior === 'Patrol' && scene.textures.exists('enemy_' + def.id + '_hop');
-        const texKey = 'enemy_' + def.id + (this.hop ? '_hop' : '');
+        // Grow (hike_bamblin, user 2026-11-11 「竹精攻擊改為長高」): four pictures of the SAME spriggan from short
+        // to tall are SWAPPED as it grows (never one picture stretched - 「不要用壓的」), so the walking picture is
+        // the shortest of them, g0. The old single picture stays preloaded and unused (req C8).
+        this.growFrames = (def.params && def.params.grow && def.params.grow.frames) ? def.params.grow.frames : null;
+        this.grow = def.behavior === 'Grow' && !!this.growFrames && scene.textures.exists(this.growFrames[0]);
+        const texKey = this.grow ? this.growFrames[0] : ('enemy_' + def.id + (this.hop ? '_hop' : ''));
         const texFrame = scene.textures.get(texKey).get(); // first frame: whole image, or cell 0 of a spritesheet
         let dispH = def.display_h || ENEMY_SIZE_H[def.size] || 48;
         let spriteKey = texKey;
@@ -52,11 +57,15 @@ class Enemy {
 
         // Body size/offset are in source-texture pixels (Phaser multiplies by sprite scale), bottom-aligned like makeSprite
         const texW = texFrame.width;
-        const bwPx = texW * 0.6;
-        const bhPx = texH * 0.85;
+        // Grow (user 2026-11-11, req C6): only the trunk is the hit box (the 59 px picture is 59 wide only
+        // because of the two leafy arms), it is as tall as the current picture, its top is the head the player
+        // jumps at and its bottom the planted feet - so the offset is top-aligned (0), not bottom-aligned.
+        const gb = this.grow ? def.params.grow : null;
+        const bwPx = gb ? (gb.body_w || 26) : texW * 0.6;
+        const bhPx = gb ? texH : texH * 0.85;
         this.sprite.body.setSize(bwPx, bhPx);
         // def.sink (display px, optional): the art hangs this far below the hitbox (same mechanism as bosses.json 'sink'); user 2026-11-13 foot-zero calibration
-        this.sprite.body.setOffset((texW - bwPx) / 2, texH - bhPx - (def.sink || 0) / scale);
+        this.sprite.body.setOffset((texW - bwPx) / 2, gb ? 0 : texH - bhPx - (def.sink || 0) / scale);
 
         this.spawnX = x;
         this.spawnY = y;
@@ -85,6 +94,24 @@ class Enemy {
         this._fuseStart = 0;
         this._exploded = false;
 
+        // Grow machine (hike_bamblin, user 2026-11-11): idle -> growing -> holding -> shrinking -> cooldown ->
+        // idle. Built here, never lazily, because the scene instance is reused across levels and a new state
+        // that only appears inside updateGrow would survive a level change (req C7).
+        if (this.grow) {
+            const g = def.params.grow;
+            this._growState = 'idle';
+            this._growIdx = 0;               // which of the four pictures is showing (0 = walking height)
+            this._growStart = 0;
+            this._growEnd = 0;
+            this._growCdUntil = 0;
+            this._growHit = false;            // one shove per growth (player.js growShove sets it)
+            this._growMs = g.grow_ms != null ? g.grow_ms : 150;
+            this._growHoldMs = g.hold_ms != null ? g.hold_ms : 1000;
+            this._growShrinkMs = g.shrink_ms != null ? g.shrink_ms : 400;
+            this._growCdMs = g.cooldown != null ? g.cooldown : 2800;
+            this._growReachPx = g.trigger_above_px != null ? g.trigger_above_px : 70;
+            this._growBodyW = g.body_w || 26;
+        }
         if (this.behavior === 'Charge') {
             this._chargeCd = this.params.cooldown || 2.5;
             this._chargeSpeed = this.params.charge_speed || (this.speed * 4);
@@ -125,7 +152,7 @@ class Enemy {
             this._expDmg = (this.params.explosion_damage || def.damage) * this.dmgMult;
         }
 
-        if (this.behavior === 'Patrol') {
+        if (this.behavior === 'Patrol' || def.behavior === 'Grow') {   // a spriggan shuffles around exactly like a Patrol enemy between grows (user 2026-11-11); patrol_range keeps its 120 default. Keyed on def.behavior, not this.grow: 'Grow' data whose pictures failed to load (this.grow false) must still have dir/_range, because updateGrow falls back to updatePatrol.
             this.dir = Math.random() < 0.5 ? 1 : -1;
             this._range = this.params.patrol_range || 120;
             if (this.hop) this.initHop();
@@ -271,6 +298,7 @@ class Enemy {
 
         if (time >= (this._popUntil || 0)) switch (this.behavior) {
             case 'Patrol': if (this.hop) this.updateHop(time); else this.updatePatrol(time, dt); break;
+            case 'Grow': this.updateGrow(time, dt); break;   // hike_bamblin (user 2026-11-11)
             case 'Roller': this.updateRoller(time, dt, px); break;
             case 'Chase': this.updateChase(time, dt, px); this._wobbleWhileMoving(time); break;
             case 'Charge': this.updateCharge(time, dt, px); break;
@@ -300,18 +328,22 @@ class Enemy {
             s.setFlipX(this.dir > 0); // art faces left; hop pauses have zero velocity, so face the hop direction instead
         } else if (this.params.face_player) {
             if (Math.abs(px - s.x) > 8) s.setFlipX(px > s.x);   // stands still, so velocity can't say which way it faces: turn to the player (art faces left; no flicker near x)
-        } else if (this.behavior !== 'Charge' || this._chargeState !== 'charging') {
+        } else if ((this.behavior !== 'Charge' || this._chargeState !== 'charging') && !this.growActive()) {   // user 2026-11-20 (grok review 1): keep the facing while growing / holding / shrinking (velocity.x is 0 there)
             s.setFlipX(s.body.velocity.x > 1);
         }
 
         // no contact damage for a moment after the player stomped this enemy (player.js checkStomp sets _stompGrace)
+        // A spriggan that is up in the air with itself (growing / holding / shrinking) is harmless too: its trunk
+        // is 278 px tall for a second and would otherwise add a contact hit every i-frame to the ONE shove the
+        // grow is allowed to land (req C4; QUESTIONS.md D2, user 2026-11-11).
         if (player && !player.dead && !(this._stompGrace > time) && !(this._splitGraceUntil > time) && Phaser.Geom.Intersects.RectangleToRectangle(bodyRect(s), bodyRect(player.sprite))) {
             if (player.examUntil > time || player.nanoUntil > time || player.stirUntil > time) { // Greenie's invincible skill: no damage, the enemy is shoved away instead
                 if (time > (this._knockUntil || 0) && !this.isFlyer() && this.behavior !== 'Exploder') {
                     this._knockUntil = time + 400;
                     s.body.setVelocityX((Math.sign(s.x - player.sprite.x) || 1) * 260);
+                    this._growSkillHit(time);   // a skill touched it (Greenie's invincible skill): shrink back, user 2026-11-20
                 }
-            } else {
+            } else {   // user 2026-11-20: contact damage is ON through growing / holding / shrinking (overrides the earlier 'harmless while up' D2)
             const hurtBefore = player.invUntil;
             player.takeDamage(this.contactDamage, s.x);
             if (this._recoilMs > 0 && player.invUntil > hurtBefore) {
@@ -320,6 +352,153 @@ class Enemy {
             }
             }
         }
+    }
+
+    // ---------- Grow (hike_bamblin, user 2026-11-11: 「竹精攻擊改為長高，類似燈俑的火焰長高模式，若玩家跳起來要踩竹精，
+    // 瞬間身高變3倍把玩家(受傷)彈回去」) ----------
+    // It walks like a Patrol enemy and never attacks on its own. player.js's shared head-guard scan asks
+    // growReach() whether his feet are over the head it currently has; if they are, startGrow() runs the
+    // machine below: swap g0 -> g1 -> g2 -> g3 inside grow_ms (picture AND hit box together, feet planted),
+    // hold g3 for hold_ms, swap back over shrink_ms, then cooldown ms of walking during which it cannot
+    // trigger again. The shove itself is player.js growShove (params.grow.damage + knock, like the lamp's
+    // flame); this file only decides WHEN the rising head has reached his feet (_growPushCheck).
+
+    // true while the trunk is taller than walking height: no walking, and no contact damage from it.
+    // A SKILL hit the up trunk (user 2026-11-20 「玩家開技能打到長高的竹精，判定被打到，縮回原尺寸」): growing/holding
+    // turn into 'shrinking' from the frame it is showing now; a plain attack never gets here (see takeHit).
+    _growSkillHit(now) {
+        if (this._growState !== 'growing' && this._growState !== 'holding') return;
+        this._growShrinkFrom = Math.max(0, this._growIdx);
+        this._growState = 'shrinking';
+        this._growStart = now;
+        this._growEnd = now + this._growShrinkMs * (this._growShrinkFrom + 1) / this.growFrames.length;
+    }
+
+    growActive() { return this._growState === 'growing' || this._growState === 'holding' || this._growState === 'shrinking'; }
+
+    // Reach in px above its CURRENT head top it still reacts to the player's feet; 0 = cannot start a grow
+    // right now (busy, on cooldown, launched, dead, or no grow pictures loaded).
+    growReach(now) {
+        if (!this.grow || this.dead || this._launchState) return 0;
+        if (this._growState !== 'idle') return 0;
+        if (now < this._growCdUntil) return 0;
+        return this._growReachPx;
+    }
+
+    startGrow(now) {
+        if (!this.growReach(now)) return false;
+        this._growState = 'growing';
+        this._growStart = now;
+        this._growEnd = now + this._growMs;
+        this._growHit = false;                       // one shove per growth (req C4)
+        this.sprite.body.setVelocityX(0);            // planted: it never walks while it is up (req C2)
+        return true;
+    }
+
+    // One picture = one hit box (never a stretched sprite, user 2026-11-11 「不要用壓的」). The feet stay where
+    // they are and the head is the top of the box. The arcade body is re-derived from the sprite EVERY frame
+    // (Body.preUpdate -> updateFromGameObject: position = sprite + scale*(offset - displayOrigin)), so the
+    // sprite y, the body size, its offset and the prev/autoFrame bookkeeping have to be re-synced in one go:
+    // swapping only the texture leaves the picture and the box one frame apart and keeps the old height in the
+    // body's _dy, which the collision step then applies as a landing impulse.
+    _growSetFrame(i) {
+        const fr = this.growFrames;
+        if (!fr || this.dead || !this.sprite || !this.sprite.body) return false;
+        i = Math.max(0, Math.min(fr.length - 1, i));
+        if (i === this._growIdx) return false;
+        const key = fr[i];
+        if (!key || !this.scene.textures.exists(key)) return false;
+        const s = this.sprite, b = s.body;
+        const feet = b.bottom, vx = b.velocity.x, vy = b.velocity.y;
+        const scY = s.baseScaleY || s.scaleY || 1;      // FX.squash never changes the body (shims.js), so the body follows baseScale
+        const rising = i > this._growIdx, topBefore = b.top;
+        s.setTexture(key);
+        s.y = feet - (s.height * scY) / 2;              // origin 0.5: the bottom edge stays at 'feet'
+        b.setSize(this._growBodyW, s.height, false);    // texture px; the offset below says where the trunk sits
+        b.setOffset((s.width - this._growBodyW) / 2, 0);   // 0 = top aligned -> the head IS the top of the box
+        b.reset(s.x, s.y);                               // stop + the box follows the new sprite, prev re-synced
+        b.setVelocity(vx, vy);
+        this._growIdx = i;
+        if (rising) this._growPushCheck(topBefore);       // did this step's head pass up through the player's feet?
+        return true;
+    }
+
+    // The shove only happens when the rising head passes UP THROUGH the player's feet (req C4). A plain "his
+    // feet are below my head top" test would also fire for a player who is simply standing on the floor next
+    // to a 278 px tall trunk - a head that never touched him.
+    _growPushCheck(topBefore) {
+        if (this._growHit || this._growState !== 'growing') return;
+        const pl = this.scene.player;
+        if (!pl || pl.dead || !pl.sprite || !pl.sprite.body) return;
+        const pb = pl.sprite.body, eb = this.sprite.body;
+        if (Math.abs(pl.sprite.x - this.sprite.x) >= (pb.halfWidth + eb.halfWidth + 8)) return;   // same sideways test as the lamp's head guard
+        if (topBefore <= pb.bottom) return;        // the head was already in his feet before this step (the trigger handles that case)
+        if (eb.top > pb.bottom) return;            // ... and this step did not reach them
+        // CONTRACT with player.js (chunk 4): the shove, its damage and its knock live there (growShove).
+        // Guarded, because this file is loaded before that half exists - a missing function must not throw
+        // inside the update loop (QUESTIONS.md B3).
+        if (typeof pl.growShove === 'function') pl.growShove(this, this.scene.time.now);
+    }
+
+    // Hit back, thrown into the air, knocked into a pit WHILE THE TRUNK IS UP: the grow is over right now,
+    // the picture and the hit box go straight back to g0 and the cooldown is cleared (user 2026-11-20
+    // 「長高中被擊退、掉坑、被丟起來時，外觀與碰撞框直接重設回最矮（g0）、回 idle、冷卻清 0」). Only an 'up'
+    // state gives up: wiping the cooldown of a spriggan that is already walking would hand whoever hits it
+    // a freshly loaded trigger (QUESTIONS.md B2 / D1).
+    _growGiveUp() {
+        if (this.growActive()) this._growResetLook();
+    }
+
+    // Back to the walking picture and a clean machine: death, a launch, a pit reset (req C7 - no wrong height,
+    // no half-finished timer, no exception when it dies in the middle of a grow).
+    _growResetLook() {
+        if (!this.grow) return;
+        this._growState = 'idle';
+        this._growHit = false;
+        this._growStart = 0;
+        this._growEnd = 0;
+        this._growCdUntil = 0;
+        const s = this.sprite;
+        if (!s || !s.active || !s.body) return;
+        this._growSetFrame(0);
+    }
+
+    updateGrow(time, dt) {
+        if (!this.grow) { this.updatePatrol(time, dt); return; }   // 'Grow' without a usable params.grow / textures: walk like Patrol instead of throwing on growFrames.length every frame
+        const s = this.sprite, n = this.growFrames.length, st = this._growState;
+        if (st === 'growing' || st === 'holding' || st === 'shrinking') {
+            if (time > (this._knockUntil || 0)) s.body.setVelocityX(0);   // planted; a hit's knock-back still wins
+            if (st !== 'holding') {
+                // all four pictures share grow_ms / shrink_ms in equal parts, so the tallest one is reached 3/4
+                // of the way through and 'growing' really does show the 3x head for a moment (QUESTIONS.md B1)
+                const step = (st === 'shrinking' ? this._growShrinkMs : this._growMs) / n;
+                const el = time - this._growStart;
+                this._growSetFrame(st === 'shrinking'
+                    ? Math.max(0, (this._growShrinkFrom != null ? this._growShrinkFrom : n - 1) - Math.floor(el / step))
+                    : Math.min(n - 1, Math.floor(el / step)));
+            }
+            if (time < this._growEnd) return;
+            if (st === 'growing') {
+                this._growSetFrame(n - 1);
+                this._growState = 'holding';
+                this._growStart = time;
+                this._growEnd = time + this._growHoldMs;
+            } else if (st === 'holding') {
+                this._growState = 'shrinking';
+                this._growShrinkFrom = n - 1;
+                this._growStart = time;
+                this._growEnd = time + this._growShrinkMs;
+            } else {
+                this._growSetFrame(0);
+                this._growHit = false;                 // the next growth may shove once again
+                this._growState = 'cooldown';
+                this._growCdUntil = time + this._growCdMs;
+                this._growEnd = this._growCdUntil;
+            }
+            return;
+        }
+        if (st === 'cooldown' && time >= this._growEnd) this._growState = 'idle';
+        this.updatePatrol(time, dt);   // it walks during 'idle' AND during the cooldown (req C2: 期間照常巡邏)
     }
 
     updatePatrol(time, dt) {
@@ -973,7 +1152,7 @@ class Enemy {
             }
         };
         scene.events.on('update', updateArrow);
-        scene.time.delayedCall(4000, function () {
+        scene.time.delayedCall(8000, function () {   // user 2026-11-20: 8000 (was 4000): the half-speed mud ball (flight time x2) can need ~4.5 s to reach the ground when aimed at a jumping player; a cap hit here would remove it before it opens its steam column (grok review 1)
             if (arrow.active) arrow.destroy();
             if (tip && tip.active) tip.destroy();
         });
@@ -1241,6 +1420,12 @@ class Enemy {
         if (this.dead) return;
         if (this._splitGraceUntil > this.scene.time.now) return;   // freshly split black slime: invulnerable while it flickers (user 2026-10-14)
         if (this.params && this.params.fixed_hp) damage = Math.max(1, damage);
+        // user 2026-11-20: a bamboo spriggan that is up (growing / holding / shrinking) ignores plain attacks (sword,
+        // mid-range shots, SIM) and runs the whole grow; only a skill hit (info.proc) lands and makes it shrink back.
+        // A stomp from a player who really is above the 3x head still counts (user 2026-11-11), without cancelling.
+        const growUp = this.growActive();
+        if (growUp && !(info && (info.proc || info.stomp))) return;
+        if (growUp && info && info.proc) this._growSkillHit(this.scene.time.now);
         // Mirror enemies: immune to non-stomp hits; absorb FX + counting + beam firing
         if (this.params.absorb && this.params.mirror_beam && !(info && info.stomp)) {
             this.onMirrorHit();
@@ -1253,6 +1438,7 @@ class Enemy {
             this._knockUntil = this.scene.time.now + 400;
             const dir = Math.sign(this.sprite.x - srcX) || 1;
             this.sprite.body.setVelocityX(dir * (isCrit ? 360 : 260));   // was 140 (user 2026-10-13: stronger knock-back, to test)
+            if (!growUp) this._growGiveUp();   // (an up trunk never snaps back from a hit: see above; no-op when idle anyway)
             const s = this.sprite, self = this;
             this.scene.time.delayedCall(150, function () {
                 if (!s.active || self._popUntil > self.scene.time.now) return;
@@ -1273,6 +1459,8 @@ class Enemy {
         this._knockUntil = this.scene.time.now + 400;
         this._popUntil = this.scene.time.now + 700;   // AI movement is paused meanwhile (Patrol etc. rewrite velocity.x every frame and would cancel the pop)
         s.body.setVelocity(vx, vy);
+        this._growGiveUp();   // the pop is a knock-back too; updateGrow is NOT called while _popUntil runs, so
+                              // a tall spriggan would else stay 278 px tall in the air for the whole pop (req C4)
     }
 
     // Auntie's skill (take profit): knocked up and away from `srcX` on a 45 degree path (apex `heightPx`, so it lands 4 x heightPx away), and once it lands it is stunned for `stunMs`.  Bosses have no launch().  Not re-launched
@@ -1284,6 +1472,7 @@ class Enemy {
         b.setAllowGravity(true);
         const vy = Math.sqrt(2 * 1000 * cfg.heightPx) + 1000 / 120;   // gravity is 1000 px/s^2 (main.js)
         b.setVelocity((Math.sign(s.x - srcX) || 1) * vy, -vy);        // vx = vy -> 45 degrees, away from the caster
+        if (this.grow) this._growGiveUp();   // a thrown bamboo comes back down at walking height, not 278 px tall; while launched updateGrow never runs (user 2026-11-11/20, req C4)
         if (this._telegraph) this._telegraph.setVisible(false);
         s.clearTint();
         if (this.hop) s.setFrame(3);
@@ -1385,6 +1574,7 @@ class Enemy {
         this.hp -= 20;
         FX.damageNumber(this.scene, s.x, this.scene.lvl.y_ground - 30, 20, false, false);
         if (this.hp <= 0) { this.fell = true; this.die(); return; }
+        if (this.grow) this._growGiveUp();   // BEFORE the body reset, so it is re-placed at walking height (user 2026-11-11/20, req C4)
         s.body.reset(this.spawnX, this.spawnY);
         s.setAlpha(0.5); s.clearTint();
         this._resetUntil = now + 1500;
@@ -1731,7 +1921,7 @@ class Enemy {
             if (drop.x < -30 || drop.x > W + 30 || drop.y > 620 || drop.y < -30) { drop.destroy(); scene.events.off('update', upd); return; }
         };
         scene.events.on('update', upd);
-        scene.time.delayedCall(3000, function () { if (drop.active) { drop.destroy(); } });   // the handler's !active guard removes itself
+        scene.time.delayedCall(4000, function () { if (drop.active) { drop.destroy(); } });   // the handler's !active guard removes itself   // user 2026-11-19: 4000 (was 3000) so a half-speed drop (110 px/s) still covers shoot.range 380 before the lifetime cap
     }
 
     // ---------- hike_cinderite: steam column where the mud ball lands (loop/req.md §4) ----------
@@ -1815,6 +2005,7 @@ class Enemy {
 
     die() {
         if (this.dead) return;
+        if (this.grow) this._growResetLook();   // a corpse is never left 278 px tall or with a tall hit box, and it dies the same way in any grow state (user 2026-11-11, req C7)
         if (this._flame) { this._flame.destroy(); this._flame = null; }
         // hike_sprig: a drop already in the air and the windup go away with the sprig (loop/req.md §2)
         if (this._shots) {

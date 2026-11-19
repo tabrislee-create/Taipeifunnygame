@@ -172,6 +172,10 @@ class BootScene extends Phaser.Scene {
     for (var j = 0; j < en.length; j++) {
       this.load.image('enemy_' + en[j], 'assets/enemy_' + en[j] + '.png');
     }
+    // hike_bamblin's 'Grow' attack (user 2026-11-11 「竹精攻擊改為長高」): the same spriggan in four heights - the
+    // machine in enemy.js swaps these pictures (96 / 142 / 187 / 278 px tall, all 59 px wide, feet aligned) and
+    // never stretches one of them. g0 is also its walking picture; the single picture above stays loaded.
+    for (var gi = 0; gi <= 3; gi++) this.load.image('enemy_hike_bamblin_g' + gi, 'assets/enemy_hike_bamblin_g' + gi + '.png');
     // hopping slimes (blue/green/yellow/red = hue shifts of one sheet, tools/recolor_slime.py): 8-cell spritesheet (288x220 per cell)
     ['blue', 'green', 'yellow', 'red', 'black'].forEach(function (c) { this.load.spritesheet('enemy_slime_' + c + '_hop', 'assets/enemy_slime_' + c + '_hop.png', { frameWidth: 288, frameHeight: 220 }); }, this);
     var bo = Object.keys(D.bosses);

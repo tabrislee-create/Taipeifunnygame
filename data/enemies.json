@@ -674,7 +674,7 @@
     "windup_ms": 600,
     "cd_ms": 3200,
     "hold_ms": 900,
-    "projectile_speed": 220,
+    "projectile_speed": 110,
     "projectile_damage": 8
    }
   },
@@ -686,7 +686,7 @@
   "id": "hike_bamblin",
   "name_en": "Bamboo Spriggan",
   "name_zh": "竹精怪",
-  "behavior": "Charge",
+  "behavior": "Grow",
   "size": "medium",
   "display_h": 96,
   "hp": 50,
@@ -696,14 +696,29 @@
    "death_fade": {
     "ms": 600
    },
-   "charge_speed": 360,
-   "charge_duration": 0.7,
-   "cooldown": 2.8,
-   "rebound": true
+   "grow": {
+    "frames": [
+     "enemy_hike_bamblin_g0",
+     "enemy_hike_bamblin_g1",
+     "enemy_hike_bamblin_g2",
+     "enemy_hike_bamblin_g3"
+    ],
+    "grow_ms": 150,
+    "hold_ms": 1000,
+    "shrink_ms": 400,
+    "cooldown": 2800,
+    "trigger_above_px": 70,
+    "damage": 15,
+    "knock": {
+     "x": 480,
+     "y": -380
+    },
+    "body_w": 26
+   }
   },
   "first_level": 14,
   "art_prompt": "chibi cute upright bamboo stalk sprite, body made of three segmented green bamboo culms with clear node rings and waxy glossy skin, a tuft of thin bamboo leaves on top of its head like messy hair, one small leafy branch sticking out each side like an arm, mischievous squinting grin with one big buck tooth, pale jade green with darker green nodes and a few brown sheath husks hanging off the base, Stardew-like painted look, thick outline, single character, full body, facing left, plain transparent background",
-  "notes": "Level-14 hiking minion (wood). Charges like the wild boar but slower and for a shorter burst; because of 'rebound' a charge that runs into a wall or into the end of the ground does not die there - it reverses on the spot and charges the full charge_duration once more (at most one reversal per charge, only the first impact counts) before its cooldown, so hugging a wall is not safe. Enemies without 'rebound' (the boar) keep the old behaviour."
+  "notes": "Level-14/15 hiking minion (wood). Grow attack (user 2026-11-11): it no longer charges. It shuffles around slowly like a Patrol enemy and never attacks on its own - the ONLY way its grow happens is the player dropping onto its head. When the player's feet come down within trigger_above_px (70, the same reach as the lamp-bearer's flame guard) above the CURRENT head, with the bodies overlapping sideways, the spriggan shoots up to 3x its height (96 to 278 px = 2.9x, user 2026-11-11 asked for 'instantly 3 times') by swapping the four pictures g0..g3 (all 59 px wide, 96/142/187/278 px tall, feet planted, the trunk hit box grows with the picture; never a stretched sprite) in grow_ms, holds the tallest picture for hold_ms, shrinks back over shrink_ms and then cannot trigger again for cooldown ms (2.8 s, the old charge cooldown) while it keeps walking. A player whose feet the rising head actually passes on the way up is hit once per grow for params.grow.damage (15, the old contact damage) with params.grow.knock (480 / -380 = the lamp-bearer's numbers) and cannot be hurt by it again for 700 ms; its own body deals no contact damage while it is up, so one grow never lands a second hit. A player above the tallest head (g3 = 278 px, while a normal jump only reaches 168 px) is never hit and can stomp it like any other minion. Walking art is g0; the old single picture stays loaded but unused."
  },
  {
   "id": "hike_cinderite",
@@ -720,16 +735,16 @@
     "ms": 600
    },
    "fire_rate": 5.2,
-   "projectile_speed": 300,
+   "projectile_speed": 150,
    "projectile_damage": 6,
    "face_player": true,
    "windup_ms": 500,
    "arc": {
-    "gravity": 448,
+    "gravity": 112,
     "spread": 0.2,
     "max_range": 420,
-    "min_flight_ms": 500,
-    "max_flight_ms": 1500
+    "min_flight_ms": 1000,
+    "max_flight_ms": 3000
    },
    "landing_zone": {
     "warn_ms": 500,
