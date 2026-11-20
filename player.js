@@ -214,7 +214,7 @@ class Player {
     this.updateProjectiles(now);
     this.updateReflected(now);
 
-    this._checkFlameGuard(now);
+    this._checkHeadGuards(now);
     this.checkStomp(now);
 
     // Fell out of the level: centre below 620, or lying on the world's bottom edge (a tall character such as the geek rests there with its centre at ~605-620,
@@ -497,7 +497,6 @@ class Player {
   // shove the player away and set them alight (contact damage, knock-back via takeDamage, then a burn DOT).
   _stompFlame(ref, now) {
     const sf = ref.params.stomp_flame, s = this.sprite, scene = this.scene;
-    ref._stompGrace = now + 700;                                   // no stacked contact damage right after the burst
     const fl = (sf.flame) || {};
     const sp = ref.sprite;
     const fg = ref.params.flame_glow;
@@ -507,34 +506,85 @@ class Player {
       fy = sp.y + (fg.y - 0.5) * sp.displayHeight;
     }
     FX.lampFlame(scene, fx, fy, fl);
-    const landed = this.takeDamage(sf.damage || 6, ref.sprite.x);
-    if (!landed) {                                                 // still invulnerable: shove away anyway, no burn
-      s.body.setVelocity((s.x < ref.sprite.x ? -1 : 1) * 450, -300);
-      return;
-    }
-    s.body.setVelocity((s.x < ref.sprite.x ? -1 : 1) * 480, -380);
+    // The shove part is shared with the bamboo spriggan since 2026-11-11 (_guardBurst); the numbers here are
+    // the ones this function always had: 480 / -380 and a 700 ms grace.
+    if (!this._guardBurst(ref, now, { damage: sf.damage || 6, knock: { x: 480, y: -380 } })) return;   // still invulnerable: shove away anyway, no burn
     this.sprite.setTint(0x222222);
     scene.time.delayedCall(1500, () => { if (this.sprite && this.sprite.active) this.sprite.clearTint(); });
     this.applyDot(sf.burn_ms || 2000, sf.burn_dmg || 2, sf.burn_interval || 500);
     FX.burnFlame(scene, s.x, s.y - 10);
   }
 
-  // Flare the lamp-bearer up a moment BEFORE contact: falling player whose feet are just above the enemy's head.
-  _checkFlameGuard(now) {
+  // What the two head guards DO when they catch him up close (user 2026-11-11: 「不要複製一份，改成通用化」 - this
+  // used to be the middle of _stompFlame). The damage goes through takeDamage, so i-frames, shields, death and
+  // hooks keep working; the knock is cfg.knock away from the enemy; and cfg.graceMs of _stompGrace on the enemy
+  // is what keeps enemy.js's contact damage and checkStomp from piling a second hit onto the same event.
+  // Returns true when the damage actually landed (invulnerable / godMode => false, and then it only shoves).
+  _guardBurst(ref, now, cfg) {
+    ref._stompGrace = now + (cfg.graceMs || 700);   // no stacked contact damage right after the burst
+    const s = this.sprite, away = (s.x < ref.sprite.x ? -1 : 1);
+    const landed = this.takeDamage(cfg.damage, ref.sprite.x);
+    if (!landed) {                                  // still invulnerable: shove away anyway
+      s.body.setVelocity(away * 450, -300);
+      return false;
+    }
+    s.body.setVelocity(away * cfg.knock.x, cfg.knock.y);
+    return true;
+  }
+
+  // The bamboo spriggan's head pushed up into his feet mid-grow (enemy.js _growPushCheck), or his feet were
+  // already inside it when the grow started (see _checkHeadGuards). One shove per growth: params.grow.damage
+  // (15, the old contact damage) and params.grow.knock 480 / -380, the lamp-bearer's numbers (user 2026-11-11:
+  // 「與燈俑的火焰長高模式」一致). No flame FX and no burn DOT: growing is not fire, and a DOT would be a second,
+  // unannounced hit on top of the one the grow is allowed to land (req C4).
+  growShove(ref, now) {
+    const g = (ref.params && ref.params.grow) || {}, k = g.knock || {};
+    ref._growHit = true;                            // enemy.js: one shove per growth, cleared when it is back down
+    if (ref.sprite && ref.sprite.active) FX.hitSpark(this.scene, ref.sprite.x, ref.sprite.body ? ref.sprite.body.top : ref.sprite.y);
+    this._guardBurst(ref, now, {
+      damage: g.damage != null ? g.damage : 15,
+      knock: { x: k.x != null ? k.x : 480, y: k.y != null ? k.y : -380 }
+    });
+  }
+
+  // A "head guard" is an enemy that defends the space directly above its own head, and there are two of them
+  // asking the same question: the lamp-bearer (params.stomp_flame) flares up when his feet come down at its
+  // head, and the bamboo spriggan (params.grow, user 2026-11-11 「竹精攻擊改為長高」) shoots up to 3x its height.
+  // There is therefore ONE scan for both (「不要複製一份，改成通用化」); the lamp's own numbers are exactly what
+  // they were in the old _checkFlameGuard (70 px reach, 12 px below the head, _stompGrace 700 ms), and the
+  // spriggan brings its own reach from params.grow.trigger_above_px (70) and its own cooldown bookkeeping.
+  _checkHeadGuards(now) {
     const s = this.sprite, b = s.body;
     if (!b) return;   // rising counts too (user 2026-10-28: a jump toward its head is cut off by the flame, not only a fall)
+    const bottom = b.bottom;
     const list = this.scene.enemies.getChildren();
     for (let i = 0; i < list.length; i++) {
       const es = list[i], ref = es.ref;   // (es.getData('ref') was never set, so this guard never fired)
-      if (!ref || !ref.params || !ref.params.stomp_flame) continue;
+      if (!ref || !ref.params) continue;
+      const flame = ref.params.stomp_flame, grow = ref.params.grow;
+      if (!flame && !grow) continue;
       if (ref._stompGrace > now) continue;
       const eb = es.body;
       if (!eb) continue;
       if (Math.abs(s.x - es.x) >= (b.halfWidth + eb.halfWidth + 8)) continue;
-      if (b.bottom >= eb.top - 70 && b.bottom <= eb.top + 12) {
-        this._stompFlame(ref, now);
-        return;
+      if (flame) {
+        if (bottom >= eb.top - 70 && bottom <= eb.top + 12) {
+          this._stompFlame(ref, now);
+          return;
+        }
+        continue;
       }
+      // Bamboo spriggan: growReach() is 0 while it is already growing / holding / shrinking, on cooldown,
+      // dead or launched, so a player who beat one grow and is standing on its head is safe until the
+      // cooldown runs out (QUESTIONS.md D3).
+      const reach = ref.growReach ? ref.growReach(now) : 0;
+      if (!reach) continue;
+      if (bottom < eb.top - reach || bottom > eb.top + 12) continue;
+      if (!ref.startGrow(now)) continue;
+      // His feet were already at or below the head top when it started: the head is in his feet from this very
+      // frame, so shove now instead of waiting for a rising step that would only move it further up.
+      if (bottom >= eb.top) this.growShove(ref, now);
+      return;
     }
   }
 

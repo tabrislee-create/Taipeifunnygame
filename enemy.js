@@ -105,6 +105,7 @@ class Enemy {
             this._growEnd = 0;
             this._growCdUntil = 0;
             this._growHit = false;            // one shove per growth (player.js growShove sets it)
+            this._growGiveUpAt = 0;           // user 2026-11-20 (S2): the frame a knock-back cancelled an up state, so the SAME-frame player.js head-guard scan cannot re-trigger it; built here so a level change clears it (req C7)
             this._growMs = g.grow_ms != null ? g.grow_ms : 150;
             this._growHoldMs = g.hold_ms != null ? g.hold_ms : 1000;
             this._growShrinkMs = g.shrink_ms != null ? g.shrink_ms : 400;
@@ -333,9 +334,8 @@ class Enemy {
         }
 
         // no contact damage for a moment after the player stomped this enemy (player.js checkStomp sets _stompGrace)
-        // A spriggan that is up in the air with itself (growing / holding / shrinking) is harmless too: its trunk
-        // is 278 px tall for a second and would otherwise add a contact hit every i-frame to the ONE shove the
-        // grow is allowed to land (req C4; QUESTIONS.md D2, user 2026-11-11).
+        // A spriggan that is up (growing / holding / shrinking) DOES deal contact damage the whole time (user
+        // 2026-11-20); after the grow's own shove the 700 ms _stompGrace holds it off, then the 0.8 s i-frames apply.
         if (player && !player.dead && !(this._stompGrace > time) && !(this._splitGraceUntil > time) && Phaser.Geom.Intersects.RectangleToRectangle(bodyRect(s), bodyRect(player.sprite))) {
             if (player.examUntil > time || player.nanoUntil > time || player.stirUntil > time) { // Greenie's invincible skill: no damage, the enemy is shoved away instead
                 if (time > (this._knockUntil || 0) && !this.isFlyer() && this.behavior !== 'Exploder') {
@@ -363,7 +363,7 @@ class Enemy {
     // trigger again. The shove itself is player.js growShove (params.grow.damage + knock, like the lamp's
     // flame); this file only decides WHEN the rising head has reached his feet (_growPushCheck).
 
-    // true while the trunk is taller than walking height: no walking, and no contact damage from it.
+    // true while the trunk is taller than walking height: no walking (contact damage stays ON, user 2026-11-20).
     // A SKILL hit the up trunk (user 2026-11-20 「玩家開技能打到長高的竹精，判定被打到，縮回原尺寸」): growing/holding
     // turn into 'shrinking' from the frame it is showing now; a plain attack never gets here (see takeHit).
     _growSkillHit(now) {
@@ -382,6 +382,8 @@ class Enemy {
         if (!this.grow || this.dead || this._launchState) return 0;
         if (this._growState !== 'idle') return 0;
         if (now < this._growCdUntil) return 0;
+        if (now < (this._popUntil || 0) || now < (this._resetUntil || 0)) return 0;   // grok chunk4 review 1: AI is frozen (nudge pop / pit reset), updateGrow would not run, so a grow started now would sit at g0 and jump to g3 when the freeze ends
+        if (now === this._growGiveUpAt) return 0;   // user 2026-11-20 (S2): a knock-back cancelled the grow on THIS frame (player.attack -> nudge/launch -> _growGiveUp ran before _checkHeadGuards in the same player.update). Refuse a re-trigger until the next frame; the cooldown is still 0, so the very next frame may grow again (does not violate 「冷卻清 0」).
         return this._growReachPx;
     }
 
@@ -446,7 +448,15 @@ class Enemy {
     // state gives up: wiping the cooldown of a spriggan that is already walking would hand whoever hits it
     // a freshly loaded trigger (QUESTIONS.md B2 / D1).
     _growGiveUp() {
-        if (this.growActive()) this._growResetLook();
+        if (this.growActive()) {
+            // user 2026-11-20 (S2): stamp the frame so growReach() refuses a same-frame re-trigger from the
+            // player.js head-guard scan (player.attack() runs _growGiveUp before _checkHeadGuards in the SAME
+            // player.update, so the rising feet would otherwise startGrow again this very frame). Only stamp
+            // when an up state was actually cancelled: wiping the cooldown bookkeeping of an already-walking
+            // spriggan would hand whoever bumps into it a fresh trigger (same reason takeHit guards _growGiveUp).
+            this._growGiveUpAt = this.scene.time.now;
+            this._growResetLook();
+        }
     }
 
     // Back to the walking picture and a clean machine: death, a launch, a pit reset (req C7 - no wrong height,
